@@ -219,7 +219,7 @@ function NameField(): React.JSX.Element {
     <span className="row" style={{ gap: 10 }}>
       {note && <span style={{ fontSize: 12.5, color: note === 'Saved' ? 'var(--ink3)' : 'var(--err)' }}>{note}</span>}
       <input
-        className="st-sel st-in"
+        className="st-sel st-field"
         style={{ minWidth: 320 }}
         value={value}
         maxLength={80}
