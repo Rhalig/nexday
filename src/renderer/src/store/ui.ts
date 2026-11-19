@@ -88,6 +88,9 @@ export const DEFAULT_NOTIFS: NotifPrefs = {
   ]
 }
 
+/** Per-project switches kept with the account (by project key). */
+export type ProjectPref = { sidebar?: boolean; auto?: boolean; description?: string; weekly?: number }
+
 export type CalPrefs = {
   syncDirection: 'Two-way' | 'Calendar to Nexday'
   newEventCalendar: 'Personal' | 'Work' | 'Planner MVP'
@@ -158,6 +161,8 @@ type UIState = {
   notifPrefs: NotifPrefs
   setNotifPrefs: (patch: Partial<NotifPrefs>) => void
   calPrefs: CalPrefs
+  projectPrefs: Record<string, ProjectPref>
+  setProjectPref: (key: string, patch: ProjectPref) => void
   setCalPrefs: (patch: Partial<CalPrefs>) => void
   openPalette: () => void
   closePalette: () => void
@@ -185,6 +190,8 @@ export const useUI = create<UIState>((set) => ({
   notifPrefs: DEFAULT_NOTIFS,
   setNotifPrefs: (patch) => set((s) => ({ notifPrefs: { ...s.notifPrefs, ...patch } })),
   calPrefs: DEFAULT_CAL_PREFS,
+  projectPrefs: {},
+  setProjectPref: (key, patch) => set((s) => ({ projectPrefs: { ...s.projectPrefs, [key]: { ...s.projectPrefs[key], ...patch } } })),
   setCalPrefs: (patch) => set((s) => ({ calPrefs: { ...s.calPrefs, ...patch } })),
   openPalette: () => set({ palette: true, newType: null, panel: null }),
   closePalette: () => set({ palette: false }),

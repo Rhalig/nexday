@@ -49,12 +49,26 @@ async function call<T>(action: string, payload: Record<string, unknown>): Promis
   })
 
   if (error) {
-    const status = (error as { context?: { status?: number } }).context?.status
-    if (status === 429) return { error: 'This month’s AI limit is used up.', limited: true }
-    return {
-      error: 'AI is not set up yet. Deploy the ai function and add GEMINI_API_KEY.',
-      unavailable: true
+    // A non-2xx answer carries the Response; read what the function actually said.
+    const res = (error as { context?: Response }).context
+    const status = res?.status
+    let code = ''
+    try {
+      const body = (await res?.clone().json()) as { error?: string; message?: string } | undefined
+      code = String(body?.error ?? body?.message ?? '')
+    } catch {
+      /* not JSON */
     }
+    if (status === 429 || code === 'limit') return { error: 'This month’s AI limit is used up.', limited: true }
+    if (code === 'notConfigured') {
+      return { error: 'AI is not set up yet. Add GEMINI_API_KEY to the ai function secrets.', unavailable: true }
+    }
+    if (status === 401 || status === 403) {
+      return { error: 'AI could not verify your sign-in. Sign out and in again.' + (code ? ` (${code})` : ''), unavailable: true }
+    }
+    if (status === 404) return { error: 'The ai function is not deployed.', unavailable: true }
+    if (status) return { error: `AI answered with an error (${status}${code ? `: ${code}` : ''}). Try again in a moment.` }
+    return { error: 'Could not reach the AI service. Check your connection.' }
   }
   if (isError(data)) {
     if (data.error === 'limit') {

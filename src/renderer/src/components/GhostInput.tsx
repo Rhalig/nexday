@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Project } from '../data/tasks'
 import { Kbd, cn } from './ui'
+import { useTasks } from '../store/tasks'
+import { useProjects } from '../store/projects'
 import './ghost.css'
 
 export type GhostTask = { title: string; project: Project }
@@ -33,6 +35,9 @@ export const HABIT_SUGGESTIONS: Suggestion[] = [
   s('Read 20 pages', ' every evening after dinner', 'reading')
 ]
 
+const DAY_WORDS = ['tomorrow', 'today', 'next week', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+const PROJECT_TAGS = ['planner', 'moving', 'reading', 'personal']
+
 type Phase = 'idle' | 'typing' | 'ghost' | 'accept' | 'task' | 'pause'
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
@@ -56,6 +61,30 @@ export function GhostInput({
 }): React.JSX.Element {
   const SUGGESTIONS = suggestions
   const [value, setValue] = useState('')
+  const groups = useTasks((st) => st.groups)
+  const customProjects = useProjects((st) => st.custom)
+  // What Tab would add: a #project, a whole line you wrote before or that is suggested, or a day word.
+  const completion = useMemo((): string => {
+    const v = value
+    if (v.trim().length < 2) return ''
+    const tag = v.match(/(?:^|\s)#([\w-]*)$/)
+    if (tag) {
+      const pool = [...PROJECT_TAGS, ...customProjects.map((c) => c.slug)]
+      const hit = pool.find((t) => t.startsWith(tag[1].toLowerCase()) && t.length > tag[1].length)
+      return hit ? hit.slice(tag[1].length) : ''
+    }
+    const lower = v.toLowerCase()
+    const lines = [...SUGGESTIONS.map((x) => x.typed + x.ghost), ...groups.flatMap((g) => g.tasks.map((t) => t.title))]
+    const line = lines.find((l) => l.length > v.length && l.toLowerCase().startsWith(lower))
+    if (line) return line.slice(v.length)
+    const word = v.match(/(?:^|\s)([a-z]{2,})$/i)
+    if (word) {
+      const w = word[1].toLowerCase()
+      const day = DAY_WORDS.find((d) => d.startsWith(w) && d.length > w.length)
+      if (day) return day.slice(w.length)
+    }
+    return ''
+  }, [value, groups, customProjects, SUGGESTIONS])
   const [focused, setFocused] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   // The suggestion demo only plays while nobody is typing
@@ -137,9 +166,24 @@ export function GhostInput({
             onChange={(e) => setValue(e.target.value)}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            onKeyDown={(e) => e.key === 'Enter' && submit()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submit()
+              else if ((e.key === 'Tab' || (e.key === 'ArrowRight' && e.currentTarget.selectionStart === value.length)) && completion) {
+                e.preventDefault()
+                setValue(value + completion)
+              }
+            }}
             aria-label={placeholder}
           />
+          {focused && completion && (
+            <div className="gs-auto" aria-hidden>
+              <span style={{ visibility: 'hidden', whiteSpace: 'pre' }}>{value}</span>
+              <span className="gs-auto-t" style={{ whiteSpace: 'pre' }}>{completion}</span>
+              <span className="gs-tab" style={{ opacity: 1 }}>
+                Tab ↵
+              </span>
+            </div>
+          )}
           <div className="gs-placeholder" style={{ opacity: value !== '' ? 0 : !demo || phase === 'idle' ? 1 : 0 }}>
             {placeholder}
           </div>

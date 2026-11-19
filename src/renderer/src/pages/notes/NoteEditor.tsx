@@ -6,7 +6,7 @@ import { useNotes } from '../../store/notes'
 import { useTasks } from '../../store/tasks'
 import { aiNoteActions } from '../../lib/ai'
 import { actionItems, noteText, setTodoState } from '../../lib/noteText'
-import { NoteBody, type NoteBodyHandle } from './NoteBody'
+import { FormatButtons, NoteBody, type FormatState, type NoteBodyHandle } from './NoteBody'
 import { appToday, clockTime } from '../../lib/clock'
 import type { Note } from '../../data/notes'
 import './notes.css'
@@ -39,6 +39,7 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
   const [aiBusy, setAiBusy] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
   const bodyRef = useRef<NoteBodyHandle>(null)
+  const [fmt, setFmt] = useState<FormatState>({ bold: false, italic: false, kind: null })
   const [initial] = useState(() => noteText(note))
   const latest = useRef({ title, text, dirty })
   latest.current = { title, text, dirty }
@@ -206,7 +207,7 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
             </div>
 
             <div onBlur={flush} style={{ marginTop: 30 }}>
-              <NoteBody ref={bodyRef} value={initial} onChange={onBody} placeholder="Start writing…  Type / for commands" />
+              <NoteBody ref={bodyRef} value={initial} onChange={onBody} onFormat={setFmt} placeholder="Start writing…  Type / for commands" />
             </div>
           </div>
 
@@ -307,21 +308,7 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
       </div>
 
       <div className="fmt-bar" onMouseDown={(e) => e.preventDefault()}>
-        <button className="tb" aria-label="Heading" onClick={() => bodyRef.current?.applyKind('h')}>
-          <Icon name="heading" strokeWidth={1.7} round />
-        </button>
-        <button className="tb" aria-label="Bold" onClick={() => bodyRef.current?.format('bold')} style={{ fontWeight: 700, fontSize: 15 }}>
-          B
-        </button>
-        <button className="tb" aria-label="Italic" onClick={() => bodyRef.current?.format('italic')} style={{ fontStyle: 'italic', fontSize: 15, fontFamily: 'serif' }}>
-          I
-        </button>
-        <button className="tb" aria-label="Bulleted list" onClick={() => bodyRef.current?.applyKind('bullet')}>
-          <Icon name="list" strokeWidth={1.7} round />
-        </button>
-        <button className="tb" aria-label="Action item" onClick={() => bodyRef.current?.applyKind('todo')}>
-          <Icon name="checkSquare" strokeWidth={1.7} round />
-        </button>
+        <FormatButtons api={bodyRef} state={fmt} />
         <span className="tb-sep" />
         <span style={{ fontSize: 12.5, color: 'var(--ink3)', padding: '0 6px 0 4px' }}>Type</span>
         <Kbd mono>/</Kbd>

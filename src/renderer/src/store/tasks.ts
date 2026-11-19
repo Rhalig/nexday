@@ -101,7 +101,7 @@ export const useTasks = create<TasksState>((set) => ({
         doneToday,
         doneTotals:
           mode === 'done' && hit
-            ? { ...s.doneTotals, [hit.project]: s.doneTotals[hit.project] + 1 }
+            ? { ...s.doneTotals, [hit.project]: (s.doneTotals[hit.project] ?? 0) + 1 }
             : s.doneTotals,
         groups: s.groups
         .map((g) => ({ ...g, tasks: g.tasks.filter((t) => t.id !== id) }))
@@ -117,7 +117,7 @@ export const useTasks = create<TasksState>((set) => ({
       const task: Task = { id: d.id, title: d.title, project: d.project, energy: d.energy, time: d.time }
       return {
         doneToday: s.doneToday.filter((x) => x.id !== id),
-        doneTotals: { ...s.doneTotals, [d.project]: Math.max(0, s.doneTotals[d.project] - 1) },
+        doneTotals: { ...s.doneTotals, [d.project]: Math.max(0, (s.doneTotals[d.project] ?? 0) - 1) },
         groups: insertTasks(s.groups, [{ task, group }])
       }
     }),

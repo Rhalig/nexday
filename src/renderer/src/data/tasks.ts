@@ -1,4 +1,10 @@
-export type Project = 'planner' | 'moving' | 'reading' | 'personal'
+import { useProjects } from '../store/projects'
+
+/** A project key: one of the four built-in ones, or the slug of a project the person created. */
+export type Project = string
+export type BuiltinProject = 'planner' | 'moving' | 'reading' | 'personal'
+export const BUILTIN_PROJECTS: BuiltinProject[] = ['planner', 'moving', 'reading', 'personal']
+export const isBuiltinProject = (k: string): k is BuiltinProject => (BUILTIN_PROJECTS as string[]).includes(k)
 export type Energy = 'Deep focus' | 'Light'
 
 export type Task = {
@@ -25,12 +31,27 @@ export type TaskGroup = {
   tasks: Task[]
 }
 
-export const projects: Record<Project, { name: string; open: number; done: number }> = {
+type ProjectInfo = { name: string; open: number; done: number }
+const builtinProjects: Record<BuiltinProject, ProjectInfo> = {
   planner: { name: 'Planner MVP', open: 7, done: 3 },
   moving: { name: 'Moving house', open: 2, done: 2 },
   reading: { name: 'Reading list', open: 2, done: 1 },
   personal: { name: 'Personal', open: 1, done: 4 }
 }
+const customInfo = (key: string): ProjectInfo | undefined => {
+  const c = useProjects.getState().custom.find((p) => p.slug === key)
+  return c ? { name: c.name, open: 0, done: 0 } : undefined
+}
+/** Name lookup that also knows the projects the person created (indexing and Object.keys both work). */
+export const projects: Record<Project, ProjectInfo> = new Proxy(builtinProjects as Record<string, ProjectInfo>, {
+  get: (t, key) => (typeof key === 'string' ? (t[key] ?? customInfo(key) ?? { name: key, open: 0, done: 0 }) : undefined),
+  has: (t, key) => typeof key === 'string' && (key in t || !!customInfo(key)),
+  ownKeys: (t) => [...Reflect.ownKeys(t), ...useProjects.getState().custom.map((c) => c.slug)],
+  getOwnPropertyDescriptor: (t, key) =>
+    typeof key === 'string' && (key in t || customInfo(key))
+      ? { enumerable: true, configurable: true, writable: true, value: t[key] ?? customInfo(key) }
+      : undefined
+})
 
 export const taskGroups: TaskGroup[] = [
   {

@@ -403,3 +403,21 @@
     0 0 0 2px #fff,
     0 0 0 4px var(--ink);
 }
+
+.npj-sel {
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 4px 6px;
+  margin-left: -6px;
+  outline: 0;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+  max-width: 280px;
+}
+.npj-sel:hover,
+.npj-sel:focus { border-color: var(--line2); background: #fff; }

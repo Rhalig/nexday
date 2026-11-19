@@ -2,7 +2,6 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
 import { DeleteAccountDialog, ImportDialog } from '../../components/Dialogs'
-import { loadReminders, remindersStatus, requestReminders, type RemindersStatus } from '../../lib/reminders'
 import { cn } from '../../components/ui'
 import { useAuth } from '../../store/auth'
 import { useIdentity, timeZoneName } from '../../lib/identity'
@@ -465,65 +464,6 @@ function Planning(): React.JSX.Element {
   )
 }
 
-function RemindersRow(): React.JSX.Element | null {
-  const [status, setStatus] = useState<RemindersStatus>('unknown')
-  const [busy, setBusy] = useState(false)
-  const [note, setNote] = useState<string | null>(null)
-  const [imp, setImp] = useState<ParsedImport | null>(null)
-  useEffect(() => {
-    void remindersStatus().then(setStatus)
-  }, [])
-  if (status === 'unavailable' || status === 'unknown') return null
-  const sub =
-    note ??
-    (status === 'authorized'
-      ? 'Import your open reminders as tasks.'
-      : status === 'denied' || status === 'restricted'
-        ? 'Access is off. Allow Nexday in System Settings › Privacy & Security › Reminders.'
-        : 'Not connected')
-  return (
-    <>
-      <div className="st-acc end">
-        <span className="st-dot" style={status === 'authorized' ? undefined : { background: '#D6D6D3' }} />
-        <div className="col" style={{ gap: 3, flex: 1 }}>
-          <span style={{ fontWeight: 500 }}>Apple Reminders</span>
-          <span style={{ fontSize: 13, color: 'var(--ink3)' }}>{sub}</span>
-        </div>
-        {status === 'authorized' ? (
-          <span
-            className="st-btn"
-            onClick={async () => {
-              setBusy(true)
-              setNote(null)
-              const r = await loadReminders()
-              setBusy(false)
-              if ('error' in r) setNote('Could not read your reminders.')
-              else if (r.tasks.length === 0) setNote('You have no open reminders.')
-              else setImp(r)
-            }}
-          >
-            {busy ? 'Reading…' : 'Import'}
-          </span>
-        ) : (
-          status === 'notDetermined' && (
-            <span
-              className="st-btn"
-              onClick={async () => {
-                setBusy(true)
-                setStatus(await requestReminders())
-                setBusy(false)
-              }}
-            >
-              {busy ? 'Waiting…' : 'Connect'}
-            </span>
-          )
-        )}
-      </div>
-      {imp && <ImportDialog parsed={imp} onClose={() => setImp(null)} />}
-    </>
-  )
-}
-
 function Calendars(): React.JSX.Element {
   const mac = useCalendar()
   const calPrefs = useUI((s) => s.calPrefs)
@@ -583,7 +523,6 @@ function Calendars(): React.JSX.Element {
           )
         )}
       </div>
-      <RemindersRow />
       <div className="st-h2">Calendars shown in Nexday</div>
       {macOn && mac.calendars.length > 0
         ? mac.calendars.map((c, i) =>

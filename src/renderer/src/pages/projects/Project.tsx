@@ -24,7 +24,7 @@ export default function Project(): React.JSX.Element {
   const key = slug ? SLUG_KEY[slug] : undefined
   if (key) return <ProjectView key={slug} slug={slug!} name={projects[key].name} color={projectColor[key]} projectKey={key} />
   if (custom)
-    return <ProjectView key={custom.slug} slug={custom.slug} name={custom.name} color={custom.color} />
+    return <ProjectView key={custom.slug} slug={custom.slug} name={custom.name} color={custom.color} projectKey={custom.slug} />
   return <Navigate to="/projects/planner-mvp" replace />
 }
 
@@ -44,12 +44,12 @@ function ProjectView({
   slug: string
   name: string
   color: string
-  /** Custom projects cannot hold tasks yet, so they have no key */
+  /** The key tasks use for this project (a built-in one, or the slug of a created one) */
   projectKey?: ProjectKey
 }): React.JSX.Element {
   const navigate = useNavigate()
   const allGroups = useTasks((s) => s.groups)
-  const doneCount = useTasks((s) => (projectKey ? s.doneTotals[projectKey] : 0))
+  const doneCount = useTasks((s) => (projectKey ? (s.doneTotals[projectKey] ?? 0) : 0))
   const remove = useTasks((s) => s.remove)
   const doneToday = useTasks((s) => s.doneToday)
   // Finished tasks stay visible, ticked, under "Done"
@@ -108,6 +108,13 @@ function ProjectView({
     }
   }
 
+  const customMeta = useProjects((s) => s.custom.find((c) => c.slug === slug))
+  const pref = useUI((s) => s.projectPrefs[projectKey ?? slug])
+  const about = customMeta?.description || pref?.description || ''
+  const dueText = customMeta?.due
+    ? new Date(`${customMeta.due}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+    : ''
+
   return (
     <main className="panel pj">
       <div className="pj-top">
@@ -116,7 +123,9 @@ function ProjectView({
         <span style={{ color: '#BDBDBA' }}>/</span>
         <span style={{ fontSize: 13, fontWeight: 500 }}>{name}</span>
         <span style={{ flex: 1 }} />
-        <Button variant="dark">+ New</Button>
+        <Button variant="dark" onClick={() => useUI.getState().openNew('task')}>
+          + New
+        </Button>
       </div>
 
       <div className="panel-scroll">
@@ -125,6 +134,8 @@ function ProjectView({
             <span style={{ fontSize: 13, color: 'var(--ink2)' }}>{p.kicker}</span>
             <span className="pj-title">{name}</span>
             <span style={{ fontSize: 13.5, color: 'var(--ink2)', marginTop: 4 }}>{p.summary}</span>
+            {about && <span style={{ fontSize: 14, color: 'var(--ink)', marginTop: 2 }}>{about}</span>}
+            {dueText && <span style={{ fontSize: 13, color: 'var(--ink3)' }}>Due {dueText}</span>}
           </div>
           <div className="pj-stats">
             {p.stats.map(([label, value], i) => (

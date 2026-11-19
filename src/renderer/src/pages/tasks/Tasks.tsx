@@ -5,6 +5,7 @@ import { QuickCapture } from '../../components/QuickCapture'
 import { TaskRow } from '../../components/TaskRow'
 import { Button, GroupHeader, Segmented, Toggle, projectColor } from '../../components/ui'
 import { filterGroups, projects, type Project, type TaskFilter } from '../../data/tasks'
+import { useProjects } from '../../store/projects'
 import { countOpen, useTasks } from '../../store/tasks'
 import { useUI } from '../../store/ui'
 import { captureTask } from '../../lib/quickTask'
@@ -26,7 +27,7 @@ import './tasks.css'
 
 const DAY_GROUPS: TaskGroup['id'][] = ['today', 'tomorrow', 'next-week', 'no-time']
 
-const projectOrder: Project[] = ['planner', 'moving', 'reading', 'personal']
+const builtinOrder: Project[] = ['planner', 'moving', 'reading', 'personal']
 
 const lengthOf = (t: Task): number => {
   const m = t.time?.match(/(\d+)(h|m)\s*$/)
@@ -89,6 +90,8 @@ export default function Tasks(): React.JSX.Element {
   const [pop, setPop] = useState<{ right: number; top: number } | null>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
   const openDialog = useUI((st) => st.openDialog)
+  const customProjects = useProjects((st) => st.custom)
+  const projectOrder: Project[] = [...builtinOrder, ...customProjects.map((c) => c.slug)]
 
   // While a task is being dragged, empty days appear too so a task can be dropped on any of them.
   const [dragActive, setDragActive] = useState(false)
@@ -150,8 +153,10 @@ export default function Tasks(): React.JSX.Element {
         .flatMap((g) => g.tasks.map((t) => ({ task: t, groupId: g.id })))
         .find((x) => x.task.id === id)
     : undefined
+  // A task finished from its own drawer stays open there, ticked, until the drawer is closed.
+  const finished = id && !open ? doneToday.find((d) => d.id === id) : undefined
 
-  if (total === 0 && !id) return <TasksEmpty />
+  if (total === 0 && !id && !finished) return <TasksEmpty />
 
   return (
     <main className="panel">
@@ -342,6 +347,14 @@ export default function Tasks(): React.JSX.Element {
       />
       {open && (
         <TaskDrawer task={open.task} groupId={open.groupId} onClose={() => navigate('/tasks')} />
+      )}
+      {finished && (
+        <TaskDrawer
+          done
+          task={{ id: finished.id, title: finished.title, project: finished.project, energy: finished.energy, time: finished.time }}
+          groupId="today"
+          onClose={() => navigate('/tasks')}
+        />
       )}
     </main>
   )

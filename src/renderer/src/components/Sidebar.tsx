@@ -35,6 +35,7 @@ export function Sidebar(): React.JSX.Element {
   const openPanel = useUI((s) => s.openPanel)
   const unread = useNotifs((s) => unreadCount(s.items))
   const custom = useProjects((s) => s.custom)
+  const projectPrefs = useUI((s) => s.projectPrefs)
   const notesCount = useNotes((s) => s.notes.length)
   const tasksCount = useTasks((s) => countOpen(s.groups))
   const groups = useTasks((s) => s.groups)
@@ -42,7 +43,8 @@ export function Sidebar(): React.JSX.Element {
   const projectCounts: Record<string, number> = {
     '/projects/planner-mvp': openBy('planner'),
     '/projects/moving-house': openBy('moving'),
-    '/projects/reading-list': openBy('reading')
+    '/projects/reading-list': openBy('reading'),
+    ...Object.fromEntries(custom.map((c) => [`/projects/${c.slug}`, openBy(c.slug)]))
   }
   const countFor = (to: string): number =>
     to === '/inbox' ? inboxCount : to === '/tasks' ? tasksCount : to === '/notes' ? notesCount : 0
@@ -79,17 +81,20 @@ export function Sidebar(): React.JSX.Element {
 
       <span className="label nav-label">Projects</span>
       <nav className="nav-group">
-        {projectNav.map((p) => (
+        {projectNav
+          .filter((p) => projectPrefs[{ '/projects/planner-mvp': 'planner', '/projects/moving-house': 'moving', '/projects/reading-list': 'reading' }[p.to] ?? '']?.sidebar !== false)
+          .map((p) => (
           <NavLink key={p.to} to={p.to} className={linkClass}>
             <div className="swatch" style={{ background: p.color }} />
             <span>{p.label}</span>
             <span className="count">{projectCounts[p.to] ?? p.count}</span>
           </NavLink>
         ))}
-        {custom.map((c) => (
+        {custom.filter((c) => projectPrefs[c.slug]?.sidebar !== false).map((c) => (
           <NavLink key={c.slug} to={`/projects/${c.slug}`} className={linkClass}>
             <div className="swatch" style={{ background: c.color }} />
             <span>{c.name}</span>
+            <span className="count">{projectCounts[`/projects/${c.slug}`] ?? 0}</span>
           </NavLink>
         ))}
         <a className="nav-item muted-item" href="#/projects/new" onClick={(e) => { e.preventDefault(); openPanel('newProject') }}>

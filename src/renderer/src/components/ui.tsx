@@ -1,13 +1,25 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import type { Project } from '../data/tasks'
+import { useProjects } from '../store/projects'
 import { Icon } from './Icon'
 
-export const projectColor: Record<Project, string> = {
+const builtinColor: Record<string, string> = {
   planner: 'var(--acc)',
   moving: 'var(--work)',
   reading: 'var(--personal)',
   personal: 'var(--health)'
 }
+const customColor = (key: string): string | undefined => useProjects.getState().custom.find((p) => p.slug === key)?.color
+/** Color lookup that also knows the projects the person created. */
+export const projectColor: Record<Project, string> = new Proxy(builtinColor, {
+  get: (t, key) => (typeof key === 'string' ? (t[key] ?? customColor(key) ?? 'var(--ink3)') : undefined),
+  has: (t, key) => typeof key === 'string' && (key in t || !!customColor(key)),
+  ownKeys: (t) => [...Reflect.ownKeys(t), ...useProjects.getState().custom.map((c) => c.slug)],
+  getOwnPropertyDescriptor: (t, key) =>
+    typeof key === 'string' && (key in t || customColor(key))
+      ? { enumerable: true, configurable: true, writable: true, value: t[key] ?? customColor(key) }
+      : undefined
+})
 
 export function cn(...parts: Array<string | false | undefined>): string {
   return parts.filter(Boolean).join(' ')

@@ -1,4 +1,4 @@
-import { forwardRef, memo, useCallback, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import { Icon, type IconName } from '../../components/Icon'
 import {
   mdToHtml,
@@ -18,6 +18,8 @@ import {
  * light markers (see lib/noteText.ts), so everything else that reads notes keeps working.
  */
 
+export type FormatState = { bold: boolean; italic: boolean; kind: RowKind | null }
+
 export type NoteBodyHandle = {
   focus: () => void
   /** Replaces the whole text (an outside change: AI, the side list, a template). */
@@ -27,10 +29,12 @@ export type NoteBodyHandle = {
   format: (cmd: 'bold' | 'italic') => void
 }
 
-const commands: Array<{ icon: IconName; label: string; hint: string; kind: RowKind }> = [
+const commands: Array<{ icon: IconName; label: string; hint: string; kind: RowKind | 'bold' | 'italic' }> = [
   { icon: 'checkSquare', label: 'Action item', hint: '[ ]', kind: 'todo' },
   { icon: 'list', label: 'Bulleted list', hint: '-', kind: 'bullet' },
-  { icon: 'heading', label: 'Heading', hint: '#', kind: 'h' }
+  { icon: 'heading', label: 'Heading', hint: '#', kind: 'h' },
+  { icon: 'bold' as IconName, label: 'Bold', hint: '⌘B', kind: 'bold' },
+  { icon: 'italic' as IconName, label: 'Italic', hint: '⌘I', kind: 'italic' }
 ]
 
 type Caret = 'start' | 'end' | number
@@ -133,8 +137,8 @@ const RowView = memo(function RowView({ row, placeholder, setEl, onInput, onKeyD
 
 export const NoteBody = forwardRef<
   NoteBodyHandle,
-  { value: string; onChange: (text: string) => void; placeholder?: string; compact?: boolean }
->(function NoteBody({ value, onChange, placeholder, compact }, ref) {
+  { value: string; onChange: (text: string) => void; placeholder?: string; compact?: boolean; onFormat?: (s: FormatState) => void }
+>(function NoteBody({ value, onChange, placeholder, compact, onFormat }, ref) {
   const [rows, setRows] = useState<NoteRow[]>(() => rowsFromText(value))
   const rowsRef = useRef(rows)
   rowsRef.current = rows
@@ -144,6 +148,25 @@ export const NoteBody = forwardRef<
   const emitted = useRef(value)
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
+  const onFormatRef = useRef(onFormat)
+  onFormatRef.current = onFormat
+
+  // Tell the toolbar what the caret is in (bold? italic? a heading?) so its buttons show it.
+  const reportFormat = useCallback(() => {
+    const id = active.current
+    const el = id ? els.current.get(id) : null
+    const a = window.getSelection()?.anchorNode
+    if (!id || !el || !a || !el.contains(a)) return
+    onFormatRef.current?.({
+      bold: document.queryCommandState('bold'),
+      italic: document.queryCommandState('italic'),
+      kind: rowsRef.current.find((r) => r.id === id)?.kind ?? null
+    })
+  }, [])
+  useEffect(() => {
+    document.addEventListener('selectionchange', reportFormat)
+    return () => document.removeEventListener('selectionchange', reportFormat)
+  }, [reportFormat])
   const [menu, setMenu] = useState<{ id: string; query: string; index: number } | null>(null)
   const menuRef = useRef(menu)
   menuRef.current = menu
@@ -184,8 +207,20 @@ export const NoteBody = forwardRef<
 
   const filtered = (query: string): typeof commands => commands.filter((c) => c.label.toLowerCase().includes(query))
 
-  const applyCommand = (id: string, kind: RowKind): void => {
-    patchRow(id, { kind, state: 'open', md: '', rev: (rowsRef.current.find((r) => r.id === id)?.rev ?? 0) + 1 }, { id, at: 'start' })
+  const applyCommand = (id: string, kind: RowKind | 'bold' | 'italic'): void => {
+    const rev = (rowsRef.current.find((r) => r.id === id)?.rev ?? 0) + 1
+    if (kind === 'bold' || kind === 'italic') {
+      // Clear the "/bold" text, then switch the style on: what is typed next comes out bold / italic.
+      patchRow(id, { md: '', rev }, { id, at: 'start' })
+      setMenu(null)
+      setTimeout(() => {
+        document.execCommand('styleWithCSS', false, 'false')
+        document.execCommand(kind)
+        reportFormat()
+      }, 0)
+      return
+    }
+    patchRow(id, { kind, state: 'open', md: '', rev }, { id, at: 'start' })
     setMenu(null)
   }
 
@@ -366,20 +401,26 @@ export const NoteBody = forwardRef<
         if (!row) return
         const nextKind: RowKind = row.kind === kind ? 'p' : kind
         patchRow(row.id, { kind: nextKind, state: 'open', rev: row.rev }, { id: row.id, at: 'end' })
+        setTimeout(reportFormat, 0)
       },
       format: (cmd) => {
         document.execCommand('styleWithCSS', false, 'false')
         document.execCommand(cmd)
         if (active.current) onInput(active.current)
+        reportFormat()
       }
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   )
 
-  const onFocus = useCallback((id: string) => {
-    active.current = id
-  }, [])
+  const onFocus = useCallback(
+    (id: string) => {
+      active.current = id
+      setTimeout(reportFormat, 0)
+    },
+    [reportFormat]
+  )
 
   const shown = menu ? filtered(menu.query) : []
   const menuAt = menu ? rows.findIndex((r) => r.id === menu.id) : -1
@@ -410,7 +451,13 @@ export const NoteBody = forwardRef<
                     applyCommand(menu.id, c.kind)
                   }}
                 >
-                  <Icon name={c.icon} strokeWidth={1.7} round />
+                  {c.kind === 'bold' ? (
+                    <b style={{ width: 20, textAlign: 'center', fontSize: 15 }}>B</b>
+                  ) : c.kind === 'italic' ? (
+                    <i style={{ width: 20, textAlign: 'center', fontSize: 15, fontFamily: 'serif' }}>I</i>
+                  ) : (
+                    <Icon name={c.icon} strokeWidth={1.7} round />
+                  )}
                   {c.label}
                   <span className="h">{c.hint}</span>
                 </div>
@@ -422,3 +469,33 @@ export const NoteBody = forwardRef<
     </div>
   )
 })
+
+/** Heading / bold / italic / list / action-item buttons. They show what the caret is in. */
+export function FormatButtons({
+  api,
+  state
+}: {
+  api: React.RefObject<NoteBodyHandle | null>
+  state: FormatState
+}): React.JSX.Element {
+  const keep = (e: React.MouseEvent): void => e.preventDefault() // keep the caret in the note
+  return (
+    <>
+      <button className={`tb${state.kind === 'h' ? ' on' : ''}`} aria-label="Heading" aria-pressed={state.kind === 'h'} title="Heading" onMouseDown={keep} onClick={() => api.current?.applyKind('h')}>
+        <Icon name="heading" strokeWidth={1.7} round />
+      </button>
+      <button className={`tb${state.bold ? ' on' : ''}`} aria-label="Bold" aria-pressed={state.bold} title="Bold (⌘B): select text, or switch it on and type" onMouseDown={keep} onClick={() => api.current?.format('bold')} style={{ fontWeight: 700, fontSize: 15 }}>
+        B
+      </button>
+      <button className={`tb${state.italic ? ' on' : ''}`} aria-label="Italic" aria-pressed={state.italic} title="Italic (⌘I): select text, or switch it on and type" onMouseDown={keep} onClick={() => api.current?.format('italic')} style={{ fontStyle: 'italic', fontSize: 15, fontFamily: 'serif' }}>
+        I
+      </button>
+      <button className={`tb${state.kind === 'bullet' ? ' on' : ''}`} aria-label="Bulleted list" aria-pressed={state.kind === 'bullet'} title="Bulleted list" onMouseDown={keep} onClick={() => api.current?.applyKind('bullet')}>
+        <Icon name="list" strokeWidth={1.7} round />
+      </button>
+      <button className={`tb${state.kind === 'todo' ? ' on' : ''}`} aria-label="Action item" aria-pressed={state.kind === 'todo'} title="Action item" onMouseDown={keep} onClick={() => api.current?.applyKind('todo')}>
+        <Icon name="checkSquare" strokeWidth={1.7} round />
+      </button>
+    </>
+  )
+}

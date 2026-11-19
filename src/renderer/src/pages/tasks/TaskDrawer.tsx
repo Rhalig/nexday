@@ -10,9 +10,9 @@ import { useTasks } from '../../store/tasks'
 import { clockOf, lengthOf, moveToGroup, placeTask } from '../../lib/taskMove'
 
 
-type Props = { task: Task; groupId: TaskGroup['id']; onClose: () => void }
+type Props = { task: Task; groupId: TaskGroup['id']; onClose: () => void; done?: boolean }
 
-export default function TaskDrawer({ task: taskProp, groupId, onClose }: Props): React.JSX.Element {
+export default function TaskDrawer({ task: taskProp, groupId, onClose, done = false }: Props): React.JSX.Element {
   const remove = useTasks((s) => s.remove)
   const setSubtasks = useTasks((s) => s.setSubtasks)
   // read the live task so checklist edits show at once
@@ -56,9 +56,10 @@ export default function TaskDrawer({ task: taskProp, groupId, onClose }: Props):
     onClose()
   }
 
+  // Ticking keeps the drawer open: the box turns ticked, and ticking it again reopens the task.
   const finish = (): void => {
-    remove(task.id)
-    onClose()
+    if (done) useTasks.getState().reopen(task.id)
+    else remove(task.id)
   }
 
   const items: MenuItem[] = [
@@ -90,11 +91,19 @@ export default function TaskDrawer({ task: taskProp, groupId, onClose }: Props):
 
         <div className="dw-scroll">
           <div className="row" style={{ gap: 14, marginTop: 22, alignItems: 'flex-start' }}>
-            <button className="dw-cb" aria-label="Complete" onClick={finish} style={{ width: 22, height: 22, borderRadius: 7, marginTop: 3 }} />
+            <button
+              className={cn('dw-cb', done && 'on')}
+              aria-label={done ? 'Mark not done' : 'Complete'}
+              onClick={finish}
+              style={{ width: 22, height: 22, borderRadius: 7, marginTop: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              {done && <Icon name="check" size={13} strokeWidth={3.2} round />}
+            </button>
             <input
               className="dw-title-in"
               value={titleDraft}
               maxLength={200}
+              disabled={done}
               aria-label="Task title"
               onChange={(e) => setTitleDraft(e.target.value)}
               onBlur={commitTitle}
@@ -113,7 +122,7 @@ export default function TaskDrawer({ task: taskProp, groupId, onClose }: Props):
             </div>
           )}
 
-          <div className="col" style={{ marginTop: 26 }}>
+          <div className="col" style={{ marginTop: 26, ...(done ? { opacity: 0.55, pointerEvents: 'none' as const } : null) }}>
             <div className="dw-p">
               <span className="k">When</span>
               <span className="v">
@@ -339,7 +348,7 @@ export default function TaskDrawer({ task: taskProp, groupId, onClose }: Props):
           <span style={{ flex: 1 }} />
           <Button onClick={tomorrow}>Move to tomorrow</Button>
           <Button variant="dark" onClick={finish}>
-            Mark done
+            {done ? 'Mark not done' : 'Mark done'}
             <span className="dw-kbd">⌘ D</span>
           </Button>
         </div>

@@ -108,8 +108,8 @@
 .st-tg { width: 38px; height: 22px; border-radius: 12px; background: #d6d6d3; position: relative; flex: none; cursor: pointer; }
 .st-tg::after { content: ''; position: absolute; left: 2px; top: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); }
 .st-tg.on { background: var(--acc); }
-.st-tg.on::after { left: 18px; }
-.st-tg2 { width: 30px; height: 18px; border-radius: 9px; background: #e2680c; padding: 2px; display: flex; justify-content: flex-end; flex: none; cursor: pointer; }
+.st-tg.on::after { left: 2px; transform: translateX(16px); }
+.st-tg2 { width: 30px; height: 18px; border-radius: 9px; background: #e2680c; padding: 2px; display: flex; justify-content: flex-start; flex: none; cursor: pointer; }
 .st-tg2 i { width: 14px; height: 14px; border-radius: 50%; background: #fff; display: block; }
 .st-tg2.off { background: #d6d6d3; justify-content: flex-start; }
 .st-h2 { font-size: 12.5px; color: var(--ink3); padding: 26px 0 10px; }

@@ -55,7 +55,7 @@ export const isDefaultView = (v: TaskView): boolean =>
   JSON.stringify(v) === JSON.stringify(defaultView)
 
 export function passesFilter(t: Task, v: TaskView): boolean {
-  if (!v.projects[t.project]) return false
+  if (v.projects[t.project] === false) return false
   const energyOn = Object.entries(v.energy)
     .filter(([, on]) => on)
     .map(([k]) => k)
@@ -136,11 +136,11 @@ export function FilterPopover({
               key={p}
               className="pv-opt"
               onClick={() =>
-                setView({ ...view, projects: { ...view.projects, [p]: !view.projects[p] } })
+                setView({ ...view, projects: { ...view.projects, [p]: view.projects[p] === false } })
               }
             >
-              <span className={cn('pv-ck', view.projects[p] && 'on')}>
-                {view.projects[p] && check}
+              <span className={cn('pv-ck', view.projects[p] !== false && 'on')}>
+                {view.projects[p] !== false && check}
               </span>
               <span style={{ width: 9, height: 9, borderRadius: 3, background: projectColor[p] }} />
               {projects[p].name}

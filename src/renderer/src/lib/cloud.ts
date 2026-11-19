@@ -272,7 +272,7 @@ function taskRow(t: Task, group: TaskGroup['id'], estimateHint?: number): Row {
   return {
     id: t.id,
     title: t.title,
-    project_id: projectIds[SLUG[t.project]] ?? null,
+    project_id: projectIds[SLUG[t.project] ?? t.project] ?? null,
     energy: energyOut(t.energy),
     notes: t.notes ?? '',
     estimate_min: s.est,
@@ -304,7 +304,9 @@ function groupsFromRows(rows: Row[], moveUnfinished = false): TaskGroup[] {
       : as.localeCompare(bs)
   })
   for (const r of sorted) {
-    const project = slugToKey(idToSlug[String(r.project_id)] ?? '') ?? 'personal'
+    const rowSlug = idToSlug[String(r.project_id)] ?? ''
+    // A built-in project, a project the person created (its slug is the key), or Personal.
+    const project = slugToKey(rowSlug) ?? (rowSlug && projectIds[rowSlug] ? rowSlug : 'personal')
     const start = r.scheduled_start ? new Date(String(r.scheduled_start)) : null
     const est = (r.estimate_min as number | null) ?? 0
     let group: TaskGroup['id'] = 'no-time'
@@ -510,7 +512,7 @@ const eventFromRow = (r: Row): PlanEvent => ({
 
 /** Finished tasks of one project, newest first (for the project page's Done list). */
 export async function loadDoneTasks(project: Project): Promise<DoneTask[]> {
-  const id = projectIds[SLUG[project]]
+  const id = projectIds[SLUG[project] ?? project]
   if (!supabase || !id) return []
   const { data, error } = await supabase
     .from('tasks')
@@ -708,8 +710,14 @@ function saveProjects(custom: CustomProject[]): void {
   const sb = supabase!
   const next = projectSnap(custom)
   const prev = last.projects
-  const { upsert } = changed(prev, next)
+  const { upsert, removed } = changed(prev, next)
   last.projects = next
+  if (removed.length)
+    enqueue(
+      'delete projects',
+      () => sb.from('projects').update({ deleted_at: new Date().toISOString() }).in('id', removed),
+      rollback('projects', prev, removed)
+    )
   if (!upsert.length) return
   const byId = new Map(custom.filter((p) => p.id).map((p) => [p.id!, p]))
   const rows = upsert.map((id) => ({
@@ -717,6 +725,8 @@ function saveProjects(custom: CustomProject[]): void {
     name: byId.get(id)!.name,
     slug: byId.get(id)!.slug,
     color: byId.get(id)!.color,
+    summary: byId.get(id)!.description ?? '',
+    due_date: byId.get(id)!.due ?? null,
     deleted_at: null
   }))
   for (const r of rows) projectIds[String(r.slug)] = String(r.id)
@@ -763,8 +773,8 @@ function saveEvents(own: PlanEvent[]): void {
 
 function saveSettings(): void {
   const sb = supabase!
-  const { autoSchedule, pauseNotifs, planning, prefs, notifPrefs, calPrefs } = useUI.getState()
-  const block = { autoSchedule, pauseNotifs, planning, prefs, notifPrefs, calPrefs }
+  const { autoSchedule, pauseNotifs, planning, prefs, notifPrefs, calPrefs, projectPrefs } = useUI.getState()
+  const block = { autoSchedule, pauseNotifs, planning, prefs, notifPrefs, calPrefs, projectPrefs }
   const next = JSON.stringify(block)
   const before = last.settings.get('ui')
   if (before === next) return
@@ -945,7 +955,9 @@ async function loadAll(userId: string): Promise<void> {
       id: String(p.id),
       slug: String(p.slug),
       name: String(p.name),
-      color: String(p.color)
+      color: String(p.color),
+      description: String(p.summary ?? ''),
+      due: p.due_date ? String(p.due_date).slice(0, 10) : null
     }))
 
   // Fill the stores, then record what we just loaded as "already saved" so it is not written back.
@@ -962,10 +974,11 @@ async function loadAll(userId: string): Promise<void> {
   })
   const idToSlug: Record<string, string> = {}
   for (const [slug, id] of Object.entries(projectIds)) idToSlug[id] = slug
-  const doneTotals = { planner: 0, moving: 0, reading: 0, personal: 0 }
+  const doneTotals: Record<string, number> = { planner: 0, moving: 0, reading: 0, personal: 0 }
   for (const r of doneAll.data ?? []) {
-    const key = slugToKey(idToSlug[String(r.project_id)] ?? '')
-    if (key) doneTotals[key]++
+    const slug = idToSlug[String(r.project_id)] ?? ''
+    const key = slugToKey(slug) ?? (slug && projectIds[slug] ? slug : null)
+    if (key) doneTotals[key] = (doneTotals[key] ?? 0) + 1
   }
   const subsByTask: Record<string, Subtask[]> = {}
   for (const r of subRows.data ?? [])
@@ -997,7 +1010,8 @@ async function loadAll(userId: string): Promise<void> {
     planning: mergePlan(settings.planning),
     prefs: mergePrefs(settings.prefs),
     notifPrefs: mergeNotifPrefs(settings.notifPrefs),
-    calPrefs: mergeCalPrefs(settings.calPrefs)
+    calPrefs: mergeCalPrefs(settings.calPrefs),
+    projectPrefs: settings.projectPrefs && typeof settings.projectPrefs === 'object' ? (settings.projectPrefs as Record<string, never>) : {}
   })
 
   last.tasks = taskSnap(useTasks.getState().groups)
@@ -1018,7 +1032,8 @@ async function loadAll(userId: string): Promise<void> {
         planning: useUI.getState().planning,
         prefs: useUI.getState().prefs,
         notifPrefs: useUI.getState().notifPrefs,
-        calPrefs: useUI.getState().calPrefs
+        calPrefs: useUI.getState().calPrefs,
+        projectPrefs: useUI.getState().projectPrefs
       })
     ]
   ])
@@ -1059,7 +1074,8 @@ export async function startCloud(userId: string): Promise<void> {
           s.planning !== p.planning ||
           s.prefs !== p.prefs ||
           s.notifPrefs !== p.notifPrefs ||
-          s.calPrefs !== p.calPrefs) &&
+          s.calPrefs !== p.calPrefs ||
+          s.projectPrefs !== p.projectPrefs) &&
         saveSettings()
     )
   ]
@@ -1100,7 +1116,8 @@ export function stopCloud(): void {
     planning: DEFAULT_PLAN,
     prefs: DEFAULT_PREFS,
     notifPrefs: DEFAULT_NOTIFS,
-    calPrefs: DEFAULT_CAL_PREFS
+    calPrefs: DEFAULT_CAL_PREFS,
+    projectPrefs: {}
   })
   if (retryTimer) clearTimeout(retryTimer)
   retryTimer = null

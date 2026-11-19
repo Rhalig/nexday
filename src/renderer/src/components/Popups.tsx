@@ -6,6 +6,7 @@ import { Overlay } from './Overlay'
 import { Button, Kbd, cn } from './ui'
 import { unreadCount, useNotifs, type Notif } from '../store/notifs'
 import { useProjects } from '../store/projects'
+import { useTasks } from '../store/tasks'
 import { useUI } from '../store/ui'
 import './popups.css'
 import { useIdentity } from '../lib/identity'
@@ -508,17 +509,41 @@ export function HelpModal(): React.JSX.Element {
 
 const colors = ['#F38020', '#5B6578', '#A4505A', '#2E8B57', '#3B6FD4']
 
+const projectTemplates: Array<{ id: string; label: string; tasks: string[] }> = [
+  { id: 'blank', label: 'Blank project', tasks: [] },
+  {
+    id: 'trip',
+    label: 'Trip checklist',
+    tasks: ['Book transport', 'Book a place to stay', 'Check documents and visas', 'Plan the days', 'Pack clothes', 'Pack chargers and tech', 'Tell someone your plan', 'Download tickets']
+  },
+  { id: 'kickoff', label: 'Project kickoff', tasks: ['Write the goal in one sentence', 'List what is in and out of scope', 'Pick the first milestone', 'Block time for the first week'] },
+  { id: 'study', label: 'Study plan', tasks: ['List the topics', 'Gather the material', 'Schedule study blocks', 'Do a practice test'] }
+]
+
 export function NewProjectPopup(): React.JSX.Element {
   const navigate = useNavigate()
   const closePanel = useUI((s) => s.closePanel)
   const add = useProjects((s) => s.add)
   const [name, setName] = useState('')
+  const [desc, setDesc] = useState('')
   const [color, setColor] = useState('#3B6FD4')
+  const [template, setTemplate] = useState('blank')
+  const [due, setDue] = useState('')
+  const [weekly, setWeekly] = useState(0)
+  const tpl = projectTemplates.find((t) => t.id === template) ?? projectTemplates[0]
 
   const create = (): void => {
     const n = name.trim()
     if (!n) return
-    const slug = add(n, color)
+    const slug = add(n, color, { description: desc.trim(), due: due || null })
+    if (tpl.tasks.length)
+      useTasks.getState().addMany(
+        tpl.tasks.map((title) => ({
+          task: { id: crypto.randomUUID(), title, project: slug, energy: 'Light' as const, time: null },
+          group: 'no-time' as const
+        }))
+      )
+    if (weekly) useUI.getState().setProjectPref(slug, { weekly })
     closePanel()
     navigate(`/projects/${slug}`)
   }
@@ -577,9 +602,14 @@ export function NewProjectPopup(): React.JSX.Element {
               placeholder="Project name"
             />
           </div>
-          <span className="muted" style={{ fontSize: 14, paddingLeft: 26 }}>
-            What is this project about?
-          </span>
+          <input
+            className="npj-name"
+            style={{ fontSize: 14, paddingLeft: 26, fontWeight: 400 }}
+            value={desc}
+            maxLength={200}
+            onChange={(e) => setDesc(e.target.value)}
+            placeholder="What is this project about?"
+          />
         </div>
 
         <div className="row" style={{ gap: 8, padding: '0 24px 12px' }}>
@@ -616,13 +646,14 @@ export function NewProjectPopup(): React.JSX.Element {
             <span className="np-pl" style={{ width: 112 }}>
               Start with
             </span>
-            <span className="np-pv">Trip checklist</span>
-            <span className="muted" style={{ fontSize: 12.5 }}>
-              8 tasks
-            </span>
-            <span style={{ color: '#767676', display: 'flex' }}>
-              <Icon name="chevronDown" size={14} strokeWidth={2} />
-            </span>
+            <select className="npj-sel" value={template} onChange={(e) => setTemplate(e.target.value)} aria-label="Start with">
+              {projectTemplates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                  {t.tasks.length ? ` · ${t.tasks.length} tasks` : ''}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="np-prop">
             <span className="np-pl" style={{ width: 112 }}>
@@ -632,19 +663,26 @@ export function NewProjectPopup(): React.JSX.Element {
               <span style={{ color: '#6B6B6B', display: 'flex' }}>
                 <Icon name="calendar" size={15} />
               </span>
-              <span className="np-pv mono" style={{ flex: 'none' }}>
-                Fri, Dec 4
-              </span>
+              <input className="npj-sel" type="date" value={due} onChange={(e) => setDue(e.target.value)} aria-label="Due date" />
+              {due && (
+                <button className="muted" style={{ fontSize: 12.5 }} onClick={() => setDue('')}>
+                  Clear
+                </button>
+              )}
             </div>
           </div>
           <div className="np-prop last">
             <span className="np-pl" style={{ width: 112 }}>
               Time per week
             </span>
-            <span className="np-pv mono">2 h</span>
-            <span style={{ fontSize: 12.5, color: 'var(--acc-text)', fontWeight: 500 }}>
-              Tue and Thu evenings
-            </span>
+            <select className="npj-sel" value={weekly} onChange={(e) => setWeekly(Number(e.target.value))} aria-label="Time per week">
+              <option value={0}>Not set</option>
+              {[1, 2, 3, 5, 8, 10].map((h) => (
+                <option key={h} value={h}>
+                  {h} h
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

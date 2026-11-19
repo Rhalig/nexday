@@ -1,4 +1,5 @@
 import type { Project, Task, TaskGroup } from '../data/tasks'
+import { useProjects } from '../store/projects'
 import { daysFromToday, parseDayKey, weekdayShort } from './clock'
 
 const projectTags: Record<Project, string[]> = {
@@ -34,7 +35,10 @@ export function parseCapture(input: string): Parsed {
 
   text = text.replace(/\s#([\w-]+)/g, (m, tag: string) => {
     const t = tag.toLowerCase()
-    const hit = (Object.keys(projectTags) as Project[]).find((p) => projectTags[p].includes(t))
+    const hit =
+      (Object.keys(projectTags) as Project[]).find((p) => projectTags[p].includes(t)) ??
+      // a project the person created: #deneme or #my-project
+      useProjects.getState().custom.find((c) => c.slug === t || c.name.toLowerCase().replace(/\s+/g, '-') === t)?.slug
     if (!hit) return m
     project = hit
     return ' '

@@ -11,7 +11,7 @@ import { pageDate } from '../../lib/clock'
 import { noteTabs, type Note, type NoteCategory } from '../../data/notes'
 import { actionItems, noteText, openActionCount } from '../../lib/noteText'
 import { ConfirmDialog } from '../../components/DrawerParts'
-import { NoteBody } from './NoteBody'
+import { FormatButtons, NoteBody, type FormatState, type NoteBodyHandle } from './NoteBody'
 import './notes.css'
 
 type Filter = 'all' | NoteCategory
@@ -186,6 +186,8 @@ function Preview({ note, onOpen, onDelete }: { note: Note; onOpen: () => void; o
   const [title, setTitle] = useState(note.title)
   const [initial] = useState(() => noteText(note))
   const latest = useRef({ title: note.title, text: initial, dirty: false })
+  const bodyRef = useRef<NoteBodyHandle>(null)
+  const [fmt, setFmt] = useState<FormatState>({ bold: false, italic: false, kind: null })
   const items = actionItems(latest.current.text)
   const [open, setOpen] = useState(items.filter((a) => a.state === 'open').length)
   const save = (): void => {
@@ -237,8 +239,13 @@ function Preview({ note, onOpen, onDelete }: { note: Note; onOpen: () => void; o
         <span>{note.chip.name}</span>
       </div>
 
-      <div style={{ marginTop: 22 }}>
+      <div className="nb-tools">
+        <FormatButtons api={bodyRef} state={fmt} />
+      </div>
+      <div style={{ marginTop: 8 }}>
         <NoteBody
+          ref={bodyRef}
+          onFormat={setFmt}
           value={initial}
           compact
           placeholder="Start writing…  Type / for commands"

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Icon, type IconName } from './Icon'
 import { useEscape } from './Popups'
+import { ConfirmDialog } from './DrawerParts'
 import { Button, Kbd, cn, projectColor } from './ui'
 import { projects as taskProjects, type Project } from '../data/tasks'
 import { useProjects } from '../store/projects'
@@ -245,7 +246,9 @@ export function AutoScheduleDialog(): React.JSX.Element {
   const schedule = useTasks((s) => s.schedule)
   const events = useCalendar((s) => s.events)
   const habits = useHabits((s) => s.habits)
-  const open = groups.find((g) => g.id === 'no-time')?.tasks ?? []
+  const projectPrefs = useUI((s) => s.projectPrefs)
+  // Projects with auto-schedule switched off keep their tasks where they are.
+  const open = (groups.find((g) => g.id === 'no-time')?.tasks ?? []).filter((t) => projectPrefs[t.project]?.auto !== false)
   const [off, setOff] = useState<Record<string, boolean>>({})
   const [useEnergy, setUseEnergy] = useState(plan.useEnergy)
   const [bufferOn, setBufferOn] = useState(plan.buffer > 0)
@@ -639,18 +642,41 @@ function useProject(slug?: string): { name: string; color: string; description: 
   if (baseKey) {
     return { name: taskProjects[baseKey].name, color: hexOf[projectColor[baseKey]] ?? '#F38020', description: '' }
   }
-  return { name: custom?.name ?? 'Project', color: custom?.color ?? '#F38020', description: '' }
+  return { name: custom?.name ?? 'Project', color: custom?.color ?? '#F38020', description: custom?.description ?? '' }
 }
 
 export function ProjectSettingsDialog({ slug }: { slug?: string }): React.JSX.Element {
   const closeDialog = useUI((s) => s.closeDialog)
+  const navigate = useNavigate()
   const p = useProject(slug)
+  const builtinKey = slug ? BASE_SLUGS[slug] : undefined
+  const key = builtinKey ?? slug ?? ''
+  const custom = useProjects((s) => s.custom.find((c) => c.slug === slug))
+  const pref = useUI((s) => s.projectPrefs[key])
   const [name, setName] = useState(p.name)
-  const [desc, setDesc] = useState(p.description)
+  const [desc, setDesc] = useState(custom?.description ?? pref?.description ?? '')
   const [color, setColor] = useState(p.color)
-  const [view, setView] = useState('List')
-  const [auto, setAuto] = useState(true)
-  const [side, setSide] = useState(true)
+  const [auto, setAuto] = useState(pref?.auto !== false)
+  const [side, setSide] = useState(pref?.sidebar !== false)
+  const [confirmDel, setConfirmDel] = useState(false)
+  useEscape(closeDialog)
+
+  const save = (): void => {
+    const n = name.trim()
+    useUI.getState().setProjectPref(key, { auto, sidebar: side, ...(builtinKey ? { description: desc } : null) })
+    if (custom && n) useProjects.getState().update(custom.slug, { name: n, color, description: desc })
+    closeDialog()
+  }
+
+  const remove = (): void => {
+    if (!custom) return
+    // Its open tasks move to Personal rather than disappear.
+    for (const g of useTasks.getState().groups)
+      for (const t of g.tasks) if (t.project === custom.slug) useTasks.getState().patch(t.id, { project: 'personal' })
+    useProjects.getState().remove(custom.slug)
+    closeDialog()
+    navigate('/tasks')
+  }
 
   return (
     <Modal top={130} width={600} onClose={closeDialog}>
@@ -670,6 +696,8 @@ export function ProjectSettingsDialog({ slug }: { slug?: string }): React.JSX.El
             className="dl-field"
             style={{ fontWeight: 500 }}
             value={name}
+            disabled={!custom}
+            maxLength={60}
             onChange={(e) => setName(e.target.value)}
           />
         </div>
@@ -680,66 +708,28 @@ export function ProjectSettingsDialog({ slug }: { slug?: string }): React.JSX.El
             style={{ color: '#2A2A2A', lineHeight: 1.5, resize: 'none', height: 42 }}
             placeholder="Add a description"
             value={desc}
+            maxLength={300}
             onChange={(e) => setDesc(e.target.value)}
           />
         </div>
         <div className="dl-pr">
           <span className="dl-pl">Color</span>
-          <div className="row" style={{ gap: 10 }}>
+          <div className="row" style={{ gap: 10, opacity: custom ? 1 : 0.45 }}>
             {palette.map((c) => (
               <button
                 key={c}
                 className={cn('dl-sw', c === color && 'on')}
                 style={{ background: c }}
                 aria-label={c}
+                disabled={!custom}
                 onClick={() => setColor(c)}
               />
             ))}
           </div>
         </div>
         <div className="dl-pr">
-          <span className="dl-pl">Default view</span>
-          <div
-            className="row"
-            style={{
-              padding: 3,
-              borderRadius: 10,
-              background: '#F5F5F4',
-              border: '1px solid #EDEDEB'
-            }}
-          >
-            {['List', 'Board', 'Calendar'].map((v) => (
-              <button
-                key={v}
-                className="row"
-                onClick={() => setView(v)}
-                style={{
-                  height: 28,
-                  padding: '0 14px',
-                  borderRadius: 7,
-                  ...(v === view
-                    ? { background: '#fff', boxShadow: '0 1px 2px rgba(0,0,0,.08)' }
-                    : null)
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 12.5,
-                    fontWeight: v === view ? 500 : 400,
-                    color: v === view ? undefined : '#6B6B6B'
-                  }}
-                >
-                  {v}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="dl-pr">
           <span className="dl-pl">Auto-schedule</span>
-          <span style={{ fontSize: 14, flex: 1 }}>
-            Place tasks from this project in my free time
-          </span>
+          <span style={{ fontSize: 14, flex: 1 }}>Place tasks from this project in my free time</span>
           <Toggle2 on={auto} onChange={setAuto} />
         </div>
         <div className="dl-pr">
@@ -747,10 +737,16 @@ export function ProjectSettingsDialog({ slug }: { slug?: string }): React.JSX.El
           <span style={{ fontSize: 14, flex: 1 }}>Show {name || p.name} under Projects</span>
           <Toggle2 on={side} onChange={setSide} />
         </div>
-      </div>
-      <div className="row" style={{ gap: 20, padding: '14px 0 4px' }}>
-        <button style={{ padding: 0, fontSize: 13, color: '#6B6B6B' }}>Danger zone</button>
-        <button style={{ padding: 0, fontSize: 13, color: '#C2362B' }}>Delete project</button>
+        <div className="dl-pr">
+          <span className="dl-pl">Danger zone</span>
+          {custom ? (
+            <button style={{ padding: 0, fontSize: 14, color: '#C2362B' }} onClick={() => setConfirmDel(true)}>
+              Delete project
+            </button>
+          ) : (
+            <span style={{ fontSize: 13.5, color: 'var(--ink3)' }}>Built-in projects cannot be deleted. Hide it from the sidebar instead.</span>
+          )}
+        </div>
       </div>
       <div className="dl-foot" style={{ marginTop: 12, paddingTop: 16 }}>
         <div className="row" style={{ gap: 6 }}>
@@ -759,11 +755,20 @@ export function ProjectSettingsDialog({ slug }: { slug?: string }): React.JSX.El
         </div>
         <div className="row" style={{ gap: 8 }}>
           <Button onClick={closeDialog}>Cancel</Button>
-          <Button variant="dark" onClick={closeDialog}>
+          <Button variant="dark" onClick={save}>
             Save changes
           </Button>
         </div>
       </div>
+      {confirmDel && (
+        <ConfirmDialog
+          title="Delete this project?"
+          body={<>“{name || p.name}” will be removed. Its open tasks move to Personal.</>}
+          confirmLabel="Delete project"
+          onConfirm={remove}
+          onCancel={() => setConfirmDel(false)}
+        />
+      )}
     </Modal>
   )
 }
