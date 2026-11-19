@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
-import { DeleteAccountDialog, Modal } from '../../components/Dialogs'
+import { DeleteAccountDialog, ImportDialog, Modal } from '../../components/Dialogs'
 import { cn } from '../../components/ui'
 import { useAuth } from '../../store/auth'
 import { useIdentity, timeZoneName } from '../../lib/identity'
@@ -11,6 +11,13 @@ import { useNotes } from '../../store/notes'
 import { useProjects } from '../../store/projects'
 import { usePlan } from '../../lib/plan'
 import { startCheckout } from '../../lib/billing'
+import {
+  buildJsonExport,
+  buildTasksCsv,
+  parseImport,
+  saveExport,
+  type ParsedImport
+} from '../../lib/dataPorter'
 import './settings.css'
 
 const tabs = [
@@ -784,6 +791,51 @@ function Shortcuts(): React.JSX.Element {
 
 function Data(): React.JSX.Element {
   const [deleting, setDeleting] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState<{ text: string; bad?: boolean } | null>(null)
+  const [imp, setImp] = useState<ParsedImport | null>(null)
+
+  const runExport = async (kind: 'json' | 'csv'): Promise<void> => {
+    setBusy(true)
+    setNote(null)
+    const file = await (kind === 'json' ? buildJsonExport() : buildTasksCsv())
+    if ('error' in file) setNote({ text: file.error, bad: true })
+    else {
+      const r = await saveExport(file)
+      if (r.saved) setNote({ text: r.where ? `Saved to ${r.where}` : 'Downloaded.' })
+    }
+    setBusy(false)
+  }
+
+  const chooseFile = async (): Promise<void> => {
+    setNote(null)
+    let name = ''
+    let text = ''
+    if (window.api?.files) {
+      const r = await window.api.files.open()
+      if (!r) return
+      if ('error' in r) {
+        setNote({ text: 'That file is larger than 10 MB.', bad: true })
+        return
+      }
+      name = r.name
+      text = r.text
+    } else {
+      const f = await new Promise<File | null>((resolve) => {
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.accept = '.json,.csv'
+        input.onchange = () => resolve(input.files?.[0] ?? null)
+        input.click()
+      })
+      if (!f) return
+      name = f.name
+      text = await f.text()
+    }
+    const parsed = parseImport(name, text)
+    if ('error' in parsed) setNote({ text: parsed.error, bad: true })
+    else setImp(parsed)
+  }
   const it = (
     title: string,
     sub: string,
@@ -811,15 +863,30 @@ function Data(): React.JSX.Element {
       </div>
       {it(
         'Export everything',
-        'Tasks, notes, events and habits as JSON or CSV. Ready in about a minute.',
-        <button className="st-btn s34">Request export</button>
+        'All your tasks, notes, events, habits and projects as one JSON file, or just the tasks as CSV.',
+        <div className="row" style={{ gap: 8 }}>
+          <button className="st-btn s34" disabled={busy} onClick={() => void runExport('json')}>
+            {busy ? 'Preparing…' : 'Export JSON'}
+          </button>
+          <button className="st-btn s34" disabled={busy} onClick={() => void runExport('csv')}>
+            Tasks CSV
+          </button>
+        </div>
       )}
       {it(
-        'Import from another app',
-        'Todoist, Notion, Google Tasks or a CSV file.',
-        <button className="st-btn s34">Choose file</button>,
+        'Import tasks',
+        'A Nexday export, Google Tasks (Takeout) or a CSV from Todoist, Notion and others. Open tasks only.',
+        <button className="st-btn s34" onClick={() => void chooseFile()}>
+          Choose file
+        </button>,
         true
       )}
+      {note && (
+        <div style={{ padding: '8px 0 0', fontSize: 13, color: note.bad ? '#C2362B' : '#6B6B6B' }}>
+          {note.text}
+        </div>
+      )}
+      {imp && <ImportDialog parsed={imp} onClose={() => setImp(null)} />}
       <div className="st-h2" style={{ paddingTop: 28, paddingBottom: 8 }}>
         Privacy
       </div>

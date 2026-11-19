@@ -14,6 +14,10 @@ declare global {
         set: (key: string, value: string) => Promise<void>
         remove: (key: string) => Promise<void>
       }
+      files: {
+        save: (name: string, text: string) => Promise<{ path: string } | null>
+        open: () => Promise<{ name: string; text: string } | { error: string } | null>
+      }
       openExternal: (url: string) => Promise<void>
       onAuthCallback: (cb: (url: string) => void) => () => void
       calendar: {

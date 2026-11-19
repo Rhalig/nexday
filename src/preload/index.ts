@@ -15,6 +15,12 @@ const api = {
       ipcRenderer.invoke('secure:set', key, value),
     remove: (key: string): Promise<void> => ipcRenderer.invoke('secure:remove', key)
   },
+  files: {
+    save: (name: string, text: string): Promise<{ path: string } | null> =>
+      ipcRenderer.invoke('file:save', name, text),
+    open: (): Promise<{ name: string; text: string } | { error: string } | null> =>
+      ipcRenderer.invoke('file:open')
+  },
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('open-external', url),
   onAuthCallback: (cb: (url: string) => void): (() => void) => {
     const handler = (_e: unknown, url: string): void => cb(url)

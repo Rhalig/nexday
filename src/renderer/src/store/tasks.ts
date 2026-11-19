@@ -28,6 +28,25 @@ export type DoneTask = Pick<Task, 'id' | 'title' | 'project' | 'energy' | 'time'
   at: string
 }
 
+/** Puts tasks into their day groups, creating groups that do not exist yet. */
+function insertTasks(
+  current: TaskGroup[],
+  items: Array<{ task: Task; group: TaskGroup['id'] }>
+): TaskGroup[] {
+  let groups = current.map((g) => ({ ...g }))
+  for (const { task, group } of items) {
+    let target = groups.find((g) => g.id === group)
+    if (!target) {
+      target = { id: group, title: groupTitles[group], meta: '0', tasks: [] }
+      groups.push(target)
+      groups.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))
+    }
+    target.tasks = [...target.tasks, task]
+  }
+  groups = withMeta(groups)
+  return groups
+}
+
 type TasksState = {
   groups: TaskGroup[]
   /** Tasks completed today (this session, plus whatever the account saved today). */
@@ -38,6 +57,8 @@ type TasksState = {
   remove: (id: string, mode?: 'done' | 'deleted') => void
   /** Adds a task to a day group, creating the group when it is empty. */
   add: (task: Task, group: TaskGroup['id']) => void
+  /** Adds many tasks at once (import). */
+  addMany: (items: Array<{ task: Task; group: TaskGroup['id'] }>) => void
   /** Give no-time tasks a slot: they move into the given day group. */
   schedule: (
     placements: Array<{ id: string; group: 'today' | 'tomorrow' | 'next-week'; time: string }>
@@ -48,19 +69,8 @@ export const useTasks = create<TasksState>((set) => ({
   groups: supabase ? [] : taskGroups,
   doneToday: [],
   doneTotals: { planner: 0, moving: 0, reading: 0, personal: 0 },
-  add: (task, group) =>
-    set((s) => {
-      let groups = s.groups.map((g) => ({ ...g }))
-      let target = groups.find((g) => g.id === group)
-      if (!target) {
-        target = { id: group, title: groupTitles[group], meta: '0', tasks: [] }
-        groups.push(target)
-        groups.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))
-      }
-      target.tasks = [...target.tasks, task]
-      groups = withMeta(groups)
-      return { groups }
-    }),
+  add: (task, group) => set((s) => ({ groups: insertTasks(s.groups, [{ task, group }]) })),
+  addMany: (items) => set((s) => ({ groups: insertTasks(s.groups, items) })),
   remove: (id, mode = 'done') => {
     removalMode.set(id, mode)
     set((s) => {

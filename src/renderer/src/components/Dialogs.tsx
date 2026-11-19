@@ -12,6 +12,7 @@ import { useUI } from '../store/ui'
 import { useInbox } from '../store/inbox'
 import { usePlan } from '../lib/plan'
 import { deleteAccount } from '../lib/account'
+import { toStoreTask, type ParsedImport } from '../lib/dataPorter'
 import { PLAN_HORIZON, planDayLabel, planTasks } from '../lib/planning'
 import { appToday } from '../lib/clock'
 import './dialogs.css'
@@ -198,6 +199,79 @@ export function DeleteAccountDialog({ onClose }: { onClose: () => void }): React
           >
             {busy ? 'Deleting…' : 'Delete account'}
           </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+/* ---------------- Import tasks ---------------- */
+
+export function ImportDialog({
+  parsed,
+  onClose
+}: {
+  parsed: ParsedImport
+  onClose: () => void
+}): React.JSX.Element {
+  const groups = useTasks((s) => s.groups)
+  const plan = useUI((s) => s.planning)
+  const [done, setDone] = useState<number | null>(null)
+  useEscape(onClose)
+
+  // Tasks already open in Nexday (same title) and repeats inside the file are left out.
+  const seen = new Set(groups.flatMap((g) => g.tasks.map((t) => t.title.trim().toLowerCase())))
+  const fresh = parsed.tasks.filter((t) => {
+    const k = t.title.toLowerCase()
+    if (seen.has(k)) return false
+    seen.add(k)
+    return true
+  })
+  const dupes = parsed.tasks.length - fresh.length
+  const withTime = fresh.filter((t) => toStoreTask(t, plan.defaultLength).group !== 'no-time').length
+
+  const confirm = (): void => {
+    useTasks.getState().addMany(fresh.map((t) => toStoreTask(t, plan.defaultLength)))
+    setDone(fresh.length)
+  }
+
+  return (
+    <Modal top={170} width={520} onClose={onClose}>
+      <Header
+        title={done === null ? 'Import tasks' : 'Import finished'}
+        sub={`From ${parsed.source}`}
+        onClose={onClose}
+      />
+      <div style={{ marginTop: 16, fontSize: 13.5, lineHeight: 1.6, color: '#4A4A4A' }}>
+        {done === null ? (
+          <>
+            <b>{fresh.length}</b> {fresh.length === 1 ? 'task' : 'tasks'} will be added.
+            {withTime > 0 && ` ${withTime} ${withTime === 1 ? 'keeps its' : 'keep their'} time; the rest wait in "No time yet" for Auto-schedule.`}
+            {withTime === 0 && ' They wait in "No time yet" for Auto-schedule.'}
+            {dupes > 0 && ` ${dupes} already in Nexday or repeated, skipped.`}
+            {parsed.ignored > 0 && ` ${parsed.ignored} done or non-task ${parsed.ignored === 1 ? 'entry' : 'entries'} ignored.`}
+          </>
+        ) : (
+          <>
+            Added <b>{done}</b> {done === 1 ? 'task' : 'tasks'}. They are saving to your account now.
+          </>
+        )}
+      </div>
+      <div className="dl-foot" style={{ marginTop: 20, paddingTop: 18 }}>
+        <span />
+        <div className="row" style={{ gap: 10 }}>
+          {done === null ? (
+            <>
+              <Button onClick={onClose}>Cancel</Button>
+              <Button variant="dark" onClick={confirm} disabled={fresh.length === 0}>
+                Import {fresh.length}
+              </Button>
+            </>
+          ) : (
+            <Button variant="dark" onClick={onClose}>
+              Done
+            </Button>
+          )}
         </div>
       </div>
     </Modal>

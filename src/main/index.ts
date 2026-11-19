@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import { initStorage } from './storage'
 import { initCalendar } from './calendar'
 import { initSecure } from './secure'
+import { initFiles } from './files'
 
 const PROTOCOL = 'nexday'
 // A sign-in link (nexday://auth/callback?code=...) can arrive before the window exists; keep it until it does.
@@ -110,6 +111,7 @@ app.whenReady().then(() => {
     if (/^https:\/\//.test(url)) void shell.openExternal(url)
   })
   initCalendar()
+  initFiles()
 
   createWindow()
 
