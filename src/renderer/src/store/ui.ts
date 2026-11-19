@@ -3,7 +3,7 @@ import { create } from 'zustand'
 export type NewType = 'task' | 'event' | 'note' | 'habit'
 export type PanelName = 'profile' | 'notifs' | 'help' | 'newProject'
 export type DialogName =
-  'autoSchedule' | 'inboxRules' | 'templates' | 'projectSettings' | 'share' | 'upgrade'
+  'autoSchedule' | 'inboxRules' | 'templates' | 'projectSettings' | 'share'
 
 /** What Settings › Planning changes, and what the scheduler follows. */
 export type PlanSettings = {

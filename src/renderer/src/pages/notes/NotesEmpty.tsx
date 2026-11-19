@@ -5,7 +5,6 @@ import { NOTE_SUGGESTIONS } from '../../components/GhostInput'
 import { QuickCapture } from '../../components/QuickCapture'
 import { Button } from '../../components/ui'
 import { useNotes } from '../../store/notes'
-import { useUI } from '../../store/ui'
 import { pageDate } from '../../lib/clock'
 import './notes.css'
 
@@ -32,10 +31,6 @@ export default function NotesEmpty(): React.JSX.Element {
               variant="dark"
               onClick={() => {
                 const id = useNotes.getState().add('Untitled note')
-                if (!id) {
-                  useUI.getState().openDialog('upgrade', 'notes')
-                  return
-                }
                 navigate(`/notes/${id}`)
               }}
             >

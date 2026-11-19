@@ -317,9 +317,8 @@ export default function Onboarding(): React.JSX.Element {
         <path d="M8 12.5l3 3 5-6" />
       </svg>
       <h1 style={{ marginTop: 16 }}>You&apos;re all set, {name}</h1>
-      <p className="nx-sub">Nexday found 4 events and 7 tasks for today and fitted them into your gaps.</p>
+      <p className="nx-sub">Your plan is ready. Add tasks, and Nexday fits them into the gaps in your day.</p>
       <div className="ob-list">
-        {prop('Calendar', <span className="ob-pv">Google · 4 calendars</span>)}
         {prop('Working hours', <span className="ob-pv">{daysText}, 09:00 to 18:00</span>)}
         {prop('Best focus time', <span className="ob-pv">{['Mornings', 'Afternoons', 'Evenings'][ob.focus]}</span>)}
         {prop(

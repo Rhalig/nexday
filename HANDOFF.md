@@ -23,7 +23,7 @@ A day planner: Today, Inbox, Calendar, Tasks, Notes, Habits, Projects, Settings,
 - Main process (`src/main`): `storage.ts` (JSON file), `secure.ts` (keychain-encrypted values), `calendar.ts` + `native/eventkit/main.swift` (Mac Calendar via EventKit: read, create, delete), `nexday://` deep link handling in `index.ts`.
 
 ## Backend (Supabase project `xsullpmifpyxkkbguznp`, URL https://xsullpmifpyxkkbguznp.supabase.co)
-- Edge Functions in `supabase/functions/`: only `delete-account` (the `ai`, `billing` and `stripe-webhook` ones were removed, see "Beta is free"). It is deployed; each file header lists the secrets it needs.
+- Edge Functions in `supabase/functions/`: only `delete-account` (`ai` is written but not deployed; `billing` and `stripe-webhook` were removed, see "Beta is free"). It is deployed; each file header lists the secrets it needs.
 - Schema in `supabase/migrations/0001_init.sql` and `0002_habit_meta.sql`, both already applied (through the dashboard SQL editor; no CLI link). 14 tables, row level security on all, signup trigger creates profile and a 14-day trial, `plans` table holds limits (free: 5 projects, 50 notes, 1 calendar, 200 AI/month; Pro $6).
 - Auth: email+password and Google. Redirect URL `nexday://auth/callback` is allowed. Email confirmation is on; Supabase's default email sender is rate-limited, a real SMTP (Resend/Brevo) is still needed.
 - Google Cloud project `nexday-515118` ("Nexday"), OAuth consent in Testing mode with the owner's Gmail as the only test user, Web client whose redirect is the Supabase callback. Google sign-in was removed from the app for the beta.
@@ -72,12 +72,17 @@ Cloud accounts with Supabase free tier. AI = Gemini free tier (key must live in 
 ## Beta distribution
 - The beta is a direct download from the owner's website, not the App Store. An ad-hoc signed app shows "unidentified developer" on first launch and the owner accepts that; Apple Developer ID and notarization are NOT needed for the beta. Testers open it with right-click › Open (or System Settings › Privacy & Security › Open Anyway). Auto-update without a Developer ID is not practical, so the beta ships by re-downloading.
 
-## Beta is free (AI, billing, Google sign-in removed)
-- Decision: the beta is free, so there are no plan limits, no Upgrade dialog, no Settings › Plan & billing, no Stripe, no AI, and no "Continue with Google" button. Sign-in is email + password only. Register says "Free while Nexday is in beta."
-- Removed from the app: `lib/plan.ts`, `lib/billing.ts`, `lib/ai.ts`, `UpgradeDialog`, project/note limit checks, the Inbox AI suggestion, the note editor's "Find with AI", `signInWithGoogle`. Removed from the repo: Edge Functions `ai`, `billing`, `stripe-webhook` (git history has them if paid plans or AI come back).
+## Beta is free (billing, limits, Google sign-in removed; AI stays)
+- Decision: the beta is free, so there are no plan limits, no Upgrade dialog, no Settings › Plan & billing, no Stripe, and no "Continue with Google" button. Sign-in is email + password only. Register says "Free while Nexday is in beta."
+- Removed from the app: `lib/plan.ts`, `lib/billing.ts`, `UpgradeDialog`, project/note limit checks, Settings › Plan & billing, `signInWithGoogle`. Removed from the repo: Edge Functions `billing` and `stripe-webhook` (git history has them if paid plans come back).
 - Kept on purpose: the `plans`/`subscriptions`/`ai_usage` tables and the signup trigger (harmless, ready for later), the `nexday://` link handler (email confirmation and password reset still use it), and `delete-account` (still deployed; its Stripe branch only runs if a Stripe subscription exists, which cannot happen now).
 - Supabase dashboard: the Google provider can be switched off under Authentication › Providers; the Google Cloud project is no longer needed for the beta.
 - `delete-account` is deployed (Verify JWT on) and was tested end to end with a throwaway user. Client: `lib/account.ts` + `DeleteAccountDialog` (Settings › Data & privacy, type DELETE).
+
+## AI (written, NOT connected yet)
+- `supabase/functions/ai/index.ts` is a thin bridge to Gemini (key in an Edge Function secret, sent in the `x-goog-api-key` header, inputs length-capped). Actions: `parse` (classify a quick-capture line), `inbox` (suggestion for a captured item), `note` (action items in a note). Each call is counted in `ai_usage`; the Free plan row in `plans` caps it at 200 calls per person per month (`plans.limits.ai_per_month`), which protects the Gemini free-tier quota. That cap is server-side only, there is no limit UI any more.
+- Client `lib/ai.ts`: used by Inbox quick capture (regex suggestion first, AI replaces it in place) and the note editor's "Find with AI". Until the function is deployed the UI says "AI is not set up yet" and everything else works. `aiParseCapture` exists but the task quick-capture still uses the regex parser.
+- To connect (owner): get a key at Google AI Studio; Supabase Dashboard > Edge Functions > Create function `ai`, paste the file, Deploy (Verify JWT ON); then Edge Functions > Secrets > add `GEMINI_API_KEY` (optional `GEMINI_MODEL`, default `gemini-2.5-flash`). The free Gemini tier may use content for training: tell testers in the privacy policy, or use a paid key.
 
 ## Pitfalls learned
 - Short generic CSS class names collide with older global ones (`.en`, `.sp` both broke things). Prefix new classes (`st-`, `nx-`, `fc-`, `tv-`, `ts-`).

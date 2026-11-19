@@ -123,10 +123,6 @@ export default function Notes(): React.JSX.Element {
         hint="Notes link to events on their own, and Nexday pulls out the tasks hiding inside."
         onSubmit={(text) => {
           const id = useNotes.getState().add(text)
-          if (!id) {
-            useUI.getState().openDialog('upgrade', 'notes')
-            return
-          }
           setSelectedId(id)
         }}
       />

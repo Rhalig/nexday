@@ -513,3 +513,4 @@ export function NewPopup({ type }: { type: NewType }): React.JSX.Element {
     </Overlay>
   )
 }
+ 

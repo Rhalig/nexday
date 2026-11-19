@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase'
 type NotesState = {
   notes: Note[]
   /** A new note starts as an idea for today; the editor fills in the rest later. */
-  add: (title: string) => string | null
+  add: (title: string) => string
   /** Saves edits from the editor. The list preview line follows the text. */
   update: (id: string, patch: { title?: string; text?: string }) => void
   remove: (id: string) => void

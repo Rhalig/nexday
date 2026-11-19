@@ -4,7 +4,7 @@ import { Icon, type IconName } from '../../components/Icon'
 import { Button, Kbd } from '../../components/ui'
 import { useNotes } from '../../store/notes'
 import { useTasks } from '../../store/tasks'
-import { useUI } from '../../store/ui'
+import { aiNoteActions } from '../../lib/ai'
 import { actionItems, noteText, parseLine, setTodoState } from '../../lib/noteText'
 import { appToday, clockTime } from '../../lib/clock'
 import type { Note } from '../../data/notes'
@@ -52,6 +52,8 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
   const [menu, setMenu] = useState<{ query: string; index: number } | null>(null)
   const [dismissed, setDismissed] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
   const area = useRef<HTMLTextAreaElement>(null)
   const caret = useRef<number | null>(null)
   const latest = useRef({ title, text, dirty })
@@ -191,6 +193,24 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
     edit(next)
   }
 
+  const findActions = async (): Promise<void> => {
+    setAiBusy(true)
+    setAiError(null)
+    const r = await aiNoteActions(title, text)
+    setAiBusy(false)
+    if ('error' in r) {
+      setAiError(r.error)
+      return
+    }
+    const known = new Set(items.map((a) => a.title.toLowerCase()))
+    const fresh = r.data.items.filter((a) => !known.has(a.title.trim().toLowerCase()))
+    if (fresh.length === 0) {
+      setAiError(r.data.items.length === 0 ? 'No action items found.' : 'Those are already in the note.')
+      return
+    }
+    edit(`${text.replace(/\s+$/, '')}${text.trim() ? '\n' : ''}${fresh.map((a) => `[ ] ${a.title}`).join('\n')}\n`)
+  }
+
   const linkedTitle = note.linked?.replace(/^Linked to /, '').split(' · ')[0]
   const linkedTime = note.linked?.split(' · ')[1]
   const status = dirty ? 'Saving…' : savedAt ? `Saved · ${savedAt}` : 'Saved'
@@ -238,10 +258,6 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
             onClick={() => {
               flush()
               const nid = useNotes.getState().add('Untitled note')
-              if (!nid) {
-                useUI.getState().openDialog('upgrade', 'notes')
-                return
-              }
               navigate(`/notes/${nid}`)
             }}
           >
@@ -381,11 +397,16 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
                 </div>
               )}
               <div className="row" style={{ marginTop: 10, gap: 8, justifyContent: 'space-between' }}>
-                <span />
+                <Button onClick={() => void findActions()} disabled={aiBusy}>
+                  {aiBusy ? 'Looking…' : 'Find with AI'}
+                </Button>
                 <Button variant="dark" onClick={addToPlan} disabled={open.length === 0}>
                   Add {open.length || ''} to plan
                 </Button>
               </div>
+              {aiError && (
+                <span style={{ fontSize: 12.5, color: 'var(--err)', lineHeight: 1.5, marginTop: 6 }}>{aiError}</span>
+              )}
               {open.length > 0 && (
                 <span className="muted" style={{ fontSize: 12, marginTop: 6 }}>
                   They go to “No time yet”; Auto-schedule can place them.

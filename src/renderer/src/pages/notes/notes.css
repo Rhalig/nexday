@@ -92,16 +92,6 @@
   margin-top: 10px;
   flex-shrink: 0;
 }
-.ai {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 44px;
-  border-bottom: 1px solid var(--line);
-}
-.ai.last {
-  border-bottom: 0;
-}
 
 /* ---------- Editor ---------- */
 .ed-wrap {
