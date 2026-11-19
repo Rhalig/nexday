@@ -283,7 +283,11 @@ function taskRow(t: Task, group: TaskGroup['id'], estimateHint?: number): Row {
   }
 }
 
-function groupsFromRows(rows: Row[]): TaskGroup[] {
+/**
+ * `moveUnfinished`: open tasks planned for a day that has passed lose their old slot and wait in
+ * "No time yet" for the planner (Settings › Planning). Off, they stay in Today as before.
+ */
+function groupsFromRows(rows: Row[], moveUnfinished = false): TaskGroup[] {
   const idToSlug: Record<string, string> = {}
   for (const [slug, id] of Object.entries(projectIds)) idToSlug[id] = slug
   const buckets: Record<TaskGroup['id'], Array<{ task: Task; est: number }>> = {
@@ -305,7 +309,9 @@ function groupsFromRows(rows: Row[]): TaskGroup[] {
     const est = (r.estimate_min as number | null) ?? 0
     let group: TaskGroup['id'] = 'no-time'
     let time: string | null = null
-    if (start) {
+    if (start && moveUnfinished && daysFromToday(start) < 0) {
+      // keep group 'no-time' and time null
+    } else if (start) {
       const diff = daysFromToday(start)
       if (diff <= 0) group = 'today'
       else if (diff === 1) group = 'tomorrow'
@@ -899,7 +905,11 @@ async function loadAll(userId: string): Promise<void> {
     const key = slugToKey(idToSlug[String(r.project_id)] ?? '')
     if (key) doneTotals[key]++
   }
-  useTasks.setState({ groups: groupsFromRows(tasks.data ?? []), doneToday, doneTotals })
+  useTasks.setState({
+    groups: groupsFromRows(tasks.data ?? [], mergePlan(settings.planning).moveUnfinished),
+    doneToday,
+    doneTotals
+  })
   const history: Record<string, string[]> = {}
   for (const c of historyChecks.data ?? [])
     (history[String(c.habit_id)] ??= []).push(String(c.day).slice(0, 10))

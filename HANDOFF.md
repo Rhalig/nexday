@@ -35,12 +35,13 @@ Cloud accounts with Supabase free tier. AI = Gemini free tier (key must live in 
 ## Settings are applied now
 - Preferences (`lib/prefs.ts`, subscribes to the UI store at import time): time format (`T(text)` rewrites every "HH:MM" in a string; used in task rows, Today, Calendar grid/events, task drawer; strings built elsewhere, e.g. Inbox suggestion chips, still show 24-hour), date format (`pageDate`/`shortDate` in `lib/clock.ts`), density (`data-density` on `<html>`, CSS in components.css), reduce motion (`data-reduce-motion`, motion.css), start page (`StartPage` route in App.tsx), show completed tasks (Today plan), sounds (silent flag on notifications). Language only offers English; time zone shows the Mac's.
 - Notifications (`lib/notifier.ts`, started in AppShell): native desktop notifications from a 30 s check: daily plan (work days 08:30–09:30), up next (events and timed tasks, lead time from settings), tasks still open (16:00), habit reminders (at the slot), weekly review (Fri 17:00). Respects pause, quiet hours and the Desktop checkbox of each row; fired keys are remembered per day (`kv notifFired`). Email and in-app columns, Inbox suggestions and Shared rows are marked "soon" and do nothing.
+- Move unfinished tasks (Settings › Planning): at load, open tasks planned for a past day drop their old slot and sit in "No time yet" for the planner (`groupsFromRows(rows, moveUnfinished)` in `lib/cloud.ts`); the old date stays in the database until the task is next edited, and the setting off puts them back in Today.
 - Calendars: sync direction (Two-way writes new events to Mac Calendar, "Calendar to Nexday" does not), new events' default kind, show declined events.
 - Tested: notifier and `T()` with a script and fake stores, preferences toggles in the browser preview. Not tested: a real macOS notification from the packaged app (needs the notification permission prompt).
 
 ## Not done yet (suggested order)
 1. Real SMTP for confirmation/reset emails (dashboard-only, needs the owner): Resend or Brevo, then Supabase Dashboard → Authentication → Emails → SMTP (host `smtp.resend.com`, port 465/587, user `resend`, password = API key). Test from a packaged app (only registered apps receive `nexday://` links).
-2. Move unfinished tasks (needs a stored date on tasks), launch at login, editable keyboard shortcuts, drag and drop on Calendar/Board, real notes editor, subtask editing, event rescheduling.
+2. Launch at login, editable keyboard shortcuts, drag and drop on Calendar/Board, real notes editor, subtask editing, event rescheduling.
 3. Release: Apple Developer ID + notarization, auto-update, Intel/universal build, crash reporting, privacy policy and terms, tests (none yet).
 4. Deploy the other Edge Functions (`ai`, `billing`, `stripe-webhook`); Stripe and Gemini setup by the owner.
 5. Optional: rotate the Google OAuth client secret (it appeared in a chat once), publish the Google app out of Testing.
