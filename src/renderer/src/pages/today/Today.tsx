@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
 import { PageHead, Topbar } from '../../components/page'
@@ -9,9 +9,11 @@ import type { GhostTask } from '../../components/GhostInput'
 import { QuickCapture } from '../../components/QuickCapture'
 import { parseCapture, toTask } from '../../lib/capture'
 import { useTasks } from '../../store/tasks'
+import { habitNumbers } from '../../lib/habitStats'
+import { supabase } from '../../lib/supabase'
+import { useTodayData } from '../../lib/useToday'
 import { useHabits } from '../../store/habits'
 import { useNotes } from '../../store/notes'
-import { useCalendar } from '../../store/calendar'
 import { useUI } from '../../store/ui'
 import {
   addDays,
@@ -25,7 +27,6 @@ import {
 import {
   DAY_END,
   DAY_START,
-  buildToday,
   clock,
   fmtMin,
   inText,
@@ -44,40 +45,12 @@ export default function Today(): React.JSX.Element {
   const [ghostTask, setGhostTask] = useState<GhostTask | null>(null)
   const openDialog = useUI((s) => s.openDialog)
 
-  // A minute clock, so "Up next" and the free gaps move on their own.
-  const [now, setNow] = useState(() => appToday())
-  useEffect(() => {
-    const id = setInterval(() => setNow(appToday()), 60000)
-    return () => clearInterval(id)
-  }, [])
-
-  // Make sure the calendar store covers today (the Calendar page may have moved it elsewhere).
-  const today = dayKey(now)
-  const range = useCalendar((s) => s.range)
-  useEffect(() => {
-    if (!range || today < range.from || today > range.to)
-      void useCalendar.getState().loadWeek(startOfWeek(appToday()))
-  }, [today, range])
-
-  const calEvents = useCalendar((s) => s.events)
-  const macOn = useCalendar((s) => s.status === 'authorized')
-  const groups = useTasks((s) => s.groups)
-  const done = useTasks((s) => s.doneToday)
-  const habits = useHabits((s) => s.habits)
-  const week = useHabits((s) => s.week)
+  const { data, now } = useTodayData()
+  const storedHabits = useHabits((s) => s.habits)
+  const history = useHabits((s) => s.history)
+  const habits = storedHabits.map((h) => (supabase ? { ...h, ...habitNumbers(h, history, now) } : h))
   const notes = useNotes((s) => s.notes)
 
-  const data = useMemo(
-    () =>
-      buildToday({
-        // Until Mac Calendar is connected the store holds design sample events: leave those out.
-        events: calEvents.filter((e) => e.date === today && (macOn || e.sourceId)),
-        groups,
-        done,
-        now
-      }),
-    [calEvents, today, macOn, groups, done, now]
-  )
   const nowMin = now.getHours() * 60 + now.getMinutes()
   const nextGap = data.gaps[0]
   const sub =
@@ -95,7 +68,7 @@ export default function Today(): React.JSX.Element {
     Array.from({ length: 7 }, (_, i) => {
       if (i === todayIdx) return doneToday ? 'y' : 't'
       if (i > todayIdx) return ''
-      return week[id]?.includes(dayKey(addDays(monday, i))) ? 'y' : ''
+      return history[id]?.includes(dayKey(addDays(monday, i))) ? 'y' : ''
     })
   const note = notes.find((n) => n.group === 'today') ?? notes[0]
   const hours = Array.from({ length: (DAY_END - DAY_START) / 60 }, (_, i) =>

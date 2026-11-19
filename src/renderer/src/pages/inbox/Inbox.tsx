@@ -11,6 +11,8 @@ import { projects } from '../../data/tasks'
 import { sourceIcon, useInbox, type InboxItem, type InboxSource } from '../../store/inbox'
 import { pageDate } from '../../lib/clock'
 import { aiInboxSuggestion } from '../../lib/ai'
+import { useTodayData } from '../../lib/useToday'
+import { fmtMin } from '../../lib/today'
 import './inbox.css'
 
 const kindLabel = { task: 'Task', event: 'Event', note: 'Note' } as const
@@ -101,6 +103,8 @@ function InboxZero(): React.JSX.Element {
 export default function Inbox(): React.JSX.Element {
   const { items, accept, dismiss } = useInbox()
   const [filter, setFilter] = useState<Filter>('all')
+  const { data: today } = useTodayData()
+  const freeMin = today.gaps.reduce((n, g) => n + (g.end - g.start), 0)
 
   if (items.length === 0) return <InboxZero />
 
@@ -120,11 +124,10 @@ export default function Inbox(): React.JSX.Element {
         <PageHead
           date={pageDate()}
           title={`${items.length} ${items.length === 1 ? 'item' : 'items'} to triage`}
-          sub="Everything you captured or got mentioned in, with a time already suggested. About 4 minutes to clear."
+          sub="Everything you captured or got mentioned in, with a time already suggested."
           stats={[
             ['Waiting', String(items.length)],
-            ['Free today', '4h 00m'],
-            ['Cleared this week', String(18 + (6 - items.length))]
+            ['Free today', freeMin ? fmtMin(freeMin) : '—']
           ]}
         />
 

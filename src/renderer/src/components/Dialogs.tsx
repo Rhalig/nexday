@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Icon, type IconName } from './Icon'
 import { useEscape } from './Popups'
 import { Button, Kbd, cn, projectColor } from './ui'
-import { projectList } from '../data/projects'
-import { projects as taskProjects } from '../data/tasks'
+import { projects as taskProjects, type Project } from '../data/tasks'
 import { useProjects } from '../store/projects'
 import { useTasks } from '../store/tasks'
 import { useHabits } from '../store/habits'
@@ -566,18 +565,17 @@ const hexOf: Record<string, string> = {
   'var(--health)': '#2E8B57'
 }
 
+const BASE_SLUGS: Record<string, Project> = {
+  'planner-mvp': 'planner',
+  'moving-house': 'moving',
+  'reading-list': 'reading'
+}
+
 function useProject(slug?: string): { name: string; color: string; description: string } {
   const custom = useProjects((s) => s.custom.find((c) => c.slug === slug))
-  const base = projectList.find((p) => p.slug === slug)
-  if (base) {
-    return {
-      name: base.name,
-      color: hexOf[base.color] ?? '#F38020',
-      description:
-        base.slug === 'planner-mvp'
-          ? 'Ship the first clickable version of Nexday: Today, Calendar, Inbox and Tasks.'
-          : ''
-    }
+  const baseKey = slug ? BASE_SLUGS[slug] : undefined
+  if (baseKey) {
+    return { name: taskProjects[baseKey].name, color: hexOf[projectColor[baseKey]] ?? '#F38020', description: '' }
   }
   return { name: custom?.name ?? 'Project', color: custom?.color ?? '#F38020', description: '' }
 }

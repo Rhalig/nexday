@@ -5,9 +5,11 @@ import { PageHead, Topbar } from '../../components/page'
 import { HABIT_SUGGESTIONS } from '../../components/GhostInput'
 import { QuickCapture } from '../../components/QuickCapture'
 import { Button, Segmented, cn } from '../../components/ui'
-import { heatmap, type Habit, type HabitGroup } from '../../data/habits'
+import type { Habit, HabitGroup } from '../../data/habits'
 import { useHabits } from '../../store/habits'
-import { pageDate } from '../../lib/clock'
+import { addDays, appToday, dayKey, pageDate, startOfWeek, weekdayIndex } from '../../lib/clock'
+import { habitNumbers, habitStats, milestone, type History, type HabitStats } from '../../lib/habitStats'
+import { supabase } from '../../lib/supabase'
 import HabitDrawer from './HabitDrawer'
 import HabitsEmpty from './HabitsEmpty'
 import './habits.css'
@@ -16,36 +18,56 @@ type Filter = 'all' | HabitGroup
 
 const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
-function WeekCells({ habit, onToggle }: { habit: Habit; onToggle: () => void }): React.JSX.Element {
+function WeekCells({
+  habit,
+  history,
+  onToggle
+}: {
+  habit: Habit
+  history: History
+  onToggle: () => void
+}): React.JSX.Element {
+  const now = appToday()
+  const todayIdx = weekdayIndex(now)
+  const monday = startOfWeek(now)
   return (
     <div className="hb-week">
-      <i className="hb-w y" style={{ display: 'flex' }}>
-        <Icon name="check" size={10} strokeWidth={3.5} />
-      </i>
-      {habit.doneToday ? (
-        <button
-          className="hb-w y"
-          aria-label="Undo today"
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggle()
-          }}
-        >
-          <Icon name="check" size={10} strokeWidth={3.5} />
-        </button>
-      ) : (
-        <button
-          className="hb-w t"
-          aria-label="Mark done"
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggle()
-          }}
-        />
-      )}
-      {[0, 1, 2, 3, 4].map((i) => (
-        <i className="hb-w f" key={i} style={{ display: 'flex' }} />
-      ))}
+      {Array.from({ length: 7 }, (_, i) => {
+        if (i < todayIdx) {
+          const on = history[habit.id]?.includes(dayKey(addDays(monday, i)))
+          return on ? (
+            <i className="hb-w y" key={i} style={{ display: 'flex' }}>
+              <Icon name="check" size={10} strokeWidth={3.5} />
+            </i>
+          ) : (
+            <i className="hb-w f" key={i} style={{ display: 'flex' }} />
+          )
+        }
+        if (i > todayIdx) return <i className="hb-w f" key={i} style={{ display: 'flex' }} />
+        return habit.doneToday ? (
+          <button
+            key={i}
+            className="hb-w y"
+            aria-label="Undo today"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggle()
+            }}
+          >
+            <Icon name="check" size={10} strokeWidth={3.5} />
+          </button>
+        ) : (
+          <button
+            key={i}
+            className="hb-w t"
+            aria-label="Mark done"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggle()
+            }}
+          />
+        )
+      })}
     </div>
   )
 }
@@ -53,7 +75,12 @@ function WeekCells({ habit, onToggle }: { habit: Habit; onToggle: () => void }):
 export default function Habits(): React.JSX.Element {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { habits, toggleToday } = useHabits()
+  const { habits: stored, toggleToday, history } = useHabits()
+  const now = appToday()
+  // With an account, streak / rate / check-ins come from the real check-ins, not the saved snapshot.
+  const habits = stored.map((h) => (supabase ? { ...h, ...habitNumbers(h, history, now) } : h))
+  const stats = habitStats(habits, history, now)
+  const best = milestone(habits, history, now)
   const [filter, setFilter] = useState<Filter>('all')
 
   if (id === 'empty') return <HabitsEmpty />
@@ -93,9 +120,9 @@ export default function Habits(): React.JSX.Element {
           }`}
           stats={[
             ['Done today', `${done}/${total}`],
-            ['Active streak', '12 days'],
-            ['This week', '78%'],
-            ['This month', '74%']
+            ['Active streak', `${stats.activeStreak} ${stats.activeStreak === 1 ? 'day' : 'days'}`],
+            ['This week', stats.weekRate === null ? '—' : `${stats.weekRate}%`],
+            ['This month', stats.monthRate === null ? '—' : `${stats.monthRate}%`]
           ]}
         />
 
@@ -114,7 +141,7 @@ export default function Habits(): React.JSX.Element {
               </span>
               <div className="hb-days">
                 {dayLabels.map((d, i) => (
-                  <span className={cn('hb-dl', i === 1 && 'today')} key={i}>
+                  <span className={cn('hb-dl', i === weekdayIndex(now) && 'today')} key={i}>
                     {d}
                   </span>
                 ))}
@@ -137,7 +164,7 @@ export default function Habits(): React.JSX.Element {
                   <span className="hb-name">{h.name}</span>
                   <span className="hb-sub">{h.sub}</span>
                 </div>
-                <WeekCells habit={h} onToggle={() => toggleToday(h.id)} />
+                <WeekCells habit={h} history={history} onToggle={() => toggleToday(h.id)} />
                 <div className="hb-rate">
                   <div className="hb-bar">
                     <div style={{ width: `${h.rate}%` }} />
@@ -153,7 +180,7 @@ export default function Habits(): React.JSX.Element {
               </div>
             ))}
 
-            <Consistency />
+            <Consistency stats={stats} />
           </section>
 
           <aside className="habits-side">
@@ -199,7 +226,7 @@ export default function Habits(): React.JSX.Element {
                     All done for today
                   </span>
                   <span className="muted" style={{ fontSize: 12.5 }}>
-                    Your next slot is tomorrow at 07:00.
+                    Nothing else is planned until tomorrow.
                   </span>
                 </>
               )}
@@ -229,47 +256,34 @@ export default function Habits(): React.JSX.Element {
               ))}
             </div>
 
-            <div className="col">
-              <div className="side-head">
-                <h2>Next milestone</h2>
-              </div>
-              <div className="row" style={{ alignItems: 'baseline', gap: 8 }}>
-                <span className="mono" style={{ fontSize: 20, fontWeight: 500 }}>
-                  12 / 14 days
-                </span>
-                <span className="muted" style={{ fontSize: 12.5 }}>
-                  Morning run
-                </span>
-              </div>
-              <div style={{ height: 4, borderRadius: 2, background: 'var(--line)', marginTop: 10 }}>
-                <div
-                  style={{ width: '86%', height: 4, borderRadius: 2, background: 'var(--acc)' }}
-                />
-              </div>
-              <span className="muted" style={{ marginTop: 10, fontSize: 12.5 }}>
-                Two more mornings and you reach a 2-week streak.
-              </span>
-            </div>
-
-            <div className="col">
-              <div className="side-head">
-                <h2>Nexday noticed</h2>
-              </div>
-              <p style={{ fontSize: 15, lineHeight: 1.5, color: '#2A2A2A' }}>
-                You skip Read 20 pages on days with evening meetings. Moving it to 20:00 would save
-                4 of the last 5 misses.
-              </p>
-              <div className="row" style={{ marginTop: 12, gap: 10 }}>
-                <Button variant="dark">
-                  <span style={{ fontSize: 13 }}>Move to 20:00</span>
-                </Button>
-                <button className="row" style={{ height: 36, padding: '0 8px' }}>
-                  <span className="muted" style={{ fontSize: 13 }}>
-                    Keep 20:30
+            {best && best.streak > 0 && (
+              <div className="col">
+                <div className="side-head">
+                  <h2>Longest streak</h2>
+                </div>
+                <div className="row" style={{ alignItems: 'baseline', gap: 8 }}>
+                  <span className="mono" style={{ fontSize: 20, fontWeight: 500 }}>
+                    {best.days} / 14 days
                   </span>
-                </button>
+                  <span className="muted" style={{ fontSize: 12.5 }}>
+                    {best.name}
+                  </span>
+                </div>
+                <div style={{ height: 4, borderRadius: 2, background: 'var(--line)', marginTop: 10 }}>
+                  <div
+                    style={{
+                      width: `${Math.round((best.days / 14) * 100)}%`,
+                      height: 4,
+                      borderRadius: 2,
+                      background: 'var(--acc)'
+                    }}
+                  />
+                </div>
+                <span className="muted" style={{ marginTop: 10, fontSize: 12.5 }}>
+                  {best.streak}-day streak running.
+                </span>
               </div>
-            </div>
+            )}
           </aside>
         </div>
       </div>
@@ -287,12 +301,12 @@ export default function Habits(): React.JSX.Element {
   )
 }
 
-function Consistency(): React.JSX.Element {
+function Consistency({ stats }: { stats: HabitStats }): React.JSX.Element {
   const facts: Array<[string, string]> = [
-    ['Check-ins', '312'],
-    ['Longest streak', '21 days · Morning run'],
-    ['Strongest weekday', 'Wednesday'],
-    ['Weakest weekday', 'Sunday']
+    ['Check-ins', String(stats.checkIns)],
+    ['Longest streak', stats.longest ? `${stats.longest.days} ${stats.longest.days === 1 ? 'day' : 'days'} · ${stats.longest.name}` : '—'],
+    ['Strongest weekday', stats.strongest ?? '—'],
+    ['Weakest weekday', stats.weakest ?? '—']
   ]
   return (
     <div className="hb-cons">
@@ -305,15 +319,15 @@ function Consistency(): React.JSX.Element {
       <div className="row" style={{ alignItems: 'flex-start', gap: 56 }}>
         <div className="col" style={{ gap: 8 }}>
           <div className="row" style={{ paddingLeft: 36 }}>
-            <span className="muted" style={{ fontSize: 11, width: 27, marginLeft: 27 }}>
-              Sep
-            </span>
-            <span className="muted" style={{ fontSize: 11, width: 27, marginLeft: 81 }}>
-              Oct
-            </span>
-            <span className="muted" style={{ fontSize: 11, width: 27, marginLeft: 81 }}>
-              Nov
-            </span>
+            {stats.months.map((m, i) => (
+              <span
+                className="muted"
+                key={i}
+                style={{ fontSize: 11, width: 27, flexShrink: 0, whiteSpace: 'nowrap' }}
+              >
+                {m}
+              </span>
+            ))}
           </div>
           <div className="row" style={{ alignItems: 'flex-start', gap: 10 }}>
             <div className="col" style={{ gap: 5, width: 26 }}>
@@ -328,7 +342,7 @@ function Consistency(): React.JSX.Element {
               ))}
             </div>
             <div className="hb-hm">
-              {heatmap.flatMap((week, wi) =>
+              {stats.heatmap.flatMap((week, wi) =>
                 week.map((lvl, di) => (
                   <i key={`${wi}-${di}`} className={lvl ? `l${lvl}` : undefined} />
                 ))

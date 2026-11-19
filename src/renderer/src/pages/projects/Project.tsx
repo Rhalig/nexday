@@ -1,61 +1,101 @@
-import { useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
 import { QuickCapture } from '../../components/QuickCapture'
-import { Button, cn } from '../../components/ui'
-import { projectList, type ProjectData } from '../../data/projects'
+import { Button, cn, projectColor } from '../../components/ui'
+import { projects, type Project as ProjectKey, type TaskGroup } from '../../data/tasks'
 import { useUI } from '../../store/ui'
 import { useProjects } from '../../store/projects'
+import { useTasks } from '../../store/tasks'
+import { parseCapture, toTask } from '../../lib/capture'
+import { fmtMin, parseTime } from '../../lib/today'
 import './projects.css'
-import { FEATURES } from '../../lib/features'
+
+const SLUG_KEY: Record<string, ProjectKey> = {
+  'planner-mvp': 'planner',
+  'moving-house': 'moving',
+  'reading-list': 'reading'
+}
 
 export default function Project(): React.JSX.Element {
   const { slug } = useParams()
   const custom = useProjects((s) => s.custom.find((c) => c.slug === slug))
-  const project: ProjectData | undefined =
-    projectList.find((p) => p.slug === slug) ??
-    (custom && {
-      slug: custom.slug,
-      name: custom.name,
-      color: custom.color,
-      kicker: 'Project · New',
-      summary: 'No tasks yet. Add the first one below.',
-      stats: [
-        ['Open', '0'],
-        ['Done', '0'],
-        ['This week', '0m']
-      ],
-      groups: [],
-      doneCount: 0,
-      card: { label: 'Just started', headline: '0 of 0 tasks done', pct: 0, text: 'Add your first task and Nexday finds a slot for it.' },
-      sections: [],
-      capture: {
-        placeholder: `Add to ${custom.name}… "kick-off call Monday 10:00"`,
-        hint: `New items here are filed under ${custom.name} automatically.`
-      }
-    })
-  if (!project) return <Navigate to="/projects/planner-mvp" replace />
-  return <ProjectView key={project.slug} project={project} />
+  const key = slug ? SLUG_KEY[slug] : undefined
+  if (key) return <ProjectView key={slug} slug={slug!} name={projects[key].name} color={projectColor[key]} projectKey={key} />
+  if (custom)
+    return <ProjectView key={custom.slug} slug={custom.slug} name={custom.name} color={custom.color} />
+  return <Navigate to="/projects/planner-mvp" replace />
 }
 
-function ProjectView({ project: p }: { project: ProjectData }): React.JSX.Element {
+const groupTitle: Record<TaskGroup['id'], string> = {
+  today: 'Today',
+  tomorrow: 'Tomorrow',
+  'next-week': 'Next week',
+  'no-time': 'No time yet'
+}
+
+function ProjectView({
+  slug,
+  name,
+  color,
+  projectKey
+}: {
+  slug: string
+  name: string
+  color: string
+  /** Custom projects cannot hold tasks yet, so they have no key */
+  projectKey?: ProjectKey
+}): React.JSX.Element {
   const navigate = useNavigate()
-  const [tab, setTab] = useState(0)
+  const allGroups = useTasks((s) => s.groups)
+  const doneCount = useTasks((s) => (projectKey ? s.doneTotals[projectKey] : 0))
+  const remove = useTasks((s) => s.remove)
+
+  const groups = projectKey
+    ? allGroups
+        .map((g) => ({ g, tasks: g.tasks.filter((t) => t.project === projectKey) }))
+        .filter((x) => x.tasks.length > 0)
+    : []
+  const open = groups.reduce((n, x) => n + x.tasks.length, 0)
+  const plannedMin = groups
+    .filter((x) => x.g.id === 'today' || x.g.id === 'tomorrow')
+    .flatMap((x) => x.tasks)
+    .reduce((n, t) => n + (parseTime(t.time)?.len ?? 0), 0)
+  const withTime = groups.filter((x) => x.g.id !== 'no-time').reduce((n, x) => n + x.tasks.length, 0)
+  const total = open + doneCount
+  const pct = total ? Math.round((doneCount / total) * 100) : 0
+  const p = {
+    kicker: 'Project',
+    summary: total
+      ? `${open} open ${open === 1 ? 'task' : 'tasks'}, ${doneCount} done.`
+      : 'No tasks yet. Add the first one below.',
+    stats: [
+      ['Open', String(open)],
+      ['Done', String(doneCount)],
+      ['Planned', plannedMin ? fmtMin(plannedMin) : '—']
+    ] as Array<[string, string]>,
+    card: {
+      label: total ? 'Progress' : 'Just started',
+      headline: `${doneCount} of ${total} tasks done`,
+      text: !total
+        ? 'Add your first task and Nexday finds a slot for it.'
+        : open === 0
+          ? 'Everything here is done.'
+          : `${withTime} of ${open} open tasks have a time.`
+    },
+    capture: {
+      placeholder: `Add to ${name}… "kick-off call Monday 10:00"`,
+      hint: `New items here are filed under ${name} automatically.`
+    }
+  }
 
   return (
     <main className="panel pj">
       <div className="pj-top">
-        <span style={{ width: 9, height: 9, borderRadius: 3, background: p.color }} />
+        <span style={{ width: 9, height: 9, borderRadius: 3, background: color }} />
         <span style={{ fontSize: 13, color: 'var(--ink3)' }}>Projects</span>
         <span style={{ color: '#BDBDBA' }}>/</span>
-        <span style={{ fontSize: 13, fontWeight: 500 }}>{p.name}</span>
+        <span style={{ fontSize: 13, fontWeight: 500 }}>{name}</span>
         <span style={{ flex: 1 }} />
-        {FEATURES.sharing && p.shareable && (
-          <Button style={{ marginRight: 12 }} onClick={() => useUI.getState().openDialog('share', p.slug)}>
-            <Icon name="share" size={14} round />
-            Share
-          </Button>
-        )}
         <Button variant="dark">+ New</Button>
       </div>
 
@@ -63,7 +103,7 @@ function ProjectView({ project: p }: { project: ProjectData }): React.JSX.Elemen
         <div className="pj-head">
           <div className="col" style={{ gap: 6, flex: 1 }}>
             <span style={{ fontSize: 13, color: 'var(--ink2)' }}>{p.kicker}</span>
-            <span className="pj-title">{p.name}</span>
+            <span className="pj-title">{name}</span>
             <span style={{ fontSize: 13.5, color: 'var(--ink2)', marginTop: 4 }}>{p.summary}</span>
           </div>
           <div className="pj-stats">
@@ -80,59 +120,52 @@ function ProjectView({ project: p }: { project: ProjectData }): React.JSX.Elemen
         </div>
         <div className="pj-rule" />
 
-        {p.tabs && (
-          <div className="row" style={{ marginTop: 24 }}>
-            <div className="pj-seg">
-              {p.tabs.map((t, i) => (
-                <button key={t.label} className={cn(i === tab && 'on')} onClick={() => setTab(i)}>
-                  {t.label} <i>{t.count}</i>
-                </button>
-              ))}
-            </div>
-            <span style={{ flex: 1 }} />
-            <span style={{ fontSize: 12.5, color: 'var(--ink2)' }}>Sorted by date</span>
-          </div>
-        )}
-
         <div className="pj-body">
           <div className="col" style={{ flex: 1, minWidth: 0 }}>
-            {p.groups.map((g) => (
-              <div className="col" key={g.title}>
+            {groups.map(({ g, tasks }) => (
+              <div className="col" key={g.id}>
                 <div className="pj-gh">
-                  {g.title}
-                  <i>{g.meta}</i>
+                  {groupTitle[g.id]}
+                  <i>{tasks.length}</i>
                 </div>
-                {g.tasks.map((t) => (
-                  <div className="pj-t" key={t.title}>
-                    <button className="pj-cb" aria-label="Complete" />
+                {tasks.map((t) => (
+                  <div className="pj-t" key={t.id} onClick={() => navigate(`/tasks/${t.id}`)}>
+                    <button
+                      className="pj-cb"
+                      aria-label="Complete"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        remove(t.id)
+                      }}
+                    />
                     <span className="n">{t.title}</span>
                     <span className="e">{t.energy}</span>
-                    <span className={cn('w', t.when === null && 'hot')}>{t.when ?? 'Find a time'}</span>
+                    <span className={cn('w', t.time === null && 'hot')}>{t.time ?? 'Find a time'}</span>
                   </div>
                 ))}
               </div>
             ))}
             <div className="pj-done">
               <Icon name="caretRight" size={14} strokeWidth={2} round />
-              Done · {p.doneCount}
+              Done · {doneCount}
             </div>
           </div>
 
           <div className="pj-side">
             <div className="pj-card">
               <div className="row" style={{ gap: 8, fontSize: 12.5, color: 'var(--ink2)' }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: p.color }} />
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: color }} />
                 {p.card.label}
               </div>
               <span style={{ fontSize: 22, fontWeight: 500, marginTop: 6 }}>{p.card.headline}</span>
               <div className="pj-bar">
-                <i style={{ width: `${p.card.pct}%`, background: p.color }} />
+                <i style={{ width: `${pct}%`, background: color }} />
               </div>
               <span style={{ fontSize: 13, color: 'var(--ink2)', lineHeight: 1.5 }}>{p.card.text}</span>
               <div className="row" style={{ marginTop: 12 }}>
                 <span
                   style={{ fontSize: 13.5, color: 'var(--ink2)', cursor: 'pointer' }}
-                  onClick={() => useUI.getState().openDialog('projectSettings', p.slug)}
+                  onClick={() => useUI.getState().openDialog('projectSettings', slug)}
                 >
                   Edit project
                 </span>
@@ -143,34 +176,23 @@ function ProjectView({ project: p }: { project: ProjectData }): React.JSX.Elemen
               </div>
             </div>
 
-            {p.sections.map((s, si) => (
-              <div className="col" key={s.title}>
-                <div className="pj-rh" style={si === 0 ? { paddingTop: 26 } : undefined}>
-                  {s.title}
-                  <span style={{ flex: 1 }} />
-                  {s.link && <span style={{ fontSize: 12.5, fontWeight: 400, color: 'var(--ink2)', cursor: 'pointer' }}>{s.link}</span>}
-                </div>
-                {s.rows.map((r, i) => (
-                  <div className={cn('pj-rl', i === 0 && 'top')} key={r.title}>
-                    {r.bar && <span className="pj-rl-bar" style={{ background: r.bar }} />}
-                    {r.milestone === 'done' && (
-                      <span style={{ color: '#F38020', display: 'flex' }}>
-                        <Icon name="check" size={16} strokeWidth={2.4} round />
-                      </span>
-                    )}
-                    {r.milestone === 'todo' && <span className="pj-ms" />}
-                    <span>{r.title}</span>
-                    <span style={{ flex: 1 }} />
-                    <span className="m">{r.meta}</span>
-                  </div>
-                ))}
-              </div>
-            ))}
           </div>
         </div>
       </div>
 
-      <QuickCapture placeholder={p.capture.placeholder} button="Add" hint={p.capture.hint} />
+      <QuickCapture
+        placeholder={p.capture.placeholder}
+        button="Add"
+        hint={p.capture.hint}
+        onSubmit={
+          projectKey
+            ? (text) => {
+                const { task, group } = toTask(parseCapture(text), projectKey)
+                useTasks.getState().add({ ...task, project: projectKey }, group)
+              }
+            : undefined
+        }
+      />
     </main>
   )
 }

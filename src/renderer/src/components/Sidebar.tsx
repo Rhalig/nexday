@@ -5,16 +5,17 @@ import { useInbox } from '../store/inbox'
 import { countOpen, useTasks } from '../store/tasks'
 import { unreadCount, useNotifs } from '../store/notifs'
 import { useProjects } from '../store/projects'
+import { useNotes } from '../store/notes'
 import { useUI } from '../store/ui'
 import { Kbd, cn } from './ui'
 import { useIdentity } from '../lib/identity'
 
-const nav: Array<{ to: string; label: string; icon: IconName; count?: number }> = [
+const nav: Array<{ to: string; label: string; icon: IconName }> = [
   { to: '/today', label: 'Today', icon: 'sun' },
   { to: '/inbox', label: 'Inbox', icon: 'inbox' },
   { to: '/calendar', label: 'Calendar', icon: 'calendar' },
   { to: '/tasks', label: 'Tasks', icon: 'tasks' },
-  { to: '/notes', label: 'Notes', icon: 'notes', count: 14 },
+  { to: '/notes', label: 'Notes', icon: 'notes' },
   { to: '/habits', label: 'Habits', icon: 'habits' }
 ]
 
@@ -34,6 +35,7 @@ export function Sidebar(): React.JSX.Element {
   const openPanel = useUI((s) => s.openPanel)
   const unread = useNotifs((s) => unreadCount(s.items))
   const custom = useProjects((s) => s.custom)
+  const notesCount = useNotes((s) => s.notes.length)
   const tasksCount = useTasks((s) => countOpen(s.groups))
   const groups = useTasks((s) => s.groups)
   const openBy = (project: string): number => groups.reduce((n, g) => n + g.tasks.filter((t) => t.project === project).length, 0)
@@ -42,6 +44,8 @@ export function Sidebar(): React.JSX.Element {
     '/projects/moving-house': openBy('moving'),
     '/projects/reading-list': openBy('reading')
   }
+  const countFor = (to: string): number =>
+    to === '/inbox' ? inboxCount : to === '/tasks' ? tasksCount : to === '/notes' ? notesCount : 0
   return (
     <aside className="sidebar">
       <div className="sidebar-drag" />
@@ -68,9 +72,7 @@ export function Sidebar(): React.JSX.Element {
           <NavLink key={n.to} to={n.to} className={linkClass}>
             <Icon name={n.icon} />
             <span>{n.label}</span>
-            {(n.to === '/inbox' ? inboxCount : n.to === '/tasks' ? tasksCount : n.count) ? (
-              <span className="count">{n.to === '/inbox' ? inboxCount : n.to === '/tasks' ? tasksCount : n.count}</span>
-            ) : null}
+            {countFor(n.to) ? <span className="count">{countFor(n.to)}</span> : null}
           </NavLink>
         ))}
       </nav>

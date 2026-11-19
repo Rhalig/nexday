@@ -9,6 +9,7 @@ import { countOpen, useTasks } from '../../store/tasks'
 import { useUI } from '../../store/ui'
 import { parseCapture, toTask } from '../../lib/capture'
 import { pageDate } from '../../lib/clock'
+import { parseTime } from '../../lib/today'
 import {
   FilterPopover,
   defaultView,
@@ -20,12 +21,7 @@ import type { Task, TaskGroup } from '../../data/tasks'
 import TaskDrawer from './TaskDrawer'
 import './tasks.css'
 
-const projectOrder: Array<{ id: Project; pct: number }> = [
-  { id: 'planner', pct: 30 },
-  { id: 'moving', pct: 50 },
-  { id: 'reading', pct: 33 },
-  { id: 'personal', pct: 80 }
-]
+const projectOrder: Project[] = ['planner', 'moving', 'reading', 'personal']
 
 const lengthOf = (t: Task): number => {
   const m = t.time?.match(/(\d+)(h|m)\s*$/)
@@ -71,6 +67,9 @@ export default function Tasks(): React.JSX.Element {
   const { id } = useParams()
   const navigate = useNavigate()
   const allGroups = useTasks((s) => s.groups)
+  const doneTotals = useTasks((s) => s.doneTotals)
+  const doneToday = useTasks((s) => s.doneToday)
+  const planning = useUI((st) => st.planning)
   const [filter, setFilter] = useState<TaskFilter>('all')
   const [showEnergy, setShowEnergy] = useState(true)
   const [view, setView] = useState<TaskView>(defaultView)
@@ -88,6 +87,20 @@ export default function Tasks(): React.JSX.Element {
   const sizeOf = (ids: string[]): number =>
     allGroups.filter((g) => ids.includes(g.id)).reduce((n, g) => n + g.tasks.length, 0)
   const noTime = sizeOf(['no-time'])
+  // Minutes already given a slot today (open tasks only: they have "HH:MM · 30m" times).
+  const plannedMin = (allGroups.find((g) => g.id === 'today')?.tasks ?? []).reduce(
+    (n, t) => n + (parseTime(t.time)?.len ?? 0),
+    0
+  )
+  const deepMin = [
+    ...(allGroups.find((g) => g.id === 'today')?.tasks ?? []),
+    ...doneToday
+  ]
+    .filter((t) => t.energy === 'Deep focus')
+    .reduce((n, t) => n + (parseTime(t.time)?.len ?? 0), 0)
+  const deepGoal = planning.deepFocusHours * 60
+  const fmt = (n: number): string =>
+    n >= 60 ? `${Math.floor(n / 60)}h${n % 60 ? ` ${n % 60}m` : ''}` : `${n}m`
   const filterTabs = [
     { id: 'all' as TaskFilter, label: 'All', count: total },
     { id: 'today' as TaskFilter, label: 'Today', count: sizeOf(['today']) },
@@ -111,7 +124,7 @@ export default function Tasks(): React.JSX.Element {
           sub={`${total} open tasks. ${total - noTime} already have a time on your calendar.`}
           stats={[
             ['Open', String(total)],
-            ['Planned', '6h 15m'],
+            ['Planned today', plannedMin ? fmt(plannedMin) : '—'],
             ['No time yet', String(noTime)]
           ]}
         />
@@ -198,41 +211,46 @@ export default function Tasks(): React.JSX.Element {
                   View all
                 </a>
               </div>
-              {projectOrder.map(({ id, pct }, i) => (
+              {projectOrder.map((id, i) => {
+                const done = doneTotals[id]
+                const open = openByProject(id)
+                const pct = done + open ? Math.round((done / (done + open)) * 100) : 0
+                return (
                 <div key={id} className={i === projectOrder.length - 1 ? 'proj last' : 'proj'}>
                   <div className="row" style={{ gap: 10 }}>
                     <div className="swatch" style={{ background: projectColor[id] }} />
                     <span style={{ flex: 1, fontSize: 13.5 }}>{projects[id].name}</span>
                     <span className="mono muted" style={{ fontSize: 12.5 }}>
-                      {openByProject(id)} open · {projects[id].done} done
+                      {open} open · {done} done
                     </span>
                   </div>
                   <div className="bar">
                     <i style={{ width: `${pct}%`, background: projectColor[id] }} />
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
 
             <div className="col">
               <div className="side-head">
-                <h2>Deep focus this week</h2>
+                <h2>Deep focus today</h2>
               </div>
               <div className="row" style={{ alignItems: 'baseline', gap: 8 }}>
                 <span className="mono" style={{ fontSize: 20, fontWeight: 500 }}>
-                  6h 30m
+                  {deepMin ? fmt(deepMin) : '0m'}
                 </span>
                 <span className="muted" style={{ fontSize: 12.5 }}>
-                  of your 10h goal
+                  of your {planning.deepFocusHours}h daily goal
                 </span>
               </div>
               <div style={{ height: 4, borderRadius: 2, background: 'var(--line)', marginTop: 10 }}>
                 <div
-                  style={{ width: '65%', height: 4, borderRadius: 2, background: 'var(--acc)' }}
+                  style={{ width: `${deepGoal ? Math.min(100, Math.round((deepMin / deepGoal) * 100)) : 0}%`, height: 4, borderRadius: 2, background: 'var(--acc)' }}
                 />
               </div>
               <span className="muted" style={{ marginTop: 10, fontSize: 12.5 }}>
-                Deep tasks are placed in your best hours, 09:00 to 11:00.
+                Set in Settings › Planning.
               </span>
             </div>
           </aside>

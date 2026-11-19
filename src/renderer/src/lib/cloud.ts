@@ -807,8 +807,8 @@ async function loadAll(userId: string): Promise<void> {
   }
 
   const dayStart = startOfDay(appToday())
-  const weekStart = startOfWeek(appToday())
-  const [tasks, inbox, habits, checks, notifs, noteRows, eventRows, doneRows, weekChecks] =
+  const historyStart = addDays(startOfWeek(appToday()), -77)
+  const [tasks, inbox, habits, checks, notifs, noteRows, eventRows, doneRows, historyChecks, doneAll] =
     await Promise.all([
     sb.from('tasks').select('*').eq('status', 'open').is('deleted_at', null),
     sb
@@ -840,12 +840,24 @@ async function loadAll(userId: string): Promise<void> {
     sb
       .from('habit_checkins')
       .select('habit_id, day')
-      .gte('day', dayKey(weekStart))
+      .gte('day', dayKey(historyStart))
       .lt('day', TODAY())
       .eq('done', true)
-      .is('deleted_at', null)
+      .is('deleted_at', null),
+    sb.from('tasks').select('project_id').eq('status', 'done').is('deleted_at', null)
   ])
-  for (const r of [tasks, inbox, habits, checks, notifs, noteRows, eventRows, doneRows, weekChecks])
+  for (const r of [
+    tasks,
+    inbox,
+    habits,
+    checks,
+    notifs,
+    noteRows,
+    eventRows,
+    doneRows,
+    historyChecks,
+    doneAll
+  ])
     if (r.error) throw r.error
 
   const done = new Set((checks.data ?? []).map((c) => String(c.habit_id)))
@@ -870,11 +882,18 @@ async function loadAll(userId: string): Promise<void> {
       at: String(r.completed_at)
     }
   })
-  useTasks.setState({ groups: groupsFromRows(tasks.data ?? []), doneToday })
-  const week: Record<string, string[]> = {}
-  for (const c of weekChecks.data ?? [])
-    (week[String(c.habit_id)] ??= []).push(String(c.day).slice(0, 10))
-  useHabits.setState({ week })
+  const idToSlug: Record<string, string> = {}
+  for (const [slug, id] of Object.entries(projectIds)) idToSlug[id] = slug
+  const doneTotals = { planner: 0, moving: 0, reading: 0, personal: 0 }
+  for (const r of doneAll.data ?? []) {
+    const key = slugToKey(idToSlug[String(r.project_id)] ?? '')
+    if (key) doneTotals[key]++
+  }
+  useTasks.setState({ groups: groupsFromRows(tasks.data ?? []), doneToday, doneTotals })
+  const history: Record<string, string[]> = {}
+  for (const c of historyChecks.data ?? [])
+    (history[String(c.habit_id)] ??= []).push(String(c.day).slice(0, 10))
+  useHabits.setState({ history })
   useInbox.setState({ items: (inbox.data ?? []).map(inboxFromRow) })
   useHabits.setState({
     habits: (habits.data ?? []).map((r) => habitFromRow(r, done.has(String(r.id))))
@@ -975,9 +994,13 @@ export function stopCloud(): void {
   currentUser = null
   projectIds = {}
   for (const k of Object.keys(last)) last[k] = new Map()
-  useTasks.setState({ groups: [], doneToday: [] })
+  useTasks.setState({
+    groups: [],
+    doneToday: [],
+    doneTotals: { planner: 0, moving: 0, reading: 0, personal: 0 }
+  })
   useInbox.setState({ items: [] })
-  useHabits.setState({ habits: [], week: {} })
+  useHabits.setState({ habits: [], history: {} })
   useNotifs.setState({ items: [] })
   useProjects.setState({ custom: [] })
   useNotes.setState({ notes: [] })

@@ -1,6 +1,15 @@
 import { create } from 'zustand'
-import { taskGroups, type Task, type TaskGroup } from '../data/tasks'
+import { taskGroups, type Project, type Task, type TaskGroup } from '../data/tasks'
 import { supabase } from '../lib/supabase'
+import { fmtMin, parseTime } from '../lib/today'
+
+/** Group header text: the task count, plus the total length when the tasks have one. */
+const metaOf = (tasks: Task[]): string => {
+  const min = tasks.reduce((n, t) => n + (parseTime(t.time)?.len ?? 0), 0)
+  return min ? `${tasks.length} · ${fmtMin(min)}` : String(tasks.length)
+}
+const withMeta = (groups: TaskGroup[]): TaskGroup[] =>
+  groups.map((g) => ({ ...g, meta: metaOf(g.tasks) }))
 
 /** Why a task left the open list: finished, or thrown away. The cloud layer reads this to save the right thing. */
 export const removalMode = new Map<string, 'done' | 'deleted'>()
@@ -23,6 +32,8 @@ type TasksState = {
   groups: TaskGroup[]
   /** Tasks completed today (this session, plus whatever the account saved today). */
   doneToday: DoneTask[]
+  /** Completed tasks per project, all time (loaded at sign-in, then counted up in the session). */
+  doneTotals: Record<Project, number>
   /** Completing and deleting both take a task off the open list. */
   remove: (id: string, mode?: 'done' | 'deleted') => void
   /** Adds a task to a day group, creating the group when it is empty. */
@@ -36,6 +47,7 @@ type TasksState = {
 export const useTasks = create<TasksState>((set) => ({
   groups: supabase ? [] : taskGroups,
   doneToday: [],
+  doneTotals: { planner: 0, moving: 0, reading: 0, personal: 0 },
   add: (task, group) =>
     set((s) => {
       let groups = s.groups.map((g) => ({ ...g }))
@@ -46,7 +58,7 @@ export const useTasks = create<TasksState>((set) => ({
         groups.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))
       }
       target.tasks = [...target.tasks, task]
-      groups = groups.map((g) => ({ ...g, meta: g.meta.replace(/^\d+/, String(g.tasks.length)) }))
+      groups = withMeta(groups)
       return { groups }
     }),
   remove: (id, mode = 'done') => {
@@ -69,6 +81,10 @@ export const useTasks = create<TasksState>((set) => ({
           : s.doneToday
       return {
         doneToday,
+        doneTotals:
+          mode === 'done' && hit
+            ? { ...s.doneTotals, [hit.project]: s.doneTotals[hit.project] + 1 }
+            : s.doneTotals,
         groups: s.groups
         .map((g) => ({ ...g, tasks: g.tasks.filter((t) => t.id !== id) }))
         .filter((g) => g.tasks.length > 0)
@@ -95,8 +111,7 @@ export const useTasks = create<TasksState>((set) => ({
         groups = groups.map((g) => (g.id === m.group ? { ...g, tasks: [...g.tasks, m.task] } : g))
       }
       // keep the leading count in "3 · 1h 20m" in step with the group
-      groups = groups.map((g) => ({ ...g, meta: g.meta.replace(/^\d+/, String(g.tasks.length)) }))
-      return { groups: groups.filter((g) => g.tasks.length > 0) }
+      return { groups: withMeta(groups.filter((g) => g.tasks.length > 0)) }
     })
 }))
 
