@@ -7,7 +7,7 @@ import { unreadCount, useNotifs } from '../store/notifs'
 import { useProjects } from '../store/projects'
 import { useNotes } from '../store/notes'
 import { useUI } from '../store/ui'
-import { Kbd, cn } from './ui'
+import { Kbd, cn, projectColor } from './ui'
 import { useIdentity } from '../lib/identity'
 
 const nav: Array<{ to: string; label: string; icon: IconName }> = [
@@ -85,7 +85,7 @@ export function Sidebar(): React.JSX.Element {
           .filter((p) => projectPrefs[{ '/projects/planner-mvp': 'planner', '/projects/moving-house': 'moving', '/projects/reading-list': 'reading' }[p.to] ?? '']?.sidebar !== false)
           .map((p) => (
           <NavLink key={p.to} to={p.to} className={linkClass}>
-            <div className="swatch" style={{ background: p.color }} />
+            <div className="swatch" style={{ background: projectColor[{ '/projects/planner-mvp': 'planner', '/projects/moving-house': 'moving', '/projects/reading-list': 'reading' }[p.to] ?? 'planner'] }} />
             <span>{p.label}</span>
             <span className="count">{projectCounts[p.to] ?? p.count}</span>
           </NavLink>

@@ -5,7 +5,8 @@ import { Button, Kbd } from '../../components/ui'
 import { useNotes } from '../../store/notes'
 import { useTasks } from '../../store/tasks'
 import { aiNoteActions } from '../../lib/ai'
-import { actionItems, noteText, setTodoState } from '../../lib/noteText'
+import { actionItems, noteText, removeLine, setTodoState } from '../../lib/noteText'
+import { useUI } from '../../store/ui'
 import { FormatButtons, NoteBody, type FormatState, type NoteBodyHandle } from './NoteBody'
 import { appToday, clockTime } from '../../lib/clock'
 import type { Note } from '../../data/notes'
@@ -39,6 +40,7 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
   const [aiBusy, setAiBusy] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
   const bodyRef = useRef<NoteBodyHandle>(null)
+  const [newItem, setNewItem] = useState('')
   const [fmt, setFmt] = useState<FormatState>({ bold: false, italic: false, kind: null })
   const [initial] = useState(() => noteText(note))
   const latest = useRef({ title, text, dirty })
@@ -99,6 +101,15 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
       next = setTodoState(next, a.index, 'sent')
     }
     edit(next)
+    // Put them in the day: the Auto-schedule preview opens with these tasks waiting for a slot.
+    if (open.length) useUI.getState().openDialog('autoSchedule')
+  }
+
+  const addItem = (): void => {
+    const t = newItem.trim().slice(0, 200)
+    if (!t) return
+    edit(`${text.replace(/\s+$/, '')}${text.trim() ? '\n' : ''}[ ] ${t}`)
+    setNewItem('')
   }
 
   const findActions = async (): Promise<void> => {
@@ -249,13 +260,14 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          background: a.state === 'open' ? 'transparent' : 'var(--acc)',
+                          background: a.state === 'done' ? 'var(--acc)' : 'transparent',
                           borderColor: a.state === 'open' ? undefined : 'var(--acc)',
-                          color: '#fff',
+                          color: a.state === 'sent' ? 'var(--acc)' : '#fff',
                           padding: 0
                         }}
                       >
-                        {a.state !== 'open' && <Icon name="check" size={11} strokeWidth={3.2} />}
+                        {a.state === 'done' && <Icon name="check" size={11} strokeWidth={3.2} />}
+                        {a.state === 'sent' && <Icon name="arrowRight" size={11} strokeWidth={2.6} />}
                       </button>
                       <span
                         style={{
@@ -268,10 +280,29 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
                         {a.title}
                       </span>
                       {a.state === 'sent' && <span className="m">In plan</span>}
+                      <button
+                        className="ed-x"
+                        aria-label="Remove action item"
+                        title="Remove from the note"
+                        onClick={() => edit(removeLine(text, a.index))}
+                      >
+                        <Icon name="x" size={12} strokeWidth={2} round />
+                      </button>
                     </div>
                   ))}
                 </div>
               )}
+              <div className="row ed-add" style={{ marginTop: 8 }}>
+                <Icon name="plus" size={14} strokeWidth={2} round />
+                <input
+                  className="ed-add-in"
+                  value={newItem}
+                  placeholder="Add an action item"
+                  maxLength={200}
+                  onChange={(e) => setNewItem(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addItem()}
+                />
+              </div>
               <div className="row" style={{ marginTop: 10, gap: 8, justifyContent: 'space-between' }}>
                 <Button onClick={() => void findActions()} disabled={aiBusy}>
                   {aiBusy ? 'Looking…' : 'Find with AI'}

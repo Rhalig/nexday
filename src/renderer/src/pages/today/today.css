@@ -320,3 +320,6 @@
 }
 .tv-ev.chip b { font-weight: 500; font-size: 12px; color: var(--ink); white-space: nowrap; }
 .tv-ur { display: flex; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+
+/* Narrow task cards stay readable in the day strip */
+.dslot { min-width: 34px; }

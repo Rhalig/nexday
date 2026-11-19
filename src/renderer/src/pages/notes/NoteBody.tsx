@@ -111,7 +111,8 @@ const RowView = memo(function RowView({ row, placeholder, setEl, onInput, onKeyD
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => onToggle(row.id)}
         >
-          {row.state !== 'open' && <Icon name="check" size={11} strokeWidth={3.2} />}
+          {row.state === 'done' && <Icon name="check" size={11} strokeWidth={3.2} />}
+          {row.state === 'sent' && <Icon name="arrowRight" size={11} strokeWidth={2.6} />}
         </button>
       )}
       {row.kind === 'bullet' && <span className="nb-dot" />}

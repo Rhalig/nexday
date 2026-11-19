@@ -89,7 +89,7 @@ export const DEFAULT_NOTIFS: NotifPrefs = {
 }
 
 /** Per-project switches kept with the account (by project key). */
-export type ProjectPref = { sidebar?: boolean; auto?: boolean; description?: string; weekly?: number }
+export type ProjectPref = { sidebar?: boolean; auto?: boolean; description?: string; weekly?: number; color?: string }
 
 export type CalPrefs = {
   syncDirection: 'Two-way' | 'Calendar to Nexday'

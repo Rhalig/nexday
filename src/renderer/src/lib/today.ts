@@ -187,9 +187,7 @@ export function buildToday(input: {
       start: x.start,
       end: x.end
     })),
-    // The design's strip shows events and focus-sized blocks; 15-30 minute tasks stay in the list.
     ...timed
-      .filter((t) => t.end - t.start >= 45)
       .map((t) => ({
       key: `t-${t.id}`,
       kind: 'moved' as const,

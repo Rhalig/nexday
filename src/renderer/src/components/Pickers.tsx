@@ -362,7 +362,10 @@ export function DatePicker({
           <button
             key={q.label}
             className={cn('dp-q', value.day === q.day && 'on')}
-            onClick={() => onChange({ ...value, day: q.day })}
+            onClick={() => {
+              onChange({ ...value, day: q.day })
+              onClose() // picking a day is the answer: close the picker
+            }}
           >
             {q.label}
           </button>
@@ -420,6 +423,7 @@ export function DatePicker({
                 onClick={() => {
                   if (c.muted) setMonth(startOfMonth(parseDayKey(c.key)))
                   onChange({ ...value, day: c.key })
+                  onClose()
                 }}
               >
                 {c.n}
@@ -436,9 +440,23 @@ export function DatePicker({
               <span className="muted" style={{ fontSize: 11.5 }}>
                 Start
               </span>
-              <span className="mono" style={{ fontSize: 15, fontWeight: 500 }}>
-                {value.start}
-              </span>
+              <input
+                className="np-in mono"
+                type="time"
+                step={300}
+                style={{ minHeight: 28, fontSize: 15 }}
+                value={value.start}
+                aria-label="Start time"
+                onChange={(e) => {
+                  if (!e.target.value) return
+                  // moving the start keeps the length
+                  const shift = (hhmm: string, by: number): string => {
+                    const t = Math.min(23 * 60 + 59, Math.max(0, mins(hhmm) + by))
+                    return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
+                  }
+                  onChange({ ...value, day: value.day ?? dayKey(today), start: e.target.value, end: shift(e.target.value, len || 30) })
+                }}
+              />
             </div>
             <span style={{ color: '#767676', display: 'flex' }}>
               <Icon name="arrowRight" size={16} strokeWidth={2} />
@@ -447,9 +465,15 @@ export function DatePicker({
               <span className="muted" style={{ fontSize: 11.5 }}>
                 End
               </span>
-              <span className="mono" style={{ fontSize: 15, fontWeight: 500 }}>
-                {value.end}
-              </span>
+              <input
+                className="np-in mono"
+                type="time"
+                step={300}
+                style={{ minHeight: 28, fontSize: 15 }}
+                value={value.end}
+                aria-label="End time"
+                onChange={(e) => e.target.value && mins(e.target.value) > mins(value.start) && onChange({ ...value, day: value.day ?? dayKey(today), end: e.target.value })}
+              />
             </div>
             <span className="mono muted" style={{ fontSize: 12.5 }}>
               {lenText}

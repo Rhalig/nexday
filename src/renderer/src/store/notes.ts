@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase'
 type NotesState = {
   notes: Note[]
   /** A new note starts as an idea for today; the editor fills in the rest later. */
-  add: (title: string) => string
+  add: (title: string, extra?: { chip?: Note['chip']; text?: string }) => string
   /** Saves edits from the editor. The list preview line follows the text. */
   update: (id: string, patch: { title?: string; text?: string }) => void
   remove: (id: string) => void
@@ -15,7 +15,7 @@ type NotesState = {
 
 export const useNotes = create<NotesState>((set) => ({
   notes: supabase ? [] : sampleNotes,
-  add: (title) => {
+  add: (title, extra) => {
     const id = crypto.randomUUID()
     const note: Note = {
       id,
@@ -23,7 +23,8 @@ export const useNotes = create<NotesState>((set) => ({
       summary: '',
       group: 'today',
       category: 'ideas',
-      chip: { color: 'var(--health)', name: 'Ideas' },
+      chip: extra?.chip ?? { color: 'var(--health)', name: 'Ideas' },
+      ...(extra?.text ? { text: extra.text, summary: summaryOf(extra.text) } : {}),
       when: { text: 'Just now' },
       edited: 'Edited just now'
     }

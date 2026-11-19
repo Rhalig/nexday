@@ -53,9 +53,11 @@ async function call<T>(action: string, payload: Record<string, unknown>): Promis
     const res = (error as { context?: Response }).context
     const status = res?.status
     let code = ''
+    let detail = ''
     try {
-      const body = (await res?.clone().json()) as { error?: string; message?: string } | undefined
+      const body = (await res?.clone().json()) as { error?: string; message?: string; detail?: string } | undefined
       code = String(body?.error ?? body?.message ?? '')
+      detail = String(body?.detail ?? '').slice(0, 120)
     } catch {
       /* not JSON */
     }
@@ -67,7 +69,7 @@ async function call<T>(action: string, payload: Record<string, unknown>): Promis
       return { error: 'AI could not verify your sign-in. Sign out and in again.' + (code ? ` (${code})` : ''), unavailable: true }
     }
     if (status === 404) return { error: 'The ai function is not deployed.', unavailable: true }
-    if (status) return { error: `AI answered with an error (${status}${code ? `: ${code}` : ''}). Try again in a moment.` }
+    if (status) return { error: `AI answered with an error (${status}${code ? `: ${code}` : ''}${detail ? ` · ${detail}` : ''}). Try again in a moment.` }
     return { error: 'Could not reach the AI service. Check your connection.' }
   }
   if (isError(data)) {

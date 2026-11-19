@@ -12,6 +12,7 @@ import { useCalendar } from '../store/calendar'
 import { useUI } from '../store/ui'
 import { useInbox } from '../store/inbox'
 import { useNotes } from '../store/notes'
+import { noteTemplates as templates, templateText } from '../data/noteTemplates'
 import { deleteAccount } from '../lib/account'
 import { toStoreTask, type ParsedImport } from '../lib/dataPorter'
 import { PLAN_HORIZON, planDayLabel, planTasks } from '../lib/planning'
@@ -435,90 +436,6 @@ export function InboxRulesDialog(): React.JSX.Element {
 
 /* ---------------- Note templates ---------------- */
 
-const templates: Array<{
-  id: string
-  label: string
-  icon: IconName
-  desc: string
-  sections: Array<[string, string]>
-}> = [
-  {
-    id: 'blank',
-    label: 'Blank note',
-    icon: 'file',
-    desc: 'Start with an empty page and press / for commands.',
-    sections: []
-  },
-  {
-    id: 'meeting',
-    label: 'Meeting notes',
-    icon: 'calendar',
-    desc: 'Linked to the calendar event you pick. Attendees are filled in for you.',
-    sections: [
-      ['Attendees', 'Names from the event'],
-      ['Agenda', 'What this meeting is for'],
-      ['Notes', 'Decisions, numbers, open questions'],
-      ['Action items', 'Nexday turns these into tasks']
-    ]
-  },
-  {
-    id: 'one',
-    label: '1:1',
-    icon: 'share',
-    desc: 'A running page for one person, carried from week to week.',
-    sections: [
-      ['Check-in', 'How things are going'],
-      ['Topics', 'What to cover this time'],
-      ['Action items', 'Nexday turns these into tasks']
-    ]
-  },
-  {
-    id: 'critique',
-    label: 'Design critique',
-    icon: 'checkCircle',
-    desc: 'Frame the feedback you want before the session starts.',
-    sections: [
-      ['Goal', 'What you are showing'],
-      ['Questions', 'What to ask the room'],
-      ['Feedback', 'What people said'],
-      ['Next steps', 'Changes to make']
-    ]
-  },
-  {
-    id: 'brief',
-    label: 'Project brief',
-    icon: 'lines',
-    desc: 'One page that explains a project to someone new.',
-    sections: [
-      ['Problem', 'What we are solving'],
-      ['Scope', 'What is in and out'],
-      ['Milestones', 'Dates that matter']
-    ]
-  },
-  {
-    id: 'reading',
-    label: 'Reading notes',
-    icon: 'book',
-    desc: 'Keep what you read and what it made you think.',
-    sections: [
-      ['Highlights', 'Lines worth keeping'],
-      ['Ideas', 'What it made you think of'],
-      ['Questions', 'To bring to book club']
-    ]
-  },
-  {
-    id: 'journal',
-    label: 'Daily journal',
-    icon: 'sunSm',
-    desc: 'A few minutes at the end of the day.',
-    sections: [
-      ['Wins', 'What went well'],
-      ['Hard parts', 'What got in the way'],
-      ['Tomorrow', 'One thing to start with']
-    ]
-  }
-]
-
 export function TemplatesDialog(): React.JSX.Element {
   const navigate = useNavigate()
   const closeDialog = useUI((s) => s.closeDialog)
@@ -604,9 +521,7 @@ export function TemplatesDialog(): React.JSX.Element {
             onClick={() => {
               // A new note with the template's sections as headings, action-item sections ready to type into.
               const id = useNotes.getState().add(t.id === 'blank' ? 'Untitled note' : t.label)
-              const body = t.sections
-                .map(([h]) => `# ${h}\n${/action items|next steps/i.test(h) ? '[ ] ' : ''}`)
-                .join('\n')
+              const body = templateText(t.sections)
               if (body) useNotes.getState().update(id, { text: body })
               closeDialog()
               navigate(`/notes/${id}`)
@@ -655,7 +570,7 @@ export function ProjectSettingsDialog({ slug }: { slug?: string }): React.JSX.El
   const pref = useUI((s) => s.projectPrefs[key])
   const [name, setName] = useState(p.name)
   const [desc, setDesc] = useState(custom?.description ?? pref?.description ?? '')
-  const [color, setColor] = useState(p.color)
+  const [color, setColor] = useState(pref?.color ?? p.color)
   const [auto, setAuto] = useState(pref?.auto !== false)
   const [side, setSide] = useState(pref?.sidebar !== false)
   const [confirmDel, setConfirmDel] = useState(false)
@@ -663,7 +578,7 @@ export function ProjectSettingsDialog({ slug }: { slug?: string }): React.JSX.El
 
   const save = (): void => {
     const n = name.trim()
-    useUI.getState().setProjectPref(key, { auto, sidebar: side, ...(builtinKey ? { description: desc } : null) })
+    useUI.getState().setProjectPref(key, { auto, sidebar: side, ...(builtinKey ? { description: desc, color } : null) })
     if (custom && n) useProjects.getState().update(custom.slug, { name: n, color, description: desc })
     closeDialog()
   }
@@ -714,14 +629,13 @@ export function ProjectSettingsDialog({ slug }: { slug?: string }): React.JSX.El
         </div>
         <div className="dl-pr">
           <span className="dl-pl">Color</span>
-          <div className="row" style={{ gap: 10, opacity: custom ? 1 : 0.45 }}>
+          <div className="row" style={{ gap: 10 }}>
             {palette.map((c) => (
               <button
                 key={c}
                 className={cn('dl-sw', c === color && 'on')}
                 style={{ background: c }}
                 aria-label={c}
-                disabled={!custom}
                 onClick={() => setColor(c)}
               />
             ))}

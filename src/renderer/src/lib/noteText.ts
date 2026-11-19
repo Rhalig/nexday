@@ -149,3 +149,10 @@ export function setTodoState(text: string, index: number, state: 'open' | 'done'
   lines[index] = lines[index].replace(/\[( |x|X|>)\]/, `[${mark}]`)
   return lines.join('\n')
 }
+
+/** The text without one line (an action item taken out of the note). */
+export function removeLine(text: string, index: number): string {
+  const lines = text.split('\n')
+  lines.splice(index, 1)
+  return lines.join('\n')
+}

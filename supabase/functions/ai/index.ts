@@ -114,14 +114,16 @@ async function gemini(action: string, body: Row): Promise<Row> {
         contents: [{ role: 'user', parts: [{ text: promptFor(action, body) }] }],
         generationConfig: {
           temperature: 0.2,
-          maxOutputTokens: 700,
+          // Gemini 2.5 spends output tokens on "thinking" by default and can cut the JSON short: switch it off.
+          maxOutputTokens: 1200,
+          thinkingConfig: { thinkingBudget: 0 },
           responseMimeType: 'application/json',
           responseSchema: schema[action as keyof typeof schema]
         }
       })
     }
   )
-  if (!res.ok) throw new Error(`gemini ${res.status}`)
+  if (!res.ok) throw new Error(`gemini ${res.status}: ${(await res.text()).replace(/\s+/g, ' ').slice(0, 140)}`)
   const payload = (await res.json()) as Row
   const candidates = payload.candidates as Array<Row> | undefined
   const parts = (candidates?.[0]?.content as Row | undefined)?.parts as Array<Row> | undefined
@@ -129,7 +131,12 @@ async function gemini(action: string, body: Row): Promise<Row> {
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/```\s*$/, '')
     .trim()
-  const parsed = JSON.parse(text) as unknown
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    throw new Error(`bad json: ${text.slice(0, 80)}`)
+  }
   if (!parsed || typeof parsed !== 'object') throw new Error('empty')
   return parsed as Row
 }

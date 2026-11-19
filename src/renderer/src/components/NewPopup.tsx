@@ -11,6 +11,11 @@ import { useCalendar } from '../store/calendar'
 import { parseCapture, toTask } from '../lib/capture'
 import { addDays, appToday, dayKey, daysFromToday, parseDayKey } from '../lib/clock'
 import { DatePicker, formatWhen, type When } from './Pickers'
+import { DaysField, SelectField, SwitchField, TextField, TimeField, type Opt } from './NewFields'
+import { projects as projectInfo, type Energy } from '../data/tasks'
+import { projectColor } from './ui'
+import { useProjects } from '../store/projects'
+import { noteTemplates, templateText } from '../data/noteTemplates'
 import './overlays.css'
 
 type Trail =
@@ -134,7 +139,7 @@ const configs: Record<NewType, Omit<Config, 'tab'>> = {
   note: {
     placeholder: 'Note title',
     sub: 'Start writing, or press / for commands…',
-    hint: 'Nexday links this note to your event and pulls out the action items.',
+    hint: 'Pick a project and a template, or just start writing.',
     props: [
       {
         label: 'Event',
@@ -173,7 +178,7 @@ const configs: Record<NewType, Omit<Config, 'tab'>> = {
   habit: {
     placeholder: 'Name your habit',
     sub: 'Add why it matters, or a note to yourself…',
-    hint: 'Nexday found 5 slots a day that stay clear on your calendar.',
+    hint: 'Pick the days and the time. It repeats on those days.',
     props: [
       { label: 'Repeat', kind: 'days', on: 5 },
       {
@@ -318,15 +323,41 @@ function PropRow({
   )
 }
 
+const LENGTHS = [5, 10, 15, 20, 30, 45, 60, 90, 120]
+const lenLabel = (n: number): string => (n >= 60 ? `${Math.floor(n / 60)} h${n % 60 ? ` ${n % 60} min` : ''}` : `${n} min`)
+const CALENDARS: Opt[] = [
+  { value: 'personal', label: 'Personal', swatch: 'var(--personal)' },
+  { value: 'work', label: 'Work', swatch: 'var(--work)' },
+  { value: 'acc', label: 'Planner MVP', swatch: 'var(--acc)' }
+]
+
 export function NewPopup({ type }: { type: NewType }): React.JSX.Element {
   const navigate = useNavigate()
   const { closeNew, openNew, newTitle } = useUI()
+  useProjects((s) => s.custom) // re-render when projects are added or renamed
   const [title, setTitle] = useState(newTitle)
   const c = configs[type]
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [when, setWhen] = useState<When | null>(null)
   const [allDay, setAllDay] = useState(false)
   const [repeat, setRepeat] = useState(0)
+  const [project, setProject] = useState('personal')
+  const [length, setLength] = useState(30)
+  const [energy, setEnergy] = useState<Energy>('Light')
+  const [calendar, setCalendar] = useState('personal')
+  const [where, setWhere] = useState('')
+  const [template, setTemplate] = useState('blank')
+  const [habitTime, setHabitTime] = useState('09:00')
+  const [habitLen, setHabitLen] = useState(5)
+  const [habitDays, setHabitDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6])
+
+  const projectOptions: Opt[] = (Object.keys(projectInfo) as string[]).map((k) => ({
+    value: k,
+    label: projectInfo[k].name,
+    swatch: projectColor[k]
+  }))
+  const open = (id: string) => (o: boolean): void => setOpenMenu(o ? id : null)
 
   const create = (): void => {
     const text = title.trim()
@@ -339,11 +370,12 @@ export function NewPopup({ type }: { type: NewType }): React.JSX.Element {
       const group =
         diff === null ? 'no-time' : diff <= 0 ? 'today' : diff === 1 ? 'tomorrow' : 'next-week'
       const hasWords = parsed.title !== text
-      const base = hasWords ? parsed : { ...parsed, group, time: when ? when.start : '13:30' }
-      const { task, group: g } = toTask(base as typeof parsed, 'moving')
-      useTasks.getState().add(task, g)
+      const base = { ...(hasWords ? parsed : { ...parsed, group, time: when ? when.start : '13:30' }), length: parsed.length ?? length }
+      const { task, group: g } = toTask(base as typeof parsed, project)
+      // What was picked below wins unless the words in the title already named a project.
+      useTasks.getState().add({ ...task, project: parsed.project ?? project, energy }, g)
     } else if (type === 'habit' && text) {
-      useHabits.getState().add(text)
+      useHabits.getState().add(text, { time: habitTime, lengthMin: habitLen, days: habitDays.length ? habitDays : [0, 1, 2, 3, 4, 5, 6] })
     } else if (type === 'event' && text) {
       // The design's default when nobody touched the picker: tomorrow 15:00 – 16:00.
       const w = when ?? { day: dayKey(addDays(appToday(), 1)), start: '15:00', end: '16:00' }
@@ -353,21 +385,28 @@ export function NewPopup({ type }: { type: NewType }): React.JSX.Element {
         start: w.start,
         end: w.end,
         allDay,
+        kind: calendar as 'personal' | 'work' | 'acc',
+        ...(where.trim() ? { location: where.trim() } : null),
         rrule: REPEATS[repeat].rule
       })
     } else if (type === 'note' && text) {
-      noteId = useNotes.getState().add(text)
+      const tpl = noteTemplates.find((t) => t.id === template)
+      const chip = { color: projectColor[project], name: projectInfo[project].name }
+      noteId = useNotes.getState().add(text, { chip, ...(tpl && tpl.sections.length ? { text: templateText(tpl.sections) } : null) })
     }
     closeNew()
     if (noteId) navigate(`/notes/${noteId}`)
   }
 
   return (
-    <Overlay onClose={pickerOpen ? () => setPickerOpen(false) : closeNew} instant>
+    <Overlay onClose={openMenu ? () => setOpenMenu(null) : pickerOpen ? () => setPickerOpen(false) : closeNew} instant>
       <div
         className="np"
+        onMouseDown={() => openMenu && setOpenMenu(null)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
+          // Enter on a button or in a time box does what that control does; elsewhere it creates.
+          const tag = (e.target as HTMLElement).tagName
+          if (e.key === 'Enter' && !e.shiftKey && tag !== 'BUTTON' && !(e.target as HTMLInputElement).type?.match?.(/time|date/)) {
             e.preventDefault()
             create()
           }
@@ -425,43 +464,43 @@ export function NewPopup({ type }: { type: NewType }): React.JSX.Element {
         </div>
 
         <div className="col" style={{ padding: '0 24px' }}>
-          {c.props.map((p, i) => {
-            const shown =
-              p.kind === 'when' && p.label === 'When' && when ? { ...p, text: formatWhen(when) } : p
-            return (
-              <PropRow
-                key={p.label}
-                p={shown}
-                i={i}
-                last={type !== 'event' && i === c.props.length - 1}
-                onWhen={() => setPickerOpen(true)}
-              />
-            )
-          })}
+          {(type === 'task' || type === 'event') && (
+            <PropRow
+              p={(() => {
+                const w = c.props[0]
+                return w.kind === 'when' && when ? { ...w, text: formatWhen(when) } : w
+              })()}
+              i={0}
+              last={false}
+              onWhen={() => setPickerOpen(true)}
+            />
+          )}
+          {type === 'task' && (
+            <>
+              <SelectField label="Project" value={project} options={projectOptions} onChange={setProject} open={openMenu === 'project'} onOpen={open('project')} />
+              <SelectField label="Length" value={String(length)} options={LENGTHS.map((n) => ({ value: String(n), label: lenLabel(n) }))} onChange={(v) => setLength(Number(v))} open={openMenu === 'length'} onOpen={open('length')} />
+              <SelectField label="Energy" value={energy} options={[{ value: 'Light', label: 'Light' }, { value: 'Deep focus', label: 'Deep focus' }]} onChange={(v) => setEnergy(v as Energy)} open={openMenu === 'energy'} onOpen={open('energy')} last />
+            </>
+          )}
           {type === 'event' && (
             <>
-              <PropRow
-                p={{
-                  label: 'All day',
-                  kind: 'value',
-                  text: allDay ? 'Yes' : 'No',
-                  trail: allDay ? { kind: 'toggle' } : null
-                }}
-                i={c.props.length}
-                last={false}
-                onClick={() => setAllDay(!allDay)}
-              />
-              <PropRow
-                p={{
-                  label: 'Repeat',
-                  kind: 'value',
-                  text: REPEATS[repeat].label,
-                  trail: { kind: 'chevron' }
-                }}
-                i={c.props.length + 1}
-                last
-                onClick={() => setRepeat((r) => (r + 1) % REPEATS.length)}
-              />
+              <SelectField label="Calendar" value={calendar} options={CALENDARS} onChange={setCalendar} open={openMenu === 'calendar'} onOpen={open('calendar')} />
+              <TextField label="Where" value={where} onChange={setWhere} placeholder="Add a place or a Meet link" />
+              <SwitchField label="All day" text={allDay ? 'Yes' : 'No'} on={allDay} onChange={setAllDay} />
+              <SelectField label="Repeat" value={String(repeat)} options={REPEATS.map((r, n) => ({ value: String(n), label: r.label }))} onChange={(v) => setRepeat(Number(v))} open={openMenu === 'repeat'} onOpen={open('repeat')} last />
+            </>
+          )}
+          {type === 'note' && (
+            <>
+              <SelectField label="Project" value={project} options={projectOptions} onChange={setProject} open={openMenu === 'project'} onOpen={open('project')} top />
+              <SelectField label="Template" value={template} options={noteTemplates.map((t) => ({ value: t.id, label: t.label }))} onChange={setTemplate} open={openMenu === 'template'} onOpen={open('template')} last />
+            </>
+          )}
+          {type === 'habit' && (
+            <>
+              <DaysField label="Repeat" days={habitDays} onChange={setHabitDays} top />
+              <TimeField label="Time" value={habitTime} onChange={setHabitTime} />
+              <SelectField label="Length" value={String(habitLen)} options={[1, 2, 5, 10, 15, 20, 30, 45, 60].map((n) => ({ value: String(n), label: lenLabel(n) }))} onChange={(v) => setHabitLen(Number(v))} open={openMenu === 'hlen'} onOpen={open('hlen')} last />
             </>
           )}
         </div>

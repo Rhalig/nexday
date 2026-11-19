@@ -239,10 +239,7 @@ function Preview({ note, onOpen, onDelete }: { note: Note; onOpen: () => void; o
         <span>{note.chip.name}</span>
       </div>
 
-      <div className="nb-tools">
-        <FormatButtons api={bodyRef} state={fmt} />
-      </div>
-      <div style={{ marginTop: 8 }}>
+      <div style={{ marginTop: 22 }}>
         <NoteBody
           ref={bodyRef}
           onFormat={setFmt}
@@ -258,6 +255,9 @@ function Preview({ note, onOpen, onDelete }: { note: Note; onOpen: () => void; o
       </div>
 
       <div className="row" style={{ marginTop: 24, gap: 8 }}>
+        <div className="nb-tools" style={{ marginTop: 0 }}>
+          <FormatButtons api={bodyRef} state={fmt} />
+        </div>
         {open > 0 && (
           <>
             <span style={{ color: '#E2680C', display: 'flex' }}>

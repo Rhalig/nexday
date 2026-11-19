@@ -109,6 +109,7 @@ export function SyncPopover({
   onClose: () => void
 }): React.JSX.Element {
   useEscape(onClose)
+  const navigate = useNavigate()
   const mac = useCalendar()
   const cloud = useSync()
   const ago = (t: number | null): string => {
@@ -228,7 +229,13 @@ export function SyncPopover({
             borderTop: '1px solid #EDEDEB'
           }}
         >
-          <button style={{ padding: 0, fontSize: 13, fontWeight: 500 }} onClick={onClose}>
+          <button
+            style={{ padding: 0, fontSize: 13, fontWeight: 500 }}
+            onClick={() => {
+              onClose()
+              navigate('/settings/calendars')
+            }}
+          >
             Calendars &amp; sync settings
           </button>
           <span style={{ color: '#767676', display: 'flex' }}>
