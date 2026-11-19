@@ -1,0 +1,153 @@
+/* ---------- Ghost suggestion input ---------- */
+.gs-wrap {
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid var(--line2);
+  box-shadow: 0 8px 24px -14px rgba(70, 68, 62, 0.12);
+}
+.gs-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 10px 0 18px;
+}
+.gs-body {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  padding: 12px 0;
+  cursor: text;
+}
+.gs-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  letter-spacing: inherit;
+  color: var(--ink);
+  caret-color: var(--acc);
+  padding: 0;
+  z-index: 1;
+}
+.gs-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  color: var(--ink3);
+  pointer-events: none;
+  font-size: 15px;
+  transition: opacity 0.3s;
+}
+.gs-line {
+  display: flex;
+  align-items: center;
+  white-space: pre;
+  min-height: 1.5em;
+  font-size: 15px;
+  line-height: 1.5;
+  transition: opacity 0.3s;
+}
+.gs-typed {
+  color: var(--ink);
+}
+.gs-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  vertical-align: -0.15em;
+  border-radius: 1px;
+  background: var(--ink);
+  animation: gs-blink 1s steps(1) infinite;
+}
+@keyframes gs-blink {
+  50% {
+    opacity: 0;
+  }
+}
+.gs-ghost {
+  color: var(--ink3);
+}
+.gs-ghost .g {
+  display: inline;
+  white-space: pre;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.gs-ghost .g.in {
+  opacity: 1;
+}
+.gs-ghost .g.hop {
+  color: var(--ink);
+  animation: gs-hop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes gs-hop {
+  40% {
+    transform: translateY(-3px);
+  }
+}
+.gs-tab {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  vertical-align: 0.08em;
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 500;
+  background: var(--ground);
+  color: var(--ink2);
+  border: 1px solid var(--line2);
+  transition:
+    opacity 0.25s,
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.gs-send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 0.12s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.15s;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  flex-shrink: 0;
+}
+.gs-send::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+  pointer-events: none;
+  border-radius: inherit;
+}
+.gs-send:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+.gs-send:active {
+  transform: translateY(0) scale(0.97);
+}
+

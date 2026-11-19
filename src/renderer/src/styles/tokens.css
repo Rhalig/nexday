@@ -1,0 +1,37 @@
+:root {
+  --ground: #f5f5f4; /* app background, behind panels */
+  --panel: #ffffff; /* main panel */
+  --ink: #1a1a1a; /* primary text, dark buttons, selected icon */
+  --ink2: #6b6b6b; /* secondary text */
+  --ink3: #767676; /* tertiary text, counts, placeholders */
+  --line: #ededeb; /* hairline dividers inside content */
+  --line2: #e2e2e0; /* borders around panels, inputs, buttons */
+  --acc: #f38020; /* accent orange */
+  --acc-strong: #e2680c;
+  --acc-text: #b4500a; /* accent used as text */
+  --acc-soft: #fef2e8;
+  --err: #c2362b;
+
+  --blue: #3b72d9;
+  --blue-soft: #eef3fc;
+
+  /* project colours */
+  --work: #5b6578;
+  --work-soft: #eff1f4;
+  --health: #2e8b57;
+  --health-soft: #e9f4ee;
+  --personal: #a4505a;
+  --personal-soft: #f7ebec;
+
+  /* layout rhythm: every page and full-screen view uses these */
+  --gutter: 12px; /* space between the window edge, sidebar and panels */
+  --panel-pt: 22px;
+  --panel-px: 52px;
+  --panel-pb: 24px;
+  --panel-radius: 18px;
+  --scrollbar: 10px; /* width reserved for the scrollbar inside the panel's side padding */
+  --capture-gap: 28px; /* space above the capture bar */
+
+  --font: 'Geist Variable', 'Geist', -apple-system, system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace;
+}

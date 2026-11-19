@@ -1,0 +1,114 @@
+* {
+  margin: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html,
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font);
+  letter-spacing: -0.03em;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+::selection {
+  background: var(--acc);
+  color: #fff;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+h1,
+h2,
+h3,
+b,
+strong {
+  font-weight: 500;
+}
+
+svg {
+  flex-shrink: 0;
+  display: block;
+}
+
+.row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.col {
+  display: flex;
+  flex-direction: column;
+}
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+.muted {
+  color: var(--ink2);
+}
+.label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--ink2);
+  font-weight: 500;
+}
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* window dragging (hiddenInset title bar) */
+.drag-strip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  -webkit-app-region: drag;
+  z-index: 5;
+}
+button,
+a,
+input {
+  -webkit-app-region: no-drag;
+}
+
+/* thin scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 5px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*:hover::-webkit-scrollbar-thumb {
+  background-color: var(--line2);
+}

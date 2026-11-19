@@ -1,0 +1,455 @@
+/* ---------- Scrim modal (auto-schedule, rules, templates, settings, share) ---------- */
+.dl-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(26, 26, 26, 0.34);
+  -webkit-backdrop-filter: blur(1.5px);
+  backdrop-filter: blur(1.5px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-y: auto;
+}
+.dl-box {
+  background: #fff;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow:
+    0 16px 40px -18px rgba(70, 68, 62, 0.14),
+    0 3px 10px -5px rgba(70, 68, 62, 0.06),
+    0 0 0 1px rgba(70, 68, 62, 0.06);
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 24px;
+}
+.dl-box .btn {
+  justify-content: center;
+}
+.dl-x {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b6b6b;
+  align-self: flex-start;
+}
+.dl-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #ededeb;
+}
+.dl-tg {
+  width: 30px;
+  height: 18px;
+  border-radius: 9px;
+  background: #e2680c;
+  padding: 2px;
+  display: flex;
+  justify-content: flex-end;
+  flex: none;
+}
+.dl-tg.off {
+  background: #d6d6d3;
+  justify-content: flex-start;
+}
+.dl-tg i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+}
+.dl-lb {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b6b6b;
+  font-weight: 500;
+  padding: 16px 0 6px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* auto-schedule */
+.dl-it {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid #ededeb;
+}
+.dl-ck {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: #1a1a1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: #fff;
+}
+.dl-ck.off {
+  background: transparent;
+  border: 1.5px solid #bdbdba;
+}
+
+/* inbox rules */
+.dl-s {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  border-bottom: 1px solid #ededeb;
+}
+.dl-s .t {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+  flex: 1;
+}
+.dl-s .t b {
+  font-weight: 500;
+  font-size: 13.5px;
+}
+.dl-s .t i {
+  font-style: normal;
+  font-size: 12px;
+  color: #767676;
+}
+.dl-ic {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid #e2e2e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: #3a3a3a;
+}
+.dl-rl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  border-bottom: 1px solid #ededeb;
+  font-size: 13.5px;
+}
+.dl-rl em {
+  font-style: normal;
+  font-weight: 500;
+}
+.dl-rl .m {
+  margin-left: auto;
+  font-size: 12px;
+  color: #767676;
+}
+
+/* templates */
+.dl-tp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  color: #3a3a3a;
+  width: 100%;
+  text-align: left;
+}
+.dl-tp.on {
+  background: #f5f5f4;
+  color: #1a1a1a;
+  font-weight: 500;
+}
+.dl-tp svg {
+  color: #6b6b6b;
+}
+.dl-sh {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 16px 0 6px;
+}
+.dl-ln {
+  font-size: 13.5px;
+  color: #6b6b6b;
+  padding: 5px 0;
+  border-bottom: 1px solid #ededeb;
+}
+
+/* project settings */
+.dl-pr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 50px;
+  border-bottom: 1px solid #ededeb;
+}
+.dl-pl {
+  width: 120px;
+  flex: none;
+  font-size: 13px;
+  color: #6b6b6b;
+}
+.dl-sw {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  padding: 0;
+}
+.dl-sw.on {
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 3.5px #1a1a1a;
+}
+.dl-field {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: inherit;
+  color: var(--ink);
+  padding: 0;
+}
+
+/* share */
+.dl-mr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  border-bottom: 1px solid #ededeb;
+}
+.dl-av {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 500;
+  flex: none;
+}
+.dl-role {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #6b6b6b;
+}
+.dl-input {
+  flex: 1;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid #e2e2e0;
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: inherit;
+  outline: 0;
+  color: var(--ink);
+}
+.dl-input::placeholder {
+  color: #767676;
+  opacity: 1;
+}
+
+/* ---------- Anchored popovers (filter, snooze) ---------- */
+.pv {
+  position: fixed;
+  background: #fff;
+  box-shadow:
+    0 16px 40px -18px rgba(70, 68, 62, 0.14),
+    0 3px 10px -5px rgba(70, 68, 62, 0.06),
+    0 0 0 1px rgba(70, 68, 62, 0.06);
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+}
+.pv-sec {
+  padding: 14px 0;
+  border-bottom: 1px solid #ededeb;
+}
+.pv-lb {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b6b6b;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.pv-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  font-size: 13.5px;
+  width: 100%;
+  text-align: left;
+}
+.pv-opt .m {
+  margin-left: auto;
+  font-size: 12px;
+  color: #767676;
+}
+.pv-ck {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  border: 1.5px solid #bdbdba;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+.pv-ck.on {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+}
+.pv-seg {
+  display: flex;
+  padding: 3px;
+  border-radius: 10px;
+  background: #f5f5f4;
+  border: 1px solid #ededeb;
+}
+.pv-seg button {
+  flex: 1;
+  text-align: center;
+  height: 28px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  color: #6b6b6b;
+}
+.pv-seg button.on {
+  background: #fff;
+  color: #1a1a1a;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.sn-o {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  border-bottom: 1px solid #ededeb;
+  width: 100%;
+  text-align: left;
+}
+.sn-o .t {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  flex: 1;
+}
+.sn-o .t b {
+  font-weight: 500;
+  font-size: 13.5px;
+}
+.sn-o .t i {
+  font-style: normal;
+  font-size: 12px;
+  color: #767676;
+}
+.sn-o .m {
+  font-size: 12.5px;
+  color: #6b6b6b;
+  white-space: nowrap;
+}
+.sn-k {
+  font-size: 11px;
+  color: #6b6b6b;
+  background: #fff;
+  border: 1px solid #e2e2e0;
+  border-radius: 5px;
+  padding: 0 5px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* ---------- Date & time picker (inside the New popup) ---------- */
+.dp {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 214px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px 16px;
+  box-shadow:
+    0 16px 40px -18px rgba(70, 68, 62, 0.14),
+    0 3px 10px -5px rgba(70, 68, 62, 0.06),
+    0 0 0 1px rgba(70, 68, 62, 0.06);
+  display: flex;
+  flex-direction: column;
+  z-index: 5;
+}
+.dp-q {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--ink2);
+  display: flex;
+  align-items: center;
+}
+.dp-q.on {
+  color: var(--ink);
+  font-weight: 500;
+  background: var(--ground);
+}
+.dp-g {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 2px;
+  text-align: center;
+}
+.dp-wd {
+  font-size: 11px;
+  color: var(--ink3);
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dp-d {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  border-radius: 9px;
+  margin: 0 2px;
+  cursor: pointer;
+}
+.dp-d:hover {
+  background: var(--ground);
+}
+.dp-d.m {
+  color: #bdbdba;
+}
+.dp-d.s {
+  background: var(--ink);
+  color: #fff;
+  font-weight: 500;
+}
+.dp-sl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  border-bottom: 1px solid var(--line);
+  width: 100%;
+  text-align: left;
+}

@@ -1,0 +1,228 @@
+/* ---------- Button ---------- */
+/* One button: the screen-specific names (.st-btn settings, .nx-btn entry, .fc-btn focus) share these rules. */
+.btn,
+.st-btn,
+.nx-btn,
+.fc-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line2);
+  background: #fff;
+  color: var(--ink);
+  font-weight: 500;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.btn.dark,
+.st-btn.dark,
+.nx-btn.dark,
+.fc-btn.dark {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+.btn.destructive {
+  color: var(--err);
+  border-color: var(--err);
+}
+
+/* ---------- Kbd ---------- */
+.kbd {
+  font-size: 11px;
+  color: var(--ink2);
+  background: #fff;
+  border: 1px solid var(--line2);
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+
+/* Mono kbd variant used by the older note frames */
+.kbd.mono-kbd {
+  font-family: var(--font-mono);
+  background: #ededeb;
+  border: 0;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  letter-spacing: 0;
+}
+
+/* ---------- Checkbox ---------- */
+.cb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1.5px solid #bdbdba;
+  flex-shrink: 0;
+}
+.cb svg {
+  opacity: 0;
+  color: #fff;
+}
+.task.done .cb {
+  background: var(--acc-strong);
+  border-color: var(--acc-strong);
+}
+.task.done .cb svg {
+  opacity: 1;
+}
+
+/* ---------- Group header ---------- */
+.grp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 0 8px;
+}
+.grp-t {
+  font-size: 13px;
+  font-weight: 500;
+}
+.grp-meta {
+  font-size: 12px;
+}
+.grp-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--acc-text);
+}
+.grp-link span {
+  font-size: 12px;
+}
+.grp-line {
+  flex: 1;
+  height: 0;
+  border-top: 1px solid var(--line);
+}
+
+/* ---------- Task row ---------- */
+.task {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  border-bottom: 1px solid var(--line);
+}
+.task.last {
+  border-bottom: 0;
+}
+.task.enter {
+  animation: task-in 0.3s var(--ease-out);
+}
+@keyframes task-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+.task.clickable {
+  cursor: pointer;
+}
+.tt {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+}
+.tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 118px;
+  flex-shrink: 0;
+}
+.tag span {
+  font-size: 12px;
+  color: var(--ink2);
+}
+.en {
+  width: 74px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--ink2);
+}
+.du {
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
+  color: var(--ink2);
+  width: 76px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.task.compact .du {
+  width: 56px;
+}
+.task.done .tt {
+  color: var(--ink3);
+  text-decoration: line-through;
+  text-decoration-color: #bdbdba;
+}
+.du.hot {
+  color: var(--acc-text);
+  font-weight: 500;
+}
+
+/* ---------- Segmented control ---------- */
+.seg {
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--ground);
+  border: 1px solid var(--line);
+}
+.seg-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 7px;
+}
+.seg-label {
+  font-size: 12.5px;
+  color: var(--ink2);
+}
+.seg-count {
+  font-size: 12px;
+  color: var(--ink2);
+}
+.seg-item.on {
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.seg-item.on .seg-label {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* ---------- Toggle ---------- */
+.toggle {
+  display: flex;
+  align-items: center;
+  width: 28px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--line2);
+  padding: 2px;
+  justify-content: flex-start;
+}
+.toggle.on {
+  background: var(--acc-strong);
+}
+.toggle i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+}

@@ -1,0 +1,60 @@
+appId: com.nexday.app
+productName: Nexday
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!native/**'
+  - '!resources/bin/**'
+  - '!ref/**'
+  - '!out/**/*.map'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+protocols:
+  - name: Nexday
+    schemes:
+      - nexday
+asarUnpack:
+  - resources/**
+extraResources:
+  - from: resources/bin
+    to: bin
+win:
+  executableName: nexday
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+mac:
+  category: public.app-category.productivity
+  icon: build/icon.icns
+  target:
+    - target: dmg
+      arch: arm64
+    - target: zip
+      arch: arm64
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    - NSCalendarsUsageDescription: Nexday reads your calendar events to plan around them.
+    - NSCalendarsFullAccessUsageDescription: Nexday reads your calendar events to plan around them.
+  notarize: false
+dmg:
+  title: ${productName}
+  artifactName: ${productName}-${version}-${arch}.${ext}
+linux:
+  target:
+    - AppImage
+    - snap
+    - deb
+  maintainer: nexday
+  category: Utility
+appImage:
+  artifactName: ${name}-${version}.${ext}
+npmRebuild: false
+publish: null

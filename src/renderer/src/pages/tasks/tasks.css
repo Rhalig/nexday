@@ -1,0 +1,88 @@
+.tasks-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 26px;
+}
+.tasks-opts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--ink2);
+}
+.tasks-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 48px;
+  padding-top: 2px;
+}
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.tasks-side {
+  display: flex;
+  flex-direction: column;
+  width: 330px;
+  flex-shrink: 0;
+  gap: 30px;
+  padding-top: 22px;
+}
+
+/* find-time card */
+.findtime {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line2);
+  border-radius: 16px;
+  background: #fff;
+  padding: 18px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.findtime-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--acc);
+  box-shadow: 0 0 0 4px var(--acc-soft);
+}
+
+/* side sections */
+.side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.side-head h2 {
+  font-size: 15px;
+  font-weight: 500;
+}
+.proj {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.proj:first-of-type {
+  padding-top: 10px;
+}
+.proj.last {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.bar i {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+}

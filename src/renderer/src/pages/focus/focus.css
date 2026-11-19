@@ -1,0 +1,14 @@
+.fc { min-height: 100vh; padding: var(--gutter); background: var(--ground); display: flex; flex-direction: column; line-height: 1.5; }
+.fc-panel {
+  flex: 1; display: flex; flex-direction: column; background: #fff; border: 1px solid var(--line2);
+  border-radius: var(--panel-radius); padding: var(--panel-pt) var(--panel-px) var(--panel-pb); overflow-y: auto;
+}
+.fc .row { display: flex; align-items: center; }
+.fc .col { display: flex; flex-direction: column; }
+.fc-kbd { font-size: 11px; color: var(--ink2); background: #fff; border: 1px solid var(--line2); border-radius: 5px; padding: 1px 5px; }
+.fc-sr { display: flex; align-items: center; gap: 12px; min-height: 44px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.fc-cb { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid #bdbdba; flex: none; }
+.fc-cb.on { background: var(--acc-strong); border-color: var(--acc-strong); }
+.fc-seg { display: flex; margin-top: 22px; padding: 3px; border-radius: 10px; background: var(--ground); border: 1px solid var(--line); }
+.fc-seg button { height: 28px; padding: 0 14px; border-radius: 7px; font-size: 12.5px; color: var(--ink2); }
+.fc-seg button.on { background: #fff; color: var(--ink); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.08); }

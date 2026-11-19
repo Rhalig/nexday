@@ -1,0 +1,215 @@
+/* The project frames are the older template: normal line-height, no .panel-scroll gutters */
+.panel.pj {
+  line-height: normal;
+}
+.pj-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+}
+.pj-top .btn {
+  cursor: pointer;
+}
+.pj-head {
+  display: flex;
+  align-items: flex-end;
+  margin-top: 34px;
+}
+.pj-title {
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1.1;
+}
+.pj-stats {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line2);
+  border-radius: 12px;
+  height: 68px;
+}
+.pj-stat {
+  display: flex;
+  flex-direction: column;
+  padding: 0 18px;
+  gap: 4px;
+}
+.pj-stat span:first-child {
+  font-size: 12px;
+  color: var(--ink2);
+}
+.pj-stat span:last-child {
+  font-size: 20px;
+  font-weight: 500;
+}
+.pj-vr {
+  width: 1px;
+  height: 100%;
+  background: var(--line);
+}
+.pj-rule {
+  height: 1px;
+  background: var(--line);
+  margin-top: 30px;
+}
+.pj-seg {
+  display: inline-flex;
+  background: #f5f5f4;
+  border-radius: 10px;
+  padding: 3px;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.pj-seg button {
+  height: 30px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink2);
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.pj-seg button.on {
+  background: #fff;
+  color: var(--ink);
+  font-weight: 500;
+  box-shadow: 0 0 0 1px var(--line2);
+}
+.pj-seg button i {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--ink3);
+}
+.pj-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 56px;
+  margin-top: 4px;
+}
+.pj-gh {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 26px 0 8px;
+}
+.pj-gh i {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--ink3);
+  font-size: 12.5px;
+}
+.pj-gh::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.pj-t {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 44px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.pj-cb {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid #bdbdba;
+  border-radius: 5px;
+  flex: none;
+  padding: 0;
+}
+.pj-t .n {
+  flex: 1;
+}
+.pj-t .e {
+  width: 90px;
+  font-size: 12.5px;
+  color: var(--ink2);
+}
+.pj-t .w {
+  width: 96px;
+  text-align: right;
+  font-size: 13px;
+  color: var(--ink2);
+  white-space: nowrap;
+}
+.pj-t .w.hot {
+  color: var(--acc-text);
+}
+.pj-done {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--ink2);
+  margin-top: 6px;
+}
+.pj-side {
+  display: flex;
+  flex-direction: column;
+  width: 330px;
+  flex: none;
+  padding-top: 22px;
+}
+.pj-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line2);
+  border-radius: 16px;
+  padding: 18px 20px 20px;
+  gap: 6px;
+}
+.pj-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: #ededeb;
+  position: relative;
+  margin: 8px 0 2px;
+}
+.pj-bar i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+}
+.pj-rh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 30px 0 10px;
+}
+.pj-rl {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 42px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.pj-rl.top {
+  border-top: 1px solid var(--line);
+}
+.pj-rl .m {
+  font-size: 12.5px;
+  color: var(--ink3);
+}
+.pj-rl-bar {
+  width: 3px;
+  height: 22px;
+  border-radius: 2px;
+}
+.pj-ms {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid #bdbdba;
+  border-radius: 50%;
+}

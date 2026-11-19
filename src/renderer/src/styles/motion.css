@@ -1,0 +1,293 @@
+/* ---------- Motion ----------
+   Rules: animate transform and opacity only, ease-out for things entering, under 300ms,
+   and nothing at all for actions people repeat all day (command palette, new-item shortcuts).
+   Reduced motion keeps the fades and drops the movement (--shift / --pop = no movement). */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-press: 120ms;
+  --dur-hover: 150ms;
+  --dur-pop: 160ms;
+  --dur-page: 180ms;
+  --dur-drawer: 260ms;
+  --shift: 4px; /* how far page content travels while it fades in */
+  --pop: 0.97; /* start scale of popovers and dialogs */
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --shift: 0px;
+    --pop: 1;
+  }
+}
+
+/* ---- Page enter: navigation happens tens of times a day, so this is a quick, small fade-up ---- */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--shift));
+  }
+}
+.panel-scroll > *,
+.panel > :not(.topbar):not(.panel-scroll):not(.pj-top):not(.drawer-backdrop):not(.capture) {
+  animation: page-in var(--dur-page) var(--ease-out) backwards;
+}
+.panel-scroll > :nth-child(2),
+.panel > :nth-child(3) {
+  animation-delay: 24ms;
+}
+.panel-scroll > :nth-child(3),
+.panel > :nth-child(4) {
+  animation-delay: 48ms;
+}
+.panel-scroll > :nth-child(n + 4),
+.panel > :nth-child(n + 5) {
+  animation-delay: 72ms;
+}
+/* Sticky capture bars keep their position; they only fade */
+.panel-scroll > .capture {
+  animation-name: page-fade;
+}
+@keyframes page-fade {
+  from {
+    opacity: 0;
+  }
+}
+/* A page whose content is already on screen (settings tab switch) */
+.st-page,
+.ob-step {
+  animation: page-in var(--dur-page) var(--ease-out) backwards;
+}
+
+/* ---- Press and hover feedback ---- */
+.btn,
+.st-btn,
+.nx-btn,
+.fc-btn,
+.capture-btn,
+.gs-send,
+.seg-item,
+.nav-item,
+.pm-item,
+.dp-q,
+.dp-d,
+.pv-opt,
+.sn-o,
+.dl-tp {
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color var(--dur-hover) ease,
+    border-color var(--dur-hover) ease,
+    color var(--dur-hover) ease,
+    box-shadow var(--dur-hover) ease;
+}
+.btn:active,
+.st-btn:active,
+.nx-btn:active,
+.fc-btn:active,
+.capture-btn:active,
+.gs-send:active {
+  transform: scale(0.97);
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn:not(.dark):hover,
+  .st-btn:not(.dark):hover,
+  .nx-btn:not(.dark):hover,
+  .fc-btn:not(.dark):hover {
+    background: #fafaf9;
+  }
+  .btn.dark:hover,
+  .st-btn.dark:hover,
+  .nx-btn.dark:hover,
+  .fc-btn.dark:hover {
+    background: #2e2e2e;
+  }
+  .nav-item:not(.on):hover {
+    background: rgba(0, 0, 0, 0.035);
+  }
+}
+
+/* ---- Checkboxes: the tick scales in rather than blinking on ---- */
+.cb {
+  transition:
+    background-color var(--dur-hover) ease,
+    border-color var(--dur-hover) ease;
+}
+.cb svg {
+  transform: scale(0.6);
+  transition:
+    opacity var(--dur-hover) var(--ease-out),
+    transform var(--dur-hover) var(--ease-out);
+}
+.task.done .cb svg {
+  transform: scale(1);
+}
+
+/* ---- Toggles: the knob slides on transform, never on left/justify ---- */
+.toggle,
+.st-tg,
+.st-tg2,
+.dl-tg {
+  transition: background-color var(--dur-hover) ease;
+}
+.toggle i,
+.st-tg2 i,
+.dl-tg i {
+  transition: transform var(--dur-hover) var(--ease-out);
+}
+.toggle,
+.toggle.on,
+.st-tg2,
+.dl-tg {
+  justify-content: flex-start;
+}
+.toggle.on i {
+  transform: translateX(12px);
+}
+.st-tg2:not(.off) i,
+.dl-tg:not(.off) i {
+  transform: translateX(12px);
+}
+.st-tg::after {
+  transition: transform var(--dur-hover) var(--ease-out);
+}
+.st-tg.on::after {
+  left: 2px;
+  transform: translateX(16px);
+}
+
+/* ---- Popovers and dialogs: scale from where they are anchored ---- */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--pop));
+  }
+}
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--shift)) scale(var(--pop));
+  }
+}
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--shift) * 8));
+  }
+}
+.pm {
+  transform-origin: bottom left;
+}
+.sp,
+.pv {
+  transform-origin: top right;
+}
+.pv.from-left {
+  transform-origin: top left;
+}
+.drawer {
+  animation: drawer-in var(--dur-drawer) var(--ease-drawer);
+}
+.overlay {
+  animation: scrim-in var(--dur-pop) ease-out;
+}
+.overlay-box,
+.dl-box {
+  animation: dialog-in 200ms var(--ease-out);
+}
+.dl-scrim {
+  animation: scrim-in var(--dur-pop) ease-out;
+}
+.pm,
+.sp,
+.pv,
+.menu,
+.np-panel {
+  animation: pop-in var(--dur-pop) var(--ease-out);
+}
+.menu {
+  transform-origin: top right;
+}
+.np-panel {
+  transform-origin: top left;
+}
+.dialog-scrim,
+.help-scrim {
+  animation: scrim-in var(--dur-pop) ease-out;
+}
+.dialog,
+.help {
+  animation: dialog-in 200ms var(--ease-out);
+}
+/* Opened with a keyboard shortcut dozens of times a day: no motion at all */
+.overlay.instant,
+.overlay.instant .overlay-box {
+  animation: none;
+}
+
+/* ---- Bars that fill (focus session, habit rates) move on transform ---- */
+.fc-bar {
+  transform-origin: left center;
+  transition: transform 1s linear;
+}
+
+/* ---- Entry flow: seen once, so it can have a little more ---- */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--shift) * 3));
+  }
+}
+.nx-box > *,
+.fc-rise > * {
+  animation: rise-in 320ms var(--ease-out) backwards;
+}
+.nx-box > :nth-child(2),
+.fc-rise > :nth-child(2) {
+  animation-delay: 40ms;
+}
+.nx-box > :nth-child(3),
+.fc-rise > :nth-child(3) {
+  animation-delay: 80ms;
+}
+.nx-box > :nth-child(4),
+.fc-rise > :nth-child(4) {
+  animation-delay: 120ms;
+}
+.nx-box > :nth-child(n + 5),
+.fc-rise > :nth-child(n + 5) {
+  animation-delay: 160ms;
+}
+.nx-prev img {
+  animation: rise-in 520ms var(--ease-out) 120ms backwards;
+}
+.ob-segs i {
+  transition: background-color 300ms ease;
+}
+
+/* ---- Reduced motion: no scaling or sliding, fades stay ---- */
+@media (prefers-reduced-motion: reduce) {
+  .btn:active,
+  .st-btn:active,
+  .nx-btn:active,
+  .fc-btn:active,
+  .capture-btn:active,
+  .gs-send:active {
+    transform: none;
+  }
+  .toggle i,
+  .st-tg2 i,
+  .dl-tg i,
+  .st-tg::after,
+  .cb svg {
+    transition-property: opacity;
+  }
+  .fc-bar {
+    transition: none;
+  }
+}
