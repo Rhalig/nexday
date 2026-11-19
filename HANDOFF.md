@@ -41,10 +41,15 @@ Cloud accounts with Supabase free tier. AI = Gemini free tier (key must live in 
 
 ## Not done yet (suggested order)
 1. Real SMTP for confirmation/reset emails (dashboard-only, needs the owner): Resend or Brevo, then Supabase Dashboard → Authentication → Emails → SMTP (host `smtp.resend.com`, port 465/587, user `resend`, password = API key). Test from a packaged app (only registered apps receive `nexday://` links).
-2. Launch at login, editable keyboard shortcuts, drag and drop on Calendar/Board, real notes editor, subtask editing, event rescheduling.
+2. Launch at login, editable keyboard shortcuts, drag and drop on Calendar/Board, subtask editing, event rescheduling.
 3. Release: Apple Developer ID + notarization, auto-update, Intel/universal build, crash reporting, privacy policy and terms, tests (none yet).
 4. Deploy the other Edge Functions (`ai`, `billing`, `stripe-webhook`); Stripe and Gemini setup by the owner.
 5. Optional: rotate the Google OAuth client secret (it appeared in a chat once), publish the Google app out of Testing.
+
+## Notes editor
+- `pages/notes/NoteEditor.tsx`: title input + one plain-text writing area (`Note.text`, saved in `notes.body.text`; the preview line `summary` follows it). Conventions per line (`lib/noteText.ts`): `# heading`, `- bullet`, `[ ] action item` (`[x]` done, `[>]` sent to the plan). `/` opens a command menu (action item, bullet, heading), Enter continues a list, Enter on an empty marker ends it, the bottom bar applies the same prefixes. Auto-saves 600 ms after typing stops and on leaving; the side card lists the action items (tick to mark done), "Add N to plan" creates tasks in "No time yet" and marks the lines `[>]`, "Find with AI" appends `[ ]` lines from the `ai` function. Delete note is in the top bar.
+- Old sample notes with a structured `body` are turned into text the first time they are opened and edited. No bold/italic (plain text), no event/project linking from the editor yet.
+- Tested in the browser preview (typing, slash menu, continuation, plan, preview); not against a real account.
 
 ## Calendar done
 - Real dates + week/month/day navigation; recurring and all-day events are supported end to end (DB, grid, drawer, delete).

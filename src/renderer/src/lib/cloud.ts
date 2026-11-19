@@ -455,6 +455,7 @@ const noteRow = (n: Note): Row => ({
     when: n.when,
     linked: n.linked ?? null,
     edited: n.edited,
+    text: n.text ?? null,
     body: n.body ?? null
   },
   template: null,
@@ -475,6 +476,7 @@ const noteFromRow = (r: Row): Note => {
     when: (b.when as Note['when']) ?? { text: 'Today' },
     linked: (b.linked as string | null) ?? undefined,
     edited: String(b.edited ?? 'Edited just now'),
+    ...(typeof b.text === 'string' ? { text: b.text } : {}),
     body: (b.body as Note['body']) ?? undefined
   }
 }

@@ -13,6 +13,8 @@ export type Note = {
   /** Title above the preview ("Linked to ...") for notes tied to an event */
   linked?: string
   edited: string
+  /** The note's content (see lib/noteText.ts). Older notes get it from `body` the first time they are opened. */
+  text?: string
   /** Full body, present on the sample note that has one */
   body?: {
     goals: string[]

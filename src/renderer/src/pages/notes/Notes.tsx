@@ -9,6 +9,7 @@ import { useUI } from '../../store/ui'
 import { useNotes } from '../../store/notes'
 import { pageDate } from '../../lib/clock'
 import { noteTabs, type Note, type NoteCategory } from '../../data/notes'
+import { actionItems, noteText, openActionCount, parseNote } from '../../lib/noteText'
 import './notes.css'
 
 type Filter = 'all' | NoteCategory
@@ -27,7 +28,7 @@ export default function Notes(): React.JSX.Element {
   const visible = filter === 'all' ? notes : notes.filter((n) => n.category === filter)
   const selected = notes.find((n) => n.id === selectedId) ?? visible[0] ?? notes[0]
   const linked = notes.filter((n) => n.linked).length
-  const actions = notes.reduce((n, x) => n + (x.body?.actionItems.length ?? 0), 0)
+  const actions = notes.reduce((n, x) => n + openActionCount(x), 0)
   const tabs = noteTabs.map((t) => ({
     ...t,
     count: t.id === 'all' ? notes.length : notes.filter((n) => n.category === t.id).length
@@ -134,7 +135,10 @@ export default function Notes(): React.JSX.Element {
 }
 
 function Preview({ note, onOpen }: { note: Note; onOpen: () => void }): React.JSX.Element {
-  const body = note.body
+  const text = noteText(note)
+  const lines = parseNote(text)
+  const items = actionItems(text)
+  const open = items.filter((a) => a.state === 'open').length
   return (
     <article className="preview" onDoubleClick={onOpen}>
       {note.linked && (
@@ -161,58 +165,49 @@ function Preview({ note, onOpen }: { note: Note; onOpen: () => void }): React.JS
         <span>{note.chip.name}</span>
       </div>
 
-      {body ? (
-        <>
-          <div className="pv-section">
-            <h3>Goals</h3>
-            {body.goals.map((g) => (
-              <div className="li" key={g}>
+      <div style={{ marginTop: 22 }}>
+        {lines.length === 0 || !text.trim() ? (
+          <p className="muted" style={{ fontSize: 15 }}>
+            Empty note. Double-click to start writing.
+          </p>
+        ) : (
+          lines.map((l, i) =>
+            l.kind === 'blank' ? (
+              <div key={i} style={{ height: 10 }} />
+            ) : l.kind === 'h' ? (
+              <h3 key={i} style={{ marginTop: 18 }}>
+                {l.text}
+              </h3>
+            ) : l.kind === 'bullet' ? (
+              <div className="li" key={i}>
                 <div className="dot-b" />
-                <span>{g}</span>
+                <span>{l.text}</span>
               </div>
-            ))}
-          </div>
-
-          <div className="pv-section">
-            <h3>Open questions</h3>
-            <p style={{ fontSize: 15, lineHeight: 1.55, color: '#2A2A2A' }}>{body.questions}</p>
-          </div>
-
-          <div className="row" style={{ marginTop: 28, gap: 10, justifyContent: 'space-between' }}>
-            <div className="row" style={{ gap: 8 }}>
-              <span style={{ color: '#E2680C', display: 'flex' }}>
-                <Icon name="bolt" size={14} strokeWidth={2} />
-              </span>
-              <span style={{ fontSize: 15, fontWeight: 500 }}>
-                {body.actionItems.length} action items found
-              </span>
-            </div>
-            <Button variant="dark">
-              <span>Add all to plan</span>
-            </Button>
-          </div>
-          <div className="col" style={{ marginTop: 6 }}>
-            {body.actionItems.map((a, i) => (
-              <div className={cn('ai', i === body.actionItems.length - 1 && 'last')} key={a.title}>
-                <div className="cb" />
-                <span style={{ flex: 1, fontSize: 14 }}>{a.title}</span>
-                <span
-                  className={cn('mono', !a.hot && 'muted')}
-                  style={{
-                    fontSize: 12.5,
-                    ...(a.hot ? { color: 'var(--acc-text)', fontWeight: 500 } : null)
-                  }}
-                >
-                  {a.time}
-                </span>
+            ) : l.kind === 'todo' ? (
+              <div className="li" key={i} style={{ color: l.state === 'open' ? undefined : 'var(--ink3)' }}>
+                <div className="cb" style={l.state === 'open' ? undefined : { background: 'var(--acc)', borderColor: 'var(--acc)' }} />
+                <span style={{ textDecoration: l.state === 'done' ? 'line-through' : undefined }}>{l.text}</span>
               </div>
-            ))}
-          </div>
-        </>
-      ) : (
-        <p style={{ fontSize: 15, lineHeight: 1.55, color: '#2A2A2A', marginTop: 22 }}>
-          {note.summary}
-        </p>
+            ) : (
+              <p className="pv-p" key={i}>
+                {l.text}
+              </p>
+            )
+          )
+        )}
+      </div>
+
+      {items.length > 0 && (
+        <div className="row" style={{ marginTop: 24, gap: 8 }}>
+          <span style={{ color: '#E2680C', display: 'flex' }}>
+            <Icon name="bolt" size={14} strokeWidth={2} />
+          </span>
+          <span style={{ fontSize: 14, fontWeight: 500 }}>
+            {open} open action {open === 1 ? 'item' : 'items'}
+          </span>
+          <span style={{ flex: 1 }} />
+          <Button onClick={onOpen}>Open note</Button>
+        </div>
       )}
     </article>
   )
