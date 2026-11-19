@@ -14,7 +14,8 @@ export function captureTask(text: string): void {
   store.add(task, group)
 
   void aiParseCapture(text).then((r) => {
-    if ('error' in r || r.data.kind !== 'task') return
+    // This box makes tasks: an "event" answer ("dentist appointment") still gives a useful day and time.
+    if ('error' in r || r.data.kind === 'note') return
     const a = r.data
     // A cleaner title only when the words held something the regex missed (a day it does not know, or
     // nothing at all) and the AI kept the person's own words rather than rewording or translating.

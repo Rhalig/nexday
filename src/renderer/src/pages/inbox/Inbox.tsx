@@ -37,6 +37,14 @@ function friendlyWhen(raw: string | null): string | null {
   return [day, time].filter(Boolean).join(' ')
 }
 
+/** "13:30" → today at 13:30; "Tomorrow 10:00" → Tomorrow at 10:00; "Tue 15:00" → Tue at 15:00; "No time yet" as is. */
+function whenParts(time: string): Array<{ lead?: string; text: string; mono?: boolean }> {
+  const m = time.match(/^(?:(.+?)\s+)?(\d{1,2}:\d{2})$/)
+  if (!m) return [{ text: time === 'No time yet' ? 'with no time yet' : `on ${time}` }]
+  return [{ lead: m[1] ? `${m[1]} at` : 'today at', text: m[2], mono: true }]
+}
+
+
 /** Capture first (instant), then let AI improve the suggestion in place when it answers. */
 function captureWithAi(text: string): void {
   const inbox = useInbox.getState()
@@ -377,10 +385,24 @@ function FocusCard({
           </span>
         </div>
         <p style={{ fontSize: 15, lineHeight: 1.55, color: 'var(--ink2)' }}>
-          Add it as a <span className="edit-word">{f.kind}</span> today at{' '}
-          <span className="mono edit-word">{f.time}</span> in{' '}
-          <span className="edit-word">{f.project}</span>, for{' '}
-          <span className="mono edit-word">{f.duration}</span>.
+          Add it as {/^[aeiou]/i.test(f.kind) ? 'an' : 'a'} <span className="edit-word">{f.kind}</span>
+          {whenParts(f.time).map((w, i) =>
+            w.mono ? (
+              <span key={i}>
+                {' '}
+                {w.lead} <span className="mono edit-word">{w.text}</span>
+              </span>
+            ) : (
+              <span key={i}> {w.text}</span>
+            )
+          )}{' '}
+          in <span className="edit-word">{f.project}</span>
+          {f.duration && f.duration !== '—' && (
+            <>
+              , for <span className="mono edit-word">{f.duration}</span>
+            </>
+          )}
+          .
         </p>
         <p style={{ fontSize: 13, color: 'var(--ink2)' }}>{f.reason}</p>
       </div>
