@@ -31,11 +31,14 @@ export const sampleNotifs: Notif[] = [
 type NotifState = {
   items: Notif[]
   markAllRead: () => void
+  /** Removes every notification (they are also deleted in the account) */
+  clear: () => void
   toggleRead: (id: string) => void
 }
 
 export const useNotifs = create<NotifState>((set) => ({
   items: supabase ? [] : sampleNotifs,
+  clear: () => set({ items: [] }),
   markAllRead: () => set((s) => ({ items: s.items.map((n) => ({ ...n, unread: false })) })),
   toggleRead: (id) => set((s) => ({ items: s.items.map((n) => (n.id === id ? { ...n, unread: false } : n)) }))
 }))

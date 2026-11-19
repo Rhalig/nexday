@@ -5,10 +5,10 @@ import { ConfirmDialog, DrawerHeader, PopMenu, type MenuItem } from '../../compo
 import { Drawer } from '../../components/Drawer'
 import { Icon } from '../../components/Icon'
 import { Button, cn, projectColor } from '../../components/ui'
-import { describeTask, projects, taskDetails, type Task, type TaskGroup } from '../../data/tasks'
+import { projects, taskDetails, type Energy, type Project, type Task, type TaskGroup } from '../../data/tasks'
 import { useTasks } from '../../store/tasks'
+import { clockOf, lengthOf, moveToGroup, placeTask } from '../../lib/taskMove'
 
-import { T } from '../../lib/prefs'
 
 type Props = { task: Task; groupId: TaskGroup['id']; onClose: () => void }
 
@@ -18,6 +18,18 @@ export default function TaskDrawer({ task: taskProp, groupId, onClose }: Props):
   // read the live task so checklist edits show at once
   const task = useTasks((s) => s.groups.flatMap((g) => g.tasks).find((t) => t.id === taskProp.id)) ?? taskProp
   const subs: Subtask[] = task.subtasks ?? []
+  const patch = useTasks((s) => s.patch)
+  // The task can move between day groups while the drawer is open, so read its group live.
+  const liveGroup = useTasks((s) => s.groups.find((g) => g.tasks.some((t) => t.id === taskProp.id))?.id) ?? groupId
+  const [titleDraft, setTitleDraft] = useState(task.title)
+  const [notesDraft, setNotesDraft] = useState(task.notes ?? taskDetails[task.title]?.notes ?? '')
+  const commitTitle = (): void => {
+    const t = titleDraft.trim().slice(0, 200)
+    if (!t) setTitleDraft(task.title)
+    else if (t !== task.title) patch(task.id, { title: t })
+  }
+  const clock = clockOf(task.time)
+  const len = lengthOf(task.time, task.estimate)
   const [draft, setDraft] = useState('')
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
@@ -37,9 +49,12 @@ export default function TaskDrawer({ task: taskProp, groupId, onClose }: Props):
   const [confirm, setConfirm] = useState(false)
   const navigate = useNavigate()
   const detail = taskDetails[task.title]
-  const { when: whenRaw, length } = describeTask(task, groupId)
-  const when = T(whenRaw)
   const subDone = subs.filter((x) => x.done).length
+
+  const tomorrow = (): void => {
+    moveToGroup(task.id, 'tomorrow')
+    onClose()
+  }
 
   const finish = (): void => {
     remove(task.id)
@@ -48,10 +63,16 @@ export default function TaskDrawer({ task: taskProp, groupId, onClose }: Props):
 
   const items: MenuItem[] = [
     { icon: <Icon name="clock" />, label: 'Start focus', hint: 'F', onSelect: () => navigate('/focus') },
-    { icon: <Icon name="copy" />, label: 'Duplicate', hint: '⌘ D', onSelect: () => undefined },
-    { icon: <Icon name="arrowRight" />, label: 'Move to tomorrow', hint: 'T', onSelect: () => undefined },
-    { icon: <Icon name="folder" />, label: 'Move to project', chevron: true, onSelect: () => undefined },
-    { icon: <Icon name="link" />, label: 'Copy link', onSelect: () => undefined },
+    {
+      icon: <Icon name="copy" />,
+      label: 'Duplicate',
+      onSelect: () => {
+        const group = useTasks.getState().groups.find((g) => g.tasks.some((t) => t.id === task.id))?.id ?? 'no-time'
+        useTasks.getState().add({ ...task, id: crypto.randomUUID(), subtasks: undefined }, group)
+        onClose()
+      }
+    },
+    { icon: <Icon name="arrowRight" />, label: 'Move to tomorrow', onSelect: tomorrow },
     'sep',
     { icon: <Icon name="trash" />, label: 'Delete task', hint: '⌫', danger: true, onSelect: () => setConfirm(true) }
   ]
@@ -70,7 +91,17 @@ export default function TaskDrawer({ task: taskProp, groupId, onClose }: Props):
         <div className="dw-scroll">
           <div className="row" style={{ gap: 14, marginTop: 22, alignItems: 'flex-start' }}>
             <button className="dw-cb" aria-label="Complete" onClick={finish} style={{ width: 22, height: 22, borderRadius: 7, marginTop: 3 }} />
-            <span style={{ fontSize: 20, fontWeight: 500, lineHeight: 1.35, flex: 1 }}>{task.title}</span>
+            <input
+              className="dw-title-in"
+              value={titleDraft}
+              maxLength={200}
+              aria-label="Task title"
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={commitTitle}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+              }}
+            />
           </div>
 
           {detail?.hint && (
@@ -86,12 +117,26 @@ export default function TaskDrawer({ task: taskProp, groupId, onClose }: Props):
             <div className="dw-p">
               <span className="k">When</span>
               <span className="v">
-                {when.includes(', ') ? (
-                  <>
-                    {when.split(', ')[0]}, <span className="dw-mono">{when.split(', ')[1]}</span>
-                  </>
-                ) : (
-                  when
+                <select
+                  className="dw-sel"
+                  value={liveGroup}
+                  aria-label="Day"
+                  onChange={(e) => placeTask(task.id, e.target.value as TaskGroup['id'])}
+                >
+                  <option value="today">Today</option>
+                  <option value="tomorrow">Tomorrow</option>
+                  <option value="next-week">Next week</option>
+                  <option value="no-time">No time yet</option>
+                </select>
+                {liveGroup !== 'no-time' && (
+                  <input
+                    className="dw-sel dw-mono"
+                    type="time"
+                    step={300}
+                    value={clock ?? '09:00'}
+                    aria-label="Start time"
+                    onChange={(e) => e.target.value && placeTask(task.id, liveGroup, { clock: e.target.value })}
+                  />
                 )}
               </span>
             </div>
@@ -99,16 +144,56 @@ export default function TaskDrawer({ task: taskProp, groupId, onClose }: Props):
               <span className="k">Project</span>
               <span className="v">
                 <span style={{ width: 9, height: 9, borderRadius: 3, background: projectColor[task.project] }} />
-                {projects[task.project].name}
+                <select
+                  className="dw-sel"
+                  value={task.project}
+                  aria-label="Project"
+                  onChange={(e) => patch(task.id, { project: e.target.value as Project })}
+                >
+                  {(Object.keys(projects) as Project[]).map((p) => (
+                    <option key={p} value={p}>
+                      {projects[p].name}
+                    </option>
+                  ))}
+                </select>
               </span>
             </div>
             <div className="dw-p">
               <span className="k">Length</span>
-              <span className="v">{length}</span>
+              <span className="v">
+                <select
+                  className="dw-sel"
+                  value={len}
+                  aria-label="Length"
+                  onChange={(e) => {
+                    const n = Number(e.target.value)
+                    if (liveGroup === 'no-time') patch(task.id, { estimate: n })
+                    else placeTask(task.id, liveGroup, { len: n })
+                  }}
+                >
+                  {[...new Set([5, 10, 15, 20, 30, 45, 60, 90, 120, 180, len])]
+                    .sort((x, y) => x - y)
+                    .map((n) => (
+                      <option key={n} value={n}>
+                        {n >= 60 ? `${Math.floor(n / 60)} h${n % 60 ? ` ${n % 60} min` : ''}` : `${n} min`}
+                      </option>
+                    ))}
+                </select>
+              </span>
             </div>
             <div className="dw-p">
               <span className="k">Energy</span>
-              <span className="v">{task.energy}</span>
+              <span className="v">
+                <select
+                  className="dw-sel"
+                  value={task.energy}
+                  aria-label="Energy"
+                  onChange={(e) => patch(task.id, { energy: e.target.value as Energy })}
+                >
+                  <option value="Light">Light</option>
+                  <option value="Deep focus">Deep focus</option>
+                </select>
+              </span>
             </div>
             <div className={cn('dw-p', !detail?.linkedEvent && 'last')}>
               <span className="k">Repeat</span>
@@ -127,12 +212,15 @@ export default function TaskDrawer({ task: taskProp, groupId, onClose }: Props):
             )}
           </div>
 
-          {detail?.notes && (
-            <>
-              <div className="dw-h">Notes</div>
-              <span style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--ink2)' }}>{detail.notes}</span>
-            </>
-          )}
+          <div className="dw-h">Notes</div>
+          <textarea
+            className="dw-notes"
+            placeholder="Add notes"
+            value={notesDraft}
+            maxLength={4000}
+            onChange={(e) => setNotesDraft(e.target.value)}
+            onBlur={() => notesDraft !== (task.notes ?? '') && patch(task.id, { notes: notesDraft })}
+          />
 
           <div className="dw-h" style={{ paddingTop: 28 }}>
             Subtasks
@@ -249,7 +337,7 @@ export default function TaskDrawer({ task: taskProp, groupId, onClose }: Props):
             Delete
           </button>
           <span style={{ flex: 1 }} />
-          <Button onClick={onClose}>Move to tomorrow</Button>
+          <Button onClick={tomorrow}>Move to tomorrow</Button>
           <Button variant="dark" onClick={finish}>
             Mark done
             <span className="dw-kbd">⌘ D</span>

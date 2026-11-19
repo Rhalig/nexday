@@ -252,7 +252,7 @@ export default function Habits(): React.JSX.Element {
                   )}
                   <button
                     aria-label={h.doneToday ? 'Undo today' : 'Mark done'}
-                    style={{ display: 'flex' }}
+                    style={{ display: 'flex', color: '#fff' }}
                     onClick={() => toggleToday(h.id)}
                   >
                     {h.doneToday ? (

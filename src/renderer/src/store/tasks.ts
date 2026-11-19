@@ -62,7 +62,7 @@ type TasksState = {
   /** Brings a task finished today back to the open list (unticking it). */
   reopen: (id: string) => void
   /** Changes a few fields of an open task (the AI refining a quick capture). */
-  patch: (id: string, fields: Partial<Pick<Task, 'title' | 'project' | 'energy' | 'estimate'>>) => void
+  patch: (id: string, fields: Partial<Pick<Task, 'title' | 'project' | 'energy' | 'estimate' | 'notes'>>) => void
   /** Replaces a task's checklist. */
   setSubtasks: (id: string, subtasks: Subtask[]) => void
   /** Moves one task to another day group with a new time (null = no time). */

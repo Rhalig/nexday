@@ -266,7 +266,13 @@ function NotifGlyph({ n }: { n: Notif }): React.JSX.Element {
 
 export function NotificationPanel(): React.JSX.Element {
   const { closePanel } = useUI()
-  const { items, markAllRead, toggleRead } = useNotifs()
+  const { items, markAllRead, toggleRead, clear } = useNotifs()
+  const navigate = useNavigate()
+  const quiet = useUI((s) => s.notifPrefs)
+  const goSettings = (): void => {
+    closePanel()
+    navigate('/settings/notifications')
+  }
   const [tab, setTab] = useState<NTab>('all')
   useEscape(closePanel)
 
@@ -292,9 +298,14 @@ export function NotificationPanel(): React.JSX.Element {
           >
             Mark all read
           </button>
-          <span className="nf-ic">
+          {items.length > 0 && (
+            <button style={{ fontSize: 13, color: 'var(--ink2)', marginRight: 6 }} onClick={clear}>
+              Clear all
+            </button>
+          )}
+          <button className="nf-ic" aria-label="Notification settings" onClick={goSettings}>
             <Icon name="gear" strokeWidth={1.7} round />
-          </span>
+          </button>
           <button className="nf-ic" aria-label="Close" onClick={closePanel}>
             <Icon name="x" strokeWidth={1.7} round />
           </button>
@@ -310,6 +321,14 @@ export function NotificationPanel(): React.JSX.Element {
         </div>
 
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          {shown.length === 0 && (
+            <div className="col" style={{ gap: 6, padding: '48px 0', alignItems: 'center', textAlign: 'center' }}>
+              <span style={{ fontSize: 15, fontWeight: 500 }}>You&apos;re all caught up</span>
+              <span className="muted" style={{ fontSize: 13 }}>
+                Reminders and plan changes show up here.
+              </span>
+            </div>
+          )}
           {(['Today', 'Yesterday'] as const).map((g, gi) => {
             const list = shown.filter((n) => n.group === g)
             if (list.length === 0) return null
@@ -357,9 +376,13 @@ export function NotificationPanel(): React.JSX.Element {
           <span style={{ color: '#767676', display: 'flex' }}>
             <Icon name="moon" size={14} strokeWidth={1.8} round />
           </span>
-          <span style={{ fontSize: 12.5, color: 'var(--ink3)' }}>Quiet hours 22:00 – 08:00</span>
+          <span style={{ fontSize: 12.5, color: 'var(--ink3)' }}>
+            {quiet.quietOn ? `Quiet hours ${quiet.quietStart} – ${quiet.quietEnd}` : 'Quiet hours off'}
+          </span>
           <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 13, color: 'var(--ink2)' }}>Notification settings</span>
+          <button style={{ fontSize: 13, color: 'var(--ink2)' }} onClick={goSettings}>
+            Notification settings
+          </button>
         </div>
       </div>
     </>

@@ -10,6 +10,8 @@ export type Task = {
   time: string | null
   /** Estimated length in minutes, when known */
   estimate?: number
+  /** Free-text notes on the task */
+  notes?: string
   /** Checklist inside the task */
   subtasks?: Subtask[]
 }

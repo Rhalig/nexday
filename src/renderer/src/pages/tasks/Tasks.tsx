@@ -8,7 +8,8 @@ import { filterGroups, projects, type Project, type TaskFilter } from '../../dat
 import { countOpen, useTasks } from '../../store/tasks'
 import { useUI } from '../../store/ui'
 import { captureTask } from '../../lib/quickTask'
-import { addDays, appToday, dayKey, pageDate, weekdayIndex, weekdayShort } from '../../lib/clock'
+import { moveToGroup } from '../../lib/taskMove'
+import { appToday, dayKey, pageDate } from '../../lib/clock'
 import { parseTime } from '../../lib/today'
 import {
   FilterPopover,
@@ -24,30 +25,6 @@ import { TasksEmpty } from './TasksStates'
 import './tasks.css'
 
 const DAY_GROUPS: TaskGroup['id'][] = ['today', 'tomorrow', 'next-week', 'no-time']
-
-/** Dropping a task on a day keeps its clock time and length; "No time yet" clears them. */
-function moveToGroup(id: string, group: TaskGroup['id']): void {
-  const hit = useTasks.getState().groups.flatMap((g) => g.tasks).find((t) => t.id === id)
-  if (!hit) return
-  const old = parseTime(hit.time)
-  const clock = old
-    ? `${String(Math.floor(old.start / 60)).padStart(2, '0')}:${String(old.start % 60).padStart(2, '0')}`
-    : (hit.time?.match(/(\d{2}:\d{2})$/)?.[1] ?? '09:00')
-  const len = old?.len ?? hit.estimate ?? 30
-  const fmtLen = len >= 60 ? `${Math.floor(len / 60)}h${len % 60 ? ` ${len % 60}m` : ''}` : `${len}m`
-  let time: string | null = null
-  if (group === 'today' || group === 'tomorrow') time = `${clock} · ${fmtLen}`
-  else if (group === 'next-week') {
-    // The next Monday that is at least two days away reads as "next week".
-    let label = 'Mon'
-    for (let i = 2; i <= 8; i++) {
-      const d = addDays(appToday(), i)
-      if (weekdayIndex(d) === 0) label = weekdayShort(d)
-    }
-    time = `${label} ${clock}`
-  }
-  useTasks.getState().move(id, group, time)
-}
 
 const projectOrder: Project[] = ['planner', 'moving', 'reading', 'personal']
 

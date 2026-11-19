@@ -274,6 +274,7 @@ function taskRow(t: Task, group: TaskGroup['id'], estimateHint?: number): Row {
     title: t.title,
     project_id: projectIds[SLUG[t.project]] ?? null,
     energy: energyOut(t.energy),
+    notes: t.notes ?? '',
     estimate_min: s.est,
     scheduled_start: s.start,
     scheduled_end: s.end,
@@ -327,7 +328,8 @@ function groupsFromRows(rows: Row[], moveUnfinished = false): TaskGroup[] {
         project,
         energy: energyIn(String(r.energy)),
         time,
-        ...(est ? { estimate: est } : {})
+        ...(est ? { estimate: est } : {}),
+        ...(r.notes ? { notes: String(r.notes) } : {})
       },
       est
     })
@@ -683,16 +685,23 @@ function saveNotifs(items: Notif[]): void {
   const sb = supabase!
   const next = notifSnap(items)
   const prev = last.notifs
-  const { upsert } = changed(prev, next)
+  const { upsert, removed } = changed(prev, next)
   last.notifs = next
-  if (!upsert.length) return
-  const byId = new Map(items.map((n) => [n.id, n]))
-  const rows = upsert.map((id) => notifRow(byId.get(id)!))
-  enqueue(
-    'save notifications',
-    () => sb.from('notifications').upsert(rows),
-    rollback('notifs', prev, upsert)
-  )
+  if (upsert.length) {
+    const byId = new Map(items.map((n) => [n.id, n]))
+    const rows = upsert.map((id) => notifRow(byId.get(id)!))
+    enqueue(
+      'save notifications',
+      () => sb.from('notifications').upsert(rows),
+      rollback('notifs', prev, upsert)
+    )
+  }
+  if (removed.length)
+    enqueue(
+      'clear notifications',
+      () => sb.from('notifications').update({ deleted_at: new Date().toISOString() }).in('id', removed),
+      rollback('notifs', prev, removed)
+    )
 }
 
 function saveProjects(custom: CustomProject[]): void {

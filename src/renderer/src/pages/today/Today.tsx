@@ -325,7 +325,7 @@ export default function Today(): React.JSX.Element {
                         done={t.done}
                         hot={t.hot}
                         onOpen={t.done ? undefined : () => navigate(`/tasks/${t.id}`)}
-                        onToggle={t.done ? undefined : () => useTasks.getState().remove(t.id)}
+                        onToggle={() => (t.done ? useTasks.getState().reopen(t.id) : useTasks.getState().remove(t.id))}
                       />
                     ))}
                   </div>

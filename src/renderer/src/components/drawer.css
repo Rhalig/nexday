@@ -255,3 +255,54 @@
 .dw-sub-x:focus-visible {
   opacity: 1;
 }
+
+.dw-title-in {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 0;
+}
+.dw-sel {
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 4px 6px;
+  margin-left: -6px;
+  outline: 0;
+  cursor: pointer;
+}
+.dw-sel:hover,
+.dw-sel:focus {
+  border-color: var(--line2);
+  background: #fff;
+}
+.dw-notes {
+  width: 100%;
+  min-height: 84px;
+  resize: vertical;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-left: -10px;
+  outline: 0;
+}
+.dw-notes:hover,
+.dw-notes:focus {
+  border-color: var(--line2);
+  background: #fff;
+}
