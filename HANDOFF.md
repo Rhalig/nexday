@@ -6,7 +6,7 @@ Mac planner app (Electron + Vite + React + TypeScript). The owner speaks Turkish
 A day planner: Today, Inbox, Calendar, Tasks, Notes, Habits, Projects, Settings, Focus mode, login/onboarding. The UI was built pixel-for-pixel from a Doop design canvas (`TM7q9Gahtd`, reference PNGs in `ref/`). Mac only for now.
 
 ## Where things are
-- Project: `~/nexday` (moved out of iCloud on purpose; iCloud broke `codesign`). Not a git repo yet.
+- Project: `~/nexday` (moved out of iCloud on purpose; iCloud broke `codesign`). Git repository (local, no remote yet).
 - Run: `npm run dev` (Electron). Quick browser preview: `.claude/launch.json` serves `out/renderer` on port 5199 after `./node_modules/.bin/electron-vite build`.
 - Check: `./node_modules/.bin/tsc --noEmit -p tsconfig.web.json --composite false` and the same with `tsconfig.node.json`.
 - Package (Apple Silicon, ad-hoc signed, no Developer ID yet):
@@ -74,3 +74,10 @@ Cloud accounts with Supabase free tier. AI = Gemini free tier (key must live in 
 - Don't run `pkill -f electron-vite` chained with other commands.
 - Command palette and New popup are keyboard-opened, so they intentionally have no open animation.
 - Remaining known gaps in UI: Project page keeps its own header and `line-height: normal`; the Today page still shows design copy/plan (planning engine); Day view's “planned tasks” come from the today task group; notes have no editing yet and no "linked event" beyond the stored sample text; editing/rescheduling an event does not update its Mac copy.
+
+## Cleanup done (before beta)
+- Identity: `lib/identity.ts` (`useIdentity`, `greeting`) is the only source of the person's name/email in the UI. No hard-coded personal data remains in `src/`; the sample content seeded by `SAMPLE_DATA` still contains fictional teammates (e.g. in Inbox).
+- Honest placeholders: fake "Connected" Gmail/Slack/GitHub/Google rows, invented sync history and invented share members are gone. Share is hidden by `FEATURES.sharing = false` (`lib/features.ts`). Inbox rules dialog still shows design-only example rules.
+- Release guard: `electron.vite.config.ts` refuses a production build without `VITE_SUPABASE_*` (override: `ALLOW_NO_BACKEND=1`); `main.tsx` shows "Nexday can't start" if a packaged app has no backend.
+- Sync durability (`lib/cloud.ts`): a failed write undoes its "saved" mark, retries with growing pauses (5s..60s, also on `online` and the Sync popover's "Sync now"), and writes an unsent-changes journal (`journal:<userId>` via `lib/persist.ts` `kv`) that is re-applied after the next load. A load failure shows a retry screen (`App.tsx`) instead of empty pages.
+- Tested against the real project with a throwaway account (deleted afterwards): offline add → "Sync failed" + journal → Sync now → saved; forced load failure → retry screen → Try again → app loads.
