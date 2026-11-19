@@ -114,6 +114,16 @@ app.whenReady().then(() => {
     // Only web pages, never file: or custom schemes
     if (/^https:\/\//.test(url)) void shell.openExternal(url)
   })
+  // Launch at login: the macOS login item is the source of truth (it belongs to this Mac, not the account).
+  // Only a packaged app registers itself, otherwise development would register the bare Electron binary.
+  ipcMain.handle('login:get', () => ({
+    supported: app.isPackaged && process.platform === 'darwin',
+    on: app.getLoginItemSettings().openAtLogin
+  }))
+  ipcMain.handle('login:set', (_e, on: boolean) => {
+    if (app.isPackaged && process.platform === 'darwin') app.setLoginItemSettings({ openAtLogin: on === true })
+    return app.getLoginItemSettings().openAtLogin
+  })
   initCalendar()
   initFiles()
 

@@ -18,6 +18,10 @@ declare global {
         save: (name: string, text: string) => Promise<{ path: string } | null>
         open: () => Promise<{ name: string; text: string } | { error: string } | null>
       }
+      login: {
+        get: () => Promise<{ supported: boolean; on: boolean }>
+        set: (on: boolean) => Promise<boolean>
+      }
       openExternal: (url: string) => Promise<void>
       onAuthCallback: (cb: (url: string) => void) => () => void
       calendar: {

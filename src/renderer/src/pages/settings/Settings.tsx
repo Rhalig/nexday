@@ -257,6 +257,10 @@ function Profile(): React.JSX.Element {
 function Preferences(): React.JSX.Element {
   const prefs = useUI((s) => s.prefs)
   const set = useUI((s) => s.setPrefs)
+  const [login, setLogin] = useState<{ supported: boolean; on: boolean } | null>(null)
+  useEffect(() => {
+    void window.api?.login.get().then(setLogin)
+  }, [])
   return (
     <>
       <Head title="Preferences" sub="How Nexday looks and behaves for you." />
@@ -291,6 +295,18 @@ function Preferences(): React.JSX.Element {
           onChange={(startPage) => set({ startPage: startPage as typeof prefs.startPage })}
         />
       </Row>
+      {login?.supported && (
+        <Row title="Open at login" sub="Start Nexday when you sign in to your Mac. Applies to this Mac only.">
+          <Sp />
+          <Tg
+            on={login.on}
+            onChange={(on) => {
+              setLogin({ ...login, on })
+              void window.api?.login.set(on).then((v) => setLogin({ supported: true, on: v }))
+            }}
+          />
+        </Row>
+      )}
       <Row title="Density" sub="Row height in lists and the plan.">
         <Seg
           items={['Comfortable', 'Compact']}

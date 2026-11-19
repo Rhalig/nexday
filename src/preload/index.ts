@@ -21,6 +21,10 @@ const api = {
     open: (): Promise<{ name: string; text: string } | { error: string } | null> =>
       ipcRenderer.invoke('file:open')
   },
+  login: {
+    get: (): Promise<{ supported: boolean; on: boolean }> => ipcRenderer.invoke('login:get'),
+    set: (on: boolean): Promise<boolean> => ipcRenderer.invoke('login:set', on)
+  },
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('open-external', url),
   onAuthCallback: (cb: (url: string) => void): (() => void) => {
     const handler = (_e: unknown, url: string): void => cb(url)
