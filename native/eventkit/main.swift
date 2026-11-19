@@ -162,6 +162,26 @@ case "create":
         fail("save")
     }
 
+case "update":
+    // Moves one (non-recurring) event: args are the event id and {"startMs":..., "endMs":...}.
+    guard statusName() == "authorized" else { fail("notAuthorized") }
+    guard args.count >= 4,
+          let data = args[3].data(using: .utf8),
+          let p = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+          let startMs = p["startMs"] as? Double,
+          let endMs = p["endMs"] as? Double,
+          endMs > startMs else { fail("payload") }
+    guard let event = store.event(withIdentifier: args[2]) else { fail("notFound") }
+    guard !event.hasRecurrenceRules else { fail("recurring") }
+    event.startDate = Date(timeIntervalSince1970: startMs / 1000)
+    event.endDate = Date(timeIntervalSince1970: endMs / 1000)
+    do {
+        try store.save(event, span: .thisEvent, commit: true)
+        out(["ok": true])
+    } catch {
+        fail("save")
+    }
+
 case "delete":
     guard statusName() == "authorized" else { fail("notAuthorized") }
     guard args.count >= 3 else { fail("id") }

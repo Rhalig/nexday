@@ -31,6 +31,8 @@ export type PlanTask = {
   hot?: boolean
   /** "8:40" for finished tasks */
   doneAt?: string
+  /** Length in minutes (the task's own, else 30), for dragging */
+  len?: number
 }
 export type PlanGroup = { id: string; title: string; link?: string; tasks: PlanTask[] }
 
@@ -130,7 +132,8 @@ export function buildToday(input: {
       title: t.title,
       project: t.project,
       time: p ? clock(p.start) : '—',
-      hot: nextTask?.id === t.id
+      hot: nextTask?.id === t.id,
+      len: p?.len ?? t.estimate ?? 30
     }
   })
   const doneTasks: PlanTask[] = input.done.map((d) => {

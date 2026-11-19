@@ -2,6 +2,7 @@ import { Icon } from '../../components/Icon'
 import { projectColor } from '../../components/ui'
 import { projects, type Project } from '../../data/tasks'
 import { T } from '../../lib/prefs'
+import { CardDrop, TimelineDrop, dragProps } from '../../components/dnd'
 import { DAY_END, DAY_START, clock, fmtMin, type PlanGroup, type PlanTask, type TodayData } from '../../lib/today'
 
 const hints: Record<string, string> = {}
@@ -16,21 +17,61 @@ const Meta = ({ project, right, hot, mono }: { project: Project; right: string; 
   </div>
 )
 
-export function TodayBoard({ plan, onOpen }: { plan: PlanGroup[]; onOpen: (id: string) => void }): React.JSX.Element {
+const BOARD_COLUMNS: Array<{ id: string; title: string; start: string }> = [
+  { id: 'morning', title: 'Morning', start: '09:00' },
+  { id: 'afternoon', title: 'Afternoon', start: '14:00' },
+  { id: 'evening', title: 'Evening', start: '18:00' }
+]
+
+/**
+ * Columns by part of the day. Dropping a card on another column moves the task to that part of the
+ * day (09:00 / 14:00 / 18:00, keeping its length); dropping it on Done completes it.
+ */
+export function TodayBoard({
+  plan,
+  onOpen,
+  onMove,
+  onDone
+}: {
+  plan: PlanGroup[]
+  onOpen: (id: string) => void
+  onMove: (id: string, start: string, len: number) => void
+  onDone: (id: string) => void
+}): React.JSX.Element {
   const done: PlanTask[] = plan.flatMap((g) => g.tasks.filter((t) => t.done))
+  const groupOf = (id: string): string | undefined => plan.find((g) => g.tasks.some((t) => t.id === id))?.id
+  const anytime = plan.find((g) => g.id === 'anytime')
+  const columns = [
+    ...BOARD_COLUMNS.map((c) => ({ ...c, group: plan.find((g) => g.id === c.id) })),
+    ...(anytime ? [{ id: 'anytime', title: 'Anytime', start: '', group: anytime }] : [])
+  ]
   return (
     <div className="tv-board">
-      {plan.map((g) => {
-        const open = g.tasks.filter((t) => !t.done)
+      {columns.map((c) => {
+        const g = c.group
+        const open = g?.tasks.filter((t) => !t.done) ?? []
         return (
-          <div className="tv-col" key={g.id}>
+          <CardDrop
+            className="tv-col"
+            key={c.id}
+            accepts={(d) => d.kind === 'task' && !!c.start && groupOf(d.id) !== c.id}
+            onDropCard={(d) => {
+              const t = plan.flatMap((x) => x.tasks).find((x) => x.id === d.id)
+              if (t && !t.done) onMove(d.id, c.start, t.len ?? 30)
+            }}
+          >
             <div className="tv-colh">
-              <span>{g.title}</span>
+              <span>{c.title}</span>
               <span className="n">{open.length}</span>
-              {(g.link ?? hints[g.id]) && <span className="hint">{g.link ?? hints[g.id]}</span>}
+              {(g?.link ?? hints[c.id]) && <span className="hint">{T(g?.link ?? hints[c.id])}</span>}
             </div>
             {open.map((t) => (
-              <div className="tv-card" key={t.id} onClick={() => onOpen(t.id)}>
+              <div
+                className="tv-card"
+                key={t.id}
+                onClick={() => onOpen(t.id)}
+                {...dragProps({ kind: 'task', id: t.id, title: t.title, minutes: t.len ?? 30 })}
+              >
                 <span className="t">{t.title}</span>
                 <Meta project={t.project} right={t.time} hot={t.hot} mono />
               </div>
@@ -39,10 +80,14 @@ export function TodayBoard({ plan, onOpen }: { plan: PlanGroup[]; onOpen: (id: s
               <Icon name="plus" size={14} strokeWidth={2} />
               Add task
             </div>
-          </div>
+          </CardDrop>
         )
       })}
-      <div className="tv-col">
+      <CardDrop
+        className="tv-col"
+        accepts={(d) => d.kind === 'task'}
+        onDropCard={(d) => onDone(d.id)}
+      >
         <div className="tv-colh">
           <span>Done</span>
           <span className="n">{done.length}</span>
@@ -53,7 +98,7 @@ export function TodayBoard({ plan, onOpen }: { plan: PlanGroup[]; onOpen: (id: s
             <Meta project={t.project} right={t.doneAt ?? ''} />
           </div>
         ))}
-      </div>
+      </CardDrop>
     </div>
   )
 }
@@ -63,7 +108,18 @@ const PX = 44 / 60
 const yOf = (min: number): number => (min - DAY_START) * PX + 2
 const evClass = { health: 'h', work: 'w', personal: 'p', moved: 'mv', free: '' } as const
 
-export function TodayCalendar({ data, nowMin }: { data: TodayData; nowMin: number }): React.JSX.Element {
+export function TodayCalendar({
+  data,
+  nowMin,
+  onPlace,
+  defaultLen
+}: {
+  data: TodayData
+  nowMin: number
+  /** A task was dropped on the timeline: its id, start minute and length */
+  onPlace: (id: string, startMin: number, len: number) => void
+  defaultLen: number
+}): React.JSX.Element {
   const blocks = data.strip.filter((s) => s.kind !== 'free' && s.end > DAY_START && s.start < DAY_END)
   return (
     <div className="tv-cal">
@@ -75,7 +131,15 @@ export function TodayCalendar({ data, nowMin }: { data: TodayData; nowMin: numbe
             </div>
           ))}
         </div>
-        <div className="tv-grid">
+        <TimelineDrop
+          className="tv-grid"
+          pxPerHour={44}
+          startHour={DAY_START / 60}
+          endHour={DAY_END / 60}
+          topOffset={2}
+          accepts={(d) => d.kind === 'task'}
+          onDropAt={(d, min) => onPlace(d.id, min, d.minutes)}
+        >
           {blocks
             .filter((b) => !b.key.startsWith('t-'))
             .map((e) => (
@@ -100,7 +164,12 @@ export function TodayCalendar({ data, nowMin }: { data: TodayData; nowMin: numbe
           {blocks
             .filter((b) => b.key.startsWith('t-'))
             .map((t) => (
-              <div className="tv-ev chip" key={t.key} style={{ top: yOf(Math.max(t.start, DAY_START)), borderLeftColor: 'var(--acc)' }}>
+              <div
+                className="tv-ev chip"
+                key={t.key}
+                style={{ top: yOf(Math.max(t.start, DAY_START)), borderLeftColor: 'var(--acc)' }}
+                {...dragProps({ kind: 'task', id: t.key.slice(2), title: t.title, minutes: t.end - t.start })}
+              >
                 <b>
                   {t.title} · {T(clock(t.start))}
                 </b>
@@ -112,7 +181,7 @@ export function TodayCalendar({ data, nowMin }: { data: TodayData; nowMin: numbe
               <span style={{ position: 'absolute', right: 0, top: -18, fontSize: 11, color: 'var(--acc-text)', fontWeight: 500 }}>{T(clock(nowMin))}</span>
             </div>
           )}
-        </div>
+        </TimelineDrop>
       </div>
       <div className="col" style={{ width: 300, flex: 'none' }}>
         <div className="row" style={{ paddingBottom: 8, borderBottom: '1px solid var(--line2)' }}>
@@ -129,7 +198,12 @@ export function TodayCalendar({ data, nowMin }: { data: TodayData; nowMin: numbe
           </div>
         ) : (
           data.unscheduled.map((t) => (
-            <div className="tv-ur" key={t.id}>
+            <div
+              className="tv-ur"
+              key={t.id}
+              style={{ cursor: 'grab' }}
+              {...dragProps({ kind: 'task', id: t.id, title: t.title, minutes: t.len ?? defaultLen })}
+            >
               <span style={{ fontSize: 13 }}>{t.title}</span>
             </div>
           ))

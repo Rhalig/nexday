@@ -1,6 +1,7 @@
 import { projects, type Project } from '../data/tasks'
 import { Checkbox, cn, projectColor } from './ui'
 import { T } from '../lib/prefs'
+import { dragProps, type Dragged } from './dnd'
 
 type Props = {
   title: string
@@ -15,6 +16,8 @@ type Props = {
   last?: boolean
   enter?: boolean
   onOpen?: () => void
+  /** Makes the row draggable (see components/dnd.tsx) */
+  drag?: Omit<Dragged, 'offsetY'>
 }
 
 export function TaskRow({
@@ -27,12 +30,14 @@ export function TaskRow({
   compact,
   last,
   enter,
-  onOpen
+  onOpen,
+  drag
 }: Props): React.JSX.Element {
   return (
     <div
       className={cn('task', done && 'done', compact && 'compact', last && 'last', enter && 'enter', onOpen && 'clickable')}
       onClick={onOpen}
+      {...(drag ? dragProps(drag) : null)}
     >
       <Checkbox checked={done} />
       <span className="tt">{title}</span>

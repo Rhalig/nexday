@@ -33,6 +33,7 @@ declare global {
           location?: string | null
           rrule?: string | null
         }) => Promise<unknown>
+        update: (id: string, startMs: number, endMs: number) => Promise<unknown>
         remove: (id: string) => Promise<unknown>
       }
     }

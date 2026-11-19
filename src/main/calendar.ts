@@ -46,6 +46,12 @@ export function initCalendar(): void {
     }
     return run(['create', JSON.stringify(payload)], 20000)
   })
+  ipcMain.handle('cal:update', (_e, id: string, startMs: number, endMs: number) => {
+    if (typeof id !== 'string' || !id || !Number.isFinite(startMs) || !Number.isFinite(endMs)) {
+      return { error: 'payload' }
+    }
+    return run(['update', id, JSON.stringify({ startMs, endMs })], 20000)
+  })
   ipcMain.handle('cal:delete', (_e, id: string) =>
     typeof id === 'string' && id ? run(['delete', id]) : { error: 'id' }
   )

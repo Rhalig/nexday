@@ -34,6 +34,8 @@ const api = {
     events: (startMs: number, endMs: number): Promise<unknown> =>
       ipcRenderer.invoke('cal:events', startMs, endMs),
     create: (payload: unknown): Promise<unknown> => ipcRenderer.invoke('cal:create', payload),
+    update: (id: string, startMs: number, endMs: number): Promise<unknown> =>
+      ipcRenderer.invoke('cal:update', id, startMs, endMs),
     remove: (id: string): Promise<unknown> => ipcRenderer.invoke('cal:delete', id)
   }
 }

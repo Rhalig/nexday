@@ -38,6 +38,17 @@ import { T } from '../../lib/prefs'
 
 type View = 'list' | 'board' | 'calendar'
 
+const toMinutes = (hhmm: string): number => {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + m
+}
+
+/** Puts a task on today at the given start, keeping its length. */
+function placeTask(id: string, startMin: number, len: number): void {
+  const hhmm = `${String(Math.floor(startMin / 60)).padStart(2, '0')}:${String(startMin % 60).padStart(2, '0')}`
+  useTasks.getState().move(id, 'today', `${hhmm} · ${fmtMin(len)}`)
+}
+
 export default function Today(): React.JSX.Element {
   const who = useIdentity()
   const navigate = useNavigate()
@@ -47,6 +58,7 @@ export default function Today(): React.JSX.Element {
   const openDialog = useUI((s) => s.openDialog)
 
   const { data: raw, now } = useTodayData()
+  const defaultLen = useUI((s) => s.planning.defaultLength)
   const showCompleted = useUI((s) => s.prefs.showCompleted)
   // "Show completed tasks" off: finished tasks leave the plan, the counts still include them.
   const data = showCompleted
@@ -121,9 +133,19 @@ export default function Today(): React.JSX.Element {
               />
             </div>
             {view === 'board' ? (
-              <TodayBoard plan={data.plan} onOpen={(id) => navigate(`/tasks/${id}`)} />
+              <TodayBoard
+                plan={data.plan}
+                onOpen={(id) => navigate(`/tasks/${id}`)}
+                onMove={(id, start, len) => placeTask(id, toMinutes(start), len)}
+                onDone={(id) => useTasks.getState().remove(id)}
+              />
             ) : (
-              <TodayCalendar data={data} nowMin={nowMin} />
+              <TodayCalendar
+                data={data}
+                nowMin={nowMin}
+                onPlace={placeTask}
+                defaultLen={defaultLen}
+              />
             )}
           </>
         )}

@@ -59,6 +59,8 @@ type TasksState = {
   add: (task: Task, group: TaskGroup['id']) => void
   /** Adds many tasks at once (import). */
   addMany: (items: Array<{ task: Task; group: TaskGroup['id'] }>) => void
+  /** Moves one task to another day group with a new time (null = no time). */
+  move: (id: string, group: TaskGroup['id'], time: string | null) => void
   /** Give no-time tasks a slot: they move into the given day group. */
   schedule: (
     placements: Array<{ id: string; group: 'today' | 'tomorrow' | 'next-week'; time: string }>
@@ -101,6 +103,15 @@ export const useTasks = create<TasksState>((set) => ({
       }
     })
   },
+  move: (id, group, time) =>
+    set((s) => {
+      const hit = s.groups.flatMap((g) => g.tasks).find((t) => t.id === id)
+      if (!hit) return s
+      const rest = s.groups
+        .map((g) => ({ ...g, tasks: g.tasks.filter((t) => t.id !== id) }))
+        .filter((g) => g.tasks.length > 0)
+      return { groups: insertTasks(rest, [{ task: { ...hit, time }, group }]) }
+    }),
   schedule: (placements) =>
     set((s) => {
       const moved: Array<{ task: Task; group: 'today' | 'tomorrow' | 'next-week' }> = []

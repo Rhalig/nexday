@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Topbar, PageHead } from '../../components/page'
 import { QuickCapture } from '../../components/QuickCapture'
@@ -8,7 +8,7 @@ import { filterGroups, projects, type Project, type TaskFilter } from '../../dat
 import { countOpen, useTasks } from '../../store/tasks'
 import { useUI } from '../../store/ui'
 import { parseCapture, toTask } from '../../lib/capture'
-import { pageDate } from '../../lib/clock'
+import { addDays, appToday, pageDate, weekdayIndex, weekdayShort } from '../../lib/clock'
 import { parseTime } from '../../lib/today'
 import {
   FilterPopover,
@@ -19,8 +19,35 @@ import {
 } from '../../components/Pickers'
 import type { Task, TaskGroup } from '../../data/tasks'
 import TaskDrawer from './TaskDrawer'
+import { CardDrop } from '../../components/dnd'
 import { TasksEmpty } from './TasksStates'
 import './tasks.css'
+
+const DAY_GROUPS: TaskGroup['id'][] = ['today', 'tomorrow', 'next-week', 'no-time']
+
+/** Dropping a task on a day keeps its clock time and length; "No time yet" clears them. */
+function moveToGroup(id: string, group: TaskGroup['id']): void {
+  const hit = useTasks.getState().groups.flatMap((g) => g.tasks).find((t) => t.id === id)
+  if (!hit) return
+  const old = parseTime(hit.time)
+  const clock = old
+    ? `${String(Math.floor(old.start / 60)).padStart(2, '0')}:${String(old.start % 60).padStart(2, '0')}`
+    : (hit.time?.match(/(\d{2}:\d{2})$/)?.[1] ?? '09:00')
+  const len = old?.len ?? hit.estimate ?? 30
+  const fmtLen = len >= 60 ? `${Math.floor(len / 60)}h${len % 60 ? ` ${len % 60}m` : ''}` : `${len}m`
+  let time: string | null = null
+  if (group === 'today' || group === 'tomorrow') time = `${clock} · ${fmtLen}`
+  else if (group === 'next-week') {
+    // The next Monday that is at least two days away reads as "next week".
+    let label = 'Mon'
+    for (let i = 2; i <= 8; i++) {
+      const d = addDays(appToday(), i)
+      if (weekdayIndex(d) === 0) label = weekdayShort(d)
+    }
+    time = `${label} ${clock}`
+  }
+  useTasks.getState().move(id, group, time)
+}
 
 const projectOrder: Project[] = ['planner', 'moving', 'reading', 'personal']
 
@@ -78,10 +105,35 @@ export default function Tasks(): React.JSX.Element {
   const toolbarRef = useRef<HTMLDivElement>(null)
   const openDialog = useUI((st) => st.openDialog)
 
-  const groups = applyView(
+  // While a task is being dragged, empty days appear too so a task can be dropped on any of them.
+  const [dragActive, setDragActive] = useState(false)
+  useEffect(() => {
+    // Deferred: changing the page inside dragstart can cancel the drag.
+    const on = (): void => void setTimeout(() => setDragActive(true), 0)
+    const off = (): void => setDragActive(false)
+    window.addEventListener('dragstart', on)
+    window.addEventListener('dragend', off)
+    window.addEventListener('drop', off)
+    return () => {
+      window.removeEventListener('dragstart', on)
+      window.removeEventListener('dragend', off)
+      window.removeEventListener('drop', off)
+    }
+  }, [])
+  const base = applyView(
     allGroups.filter((g) => filterGroups[filter].includes(g.id)),
     view
   )
+  const titles: Record<TaskGroup['id'], string> = {
+    today: 'Today',
+    tomorrow: 'Tomorrow',
+    'next-week': 'Next week',
+    'no-time': 'No time yet'
+  }
+  const groups =
+    dragActive && view.group === 'Day' && filter === 'all'
+      ? DAY_GROUPS.map((id) => base.find((g) => g.id === id) ?? { id, title: titles[id], meta: '0', tasks: [] })
+      : base
   const total = countOpen(allGroups)
   const openByProject = (p: Project): number =>
     allGroups.reduce((n, g) => n + g.tasks.filter((t) => t.project === p).length, 0)
@@ -163,11 +215,17 @@ export default function Tasks(): React.JSX.Element {
         <div className="tasks-body">
           <section className="tasks-list">
             {groups.map((g, gi) => (
-              <div key={g.id} className="col">
+              <CardDrop
+                key={g.id}
+                className="col drop-zone"
+                accepts={(d) => d.kind === 'task' && DAY_GROUPS.includes(g.id as TaskGroup['id'])}
+                onDropCard={(d) => moveToGroup(d.id, g.id as TaskGroup['id'])}
+              >
                 <GroupHeader title={g.title} meta={g.meta} />
                 {g.tasks.map((t, ti) => (
                   <TaskRow
                     key={t.id}
+                    drag={{ kind: 'task', id: t.id, title: t.title, minutes: 30 }}
                     title={t.title}
                     project={t.project}
                     energy={t.energy}
@@ -177,7 +235,7 @@ export default function Tasks(): React.JSX.Element {
                     last={gi === groups.length - 1 && ti === g.tasks.length - 1}
                   />
                 ))}
-              </div>
+              </CardDrop>
             ))}
           </section>
 
@@ -193,7 +251,7 @@ export default function Tasks(): React.JSX.Element {
                 Find time for them
               </span>
               <span className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
-                Open slots: tomorrow 11:00 and Mon 14:00.
+                Drag a task onto a day, or let Auto-schedule place them.
               </span>
               <div className="row" style={{ marginTop: 16, justifyContent: 'space-between' }}>
                 <button className="row" style={{ height: 36, padding: '0 4px' }}>

@@ -522,3 +522,10 @@
 .ce-overlay h2 {
   line-height: normal;
 }
+
+.ev[draggable='true'] {
+  cursor: grab;
+}
+.ev[draggable='true']:active {
+  cursor: grabbing;
+}

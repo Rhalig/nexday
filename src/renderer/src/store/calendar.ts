@@ -81,6 +81,8 @@ type CalendarState = {
     allDay?: boolean
     rrule?: string | null
   }) => string
+  /** Moves an event made in Nexday (and its Mac Calendar copy) to a new day and start time. */
+  move: (id: string, date: string, startMin: number) => void
   remove: (id: string) => void
   setOwn: (events: PlanEvent[]) => void
   reset: () => void
@@ -417,6 +419,23 @@ export const useCalendar = create<CalendarState>((set, get) => {
       })
       void pushToMac(id)
       return id
+    },
+    move: (id, date, startMin) => {
+      const ev = get().own.find((e) => e.id === id)
+      // Recurring and all-day events are moved from their editor, not by dragging.
+      if (!ev || ev.rrule || ev.allDay) return
+      const length = new Date(ev.endsAt).getTime() - new Date(ev.startsAt).getTime()
+      const day = parseDayKey(date)
+      const starts = new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.floor(startMin / 60), startMin % 60)
+      const ends = new Date(starts.getTime() + length)
+      set((s) => {
+        const own = s.own.map((e) =>
+          e.id === id ? { ...e, startsAt: starts.toISOString(), endsAt: ends.toISOString() } : e
+        )
+        return { own, events: merge(s.base, own, s.range) }
+      })
+      if (ev.externalId && api?.update && useUI.getState().calPrefs.syncDirection === 'Two-way')
+        void api.update(ev.externalId, starts.getTime(), ends.getTime())
     },
     remove: (id) => {
       const ev = get().own.find((e) => e.id === id)

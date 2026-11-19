@@ -240,3 +240,19 @@
 [data-density='compact'] .grp {
   padding-top: 14px;
 }
+
+/* ---------- Drag and drop ---------- */
+.drop-on {
+  background: var(--acc-soft);
+  outline: 1.5px dashed var(--acc);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+.tv-card[draggable='true'],
+.task[draggable='true'] {
+  cursor: grab;
+}
+.tv-card[draggable='true']:active,
+.task[draggable='true']:active {
+  cursor: grabbing;
+}

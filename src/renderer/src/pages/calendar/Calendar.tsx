@@ -31,6 +31,7 @@ import {
 } from '../../lib/clock'
 import { parseCapture } from '../../lib/capture'
 import { T } from '../../lib/prefs'
+import { TimelineDrop, dragProps, type Dragged } from '../../components/dnd'
 import './calendar.css'
 
 type View = 'day' | 'week' | 'month'
@@ -119,6 +120,15 @@ const range = (g: Gap): string =>
 
 /* ---------------- Week ---------------- */
 
+/** Only events made in Nexday that are neither recurring nor all-day can be dragged. */
+const canDrag = (e: KindedEvent): boolean => !!e.sourceId && !e.allDay && !e.id.includes('@')
+const eventDrag = (e: KindedEvent): Omit<Dragged, 'offsetY'> => ({
+  kind: 'event',
+  id: e.id,
+  title: e.title,
+  minutes: Math.round((e.end - e.start) * 60)
+})
+
 function WeekView({ onOpen }: { onOpen: (id: string) => void }): React.JSX.Element {
   const events = useCalendar((st) => st.events)
   const weekStart = useCalendar((st) => st.weekStart)
@@ -166,7 +176,14 @@ function WeekView({ onOpen }: { onOpen: (id: string) => void }): React.JSX.Eleme
           ))}
         </div>
         {days.map((d, i) => (
-          <div className={cn('wg-col', i >= 5 && 'weekend')} key={d.date}>
+          <TimelineDrop
+            className={cn('wg-col', i >= 5 && 'weekend')}
+            key={d.date}
+            pxPerHour={px}
+            startHour={GRID_START}
+            accepts={(x) => x.kind === 'event'}
+            onDropAt={(x, min) => useCalendar.getState().move(x.id, d.date, min)}
+          >
             {d.today && (
               <div
                 className="now-line"
@@ -180,7 +197,7 @@ function WeekView({ onOpen }: { onOpen: (id: string) => void }): React.JSX.Eleme
               .map((e) => (
                 <WeekEvent key={e.id} e={e} px={px} onOpen={onOpen} />
               ))}
-          </div>
+          </TimelineDrop>
         ))}
       </div>
     </div>
@@ -201,6 +218,7 @@ function WeekEvent({
       onClick={() => onOpen(e.id)}
       className={cn('ev', eventClass[e.kind])}
       style={{ top: (e.start - GRID_START) * px, height: (e.end - e.start) * px }}
+      {...dragProps(eventDrag(e), canDrag(e))}
     >
       <span className="ev-t">{e.title}</span>
       {e.sub && <span className="ev-sub">{T(e.sub)}</span>}
@@ -317,7 +335,13 @@ function DayView({
             </div>
           ))}
         </div>
-        <div className="dg-col">
+        <TimelineDrop
+          className="dg-col"
+          pxPerHour={px}
+          startHour={GRID_START}
+          accepts={(x) => x.kind === 'event'}
+          onDropAt={(x, min) => useCalendar.getState().move(x.id, date, min)}
+        >
           {isToday && (
             <div className="now-line" style={{ top: Math.round((nowDecimal() - GRID_START) * px) }}>
               <i />
@@ -337,7 +361,7 @@ function DayView({
               {range(firstGap)} · {gapLen(firstGap)} free
             </div>
           )}
-        </div>
+        </TimelineDrop>
       </div>
 
       <div className="dside">
@@ -408,6 +432,7 @@ function DayEvent({
         height: (e.end - e.start) * px,
         ...(small ? { padding: '4px 10px' } : null)
       }}
+      {...dragProps(eventDrag(e), canDrag(e))}
     >
       <span className="ev-t" style={small ? { fontSize: 12.5 } : undefined}>
         {e.title}
