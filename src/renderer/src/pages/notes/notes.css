@@ -413,8 +413,8 @@ button.cb18 {
 button.cb18 svg { color: #fff; stroke: #fff; }
 .nb-cb { border-radius: 50%; }
 .nb-cb.sent { background: transparent; border-color: var(--acc); color: var(--acc); }
-.tb.on, .nb-tools .tb.on, .fmt-bar .tb.on { background: var(--ink); color: #fff; }
-.tb.on:hover, .nb-tools .tb.on:hover { background: var(--ink); }
+.tb.on, .nb-tools .tb.on, .fmt-bar .tb.on { background: #f5f5f4; color: var(--ink); } /* same fill as hover */
+.tb.on:hover, .nb-tools .tb.on:hover { background: #f5f5f4; }
 
 .ed-x { width: 22px; height: 22px; display: grid; place-items: center; color: var(--ink3); border-radius: 6px; opacity: 0; flex: none; }
 .ed-rl:hover .ed-x, .ed-x:focus-visible { opacity: 1; }

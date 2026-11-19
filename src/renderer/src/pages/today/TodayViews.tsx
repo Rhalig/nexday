@@ -1,4 +1,5 @@
 import { useUI } from '../../store/ui'
+import { useTasks } from '../../store/tasks'
 import { Icon } from '../../components/Icon'
 import { projectColor } from '../../components/ui'
 import { projects, type Project } from '../../data/tasks'
@@ -107,6 +108,8 @@ export function TodayBoard({
 const hoursLabels = Array.from({ length: (DAY_END - DAY_START) / 60 }, (_, i) => `${String(DAY_START / 60 + i).padStart(2, '0')}:00`)
 const PX = 44 / 60
 const yOf = (min: number): number => (min - DAY_START) * PX + 2
+// The afternoon stretch where the energy curve picks up again (same curve as the Day strip)
+const ENERGY_PEAK = { start: 16 * 60 + 30, end: 18 * 60 }
 const evClass = { health: 'h', work: 'w', personal: 'p', moved: 'mv', free: '' } as const
 
 export function TodayCalendar({
@@ -121,6 +124,11 @@ export function TodayCalendar({
   onPlace: (id: string, startMin: number, len: number) => void
   defaultLen: number
 }): React.JSX.Element {
+  const groups = useTasks((s) => s.groups)
+  const projectOf = (id: string): string => {
+    for (const g of groups) for (const t of g.tasks) if (t.id === id) return t.project
+    return 'planner'
+  }
   const blocks = data.strip.filter((s) => s.kind !== 'free' && s.end > DAY_START && s.start < DAY_END)
   return (
     <div className="tv-cal">
@@ -174,7 +182,7 @@ export function TodayCalendar({
               <div
                 className="tv-ev chip"
                 key={t.key}
-                style={{ top: yOf(Math.max(t.start, DAY_START)), borderLeftColor: 'var(--acc)' }}
+                style={{ top: yOf(Math.max(t.start, DAY_START)) - 2, borderLeftColor: projectColor[projectOf(t.key.slice(2))] }}
                 {...dragProps({ kind: 'task', id: t.key.slice(2), title: t.title, minutes: t.end - t.start })}
               >
                 <b>
@@ -182,6 +190,10 @@ export function TodayCalendar({
                 </b>
               </div>
             ))}
+          <div
+            aria-hidden
+            style={{ position: 'absolute', right: 0, top: yOf(ENERGY_PEAK.start), width: 3, height: (ENERGY_PEAK.end - ENERGY_PEAK.start) * PX, borderRadius: 2, background: 'var(--acc)', opacity: 0.35, pointerEvents: 'none' }}
+          />
           {nowMin >= DAY_START && nowMin <= DAY_END && (
             <div style={{ position: 'absolute', left: 0, right: 0, top: yOf(nowMin), height: 2, background: 'var(--acc)', borderRadius: 1 }}>
               <span style={{ position: 'absolute', left: -4, top: -3, width: 8, height: 8, borderRadius: '50%', background: 'var(--acc)' }} />
@@ -220,7 +232,7 @@ export function TodayCalendar({
             <path d="M13 2L4 14h7l-1 8 9-12h-7z" />
           </svg>
           <span className="muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
-            Drag a task on the timeline to move it. Dropped tasks keep their length.
+            Drag a task on the timeline to move it. Your energy picks up {T(clock(ENERGY_PEAK.start))} – {T(clock(ENERGY_PEAK.end))}.
           </span>
         </div>
       </div>
