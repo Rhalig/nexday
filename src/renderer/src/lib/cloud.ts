@@ -32,7 +32,7 @@ import { supabase } from './supabase'
  *   3. puts sample data into a brand-new account once, so the app is not empty on day one.
  * Set SAMPLE_DATA to false to start new accounts empty.
  */
-const SAMPLE_DATA = true
+const SAMPLE_DATA = false
 
 type Row = Record<string, unknown>
 

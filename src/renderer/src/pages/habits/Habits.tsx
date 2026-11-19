@@ -83,7 +83,7 @@ export default function Habits(): React.JSX.Element {
   const best = milestone(habits, history, now)
   const [filter, setFilter] = useState<Filter>('all')
 
-  if (id === 'empty') return <HabitsEmpty />
+  if (id === 'empty' || stored.length === 0) return <HabitsEmpty />
 
   const total = habits.length
   const done = habits.filter((h) => h.doneToday).length

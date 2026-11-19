@@ -9,6 +9,7 @@ import { useTasks } from '../store/tasks'
 import { useHabits } from '../store/habits'
 import { useCalendar } from '../store/calendar'
 import { useUI } from '../store/ui'
+import { useInbox } from '../store/inbox'
 import { usePlan } from '../lib/plan'
 import { planDayLabel, planTasks } from '../lib/planning'
 import { appToday, startOfWeek } from '../lib/clock'
@@ -263,50 +264,21 @@ const sources: Array<{ icon: IconName; name: string; sub: string; static?: strin
   {
     icon: 'plus',
     name: 'Quick capture',
-    sub: 'Anything you type with ⌘K · always on',
-    static: '2 waiting'
+    sub: 'Anything you type with ⌘K · always on'
   },
   { icon: 'mail', name: 'Email', sub: 'Starred emails · coming soon', static: 'Soon' },
   { icon: 'hash', name: 'Slack mentions', sub: 'Mentions and direct messages · coming soon', static: 'Soon' },
   { icon: 'git', name: 'GitHub reviews', sub: 'Review requests · coming soon', static: 'Soon' }
 ]
-const rules: Array<{ parts: ReactNode; used: string }> = [
-  {
-    parts: (
-      <>
-        Emails from <em>Ece Çelik</em> → file under <em>Planner MVP</em>
-      </>
-    ),
-    used: 'Applied 14 times'
-  },
-  {
-    parts: (
-      <>
-        Slack mentions in <em>#planner-mvp</em> → <em>Task</em>, due today
-      </>
-    ),
-    used: 'Applied 9 times'
-  },
-  {
-    parts: (
-      <>
-        GitHub review requests → <em>Task</em>, deep focus
-      </>
-    ),
-    used: 'Applied 6 times'
-  }
-]
-
 export function InboxRulesDialog(): React.JSX.Element {
   const closeDialog = useUI((s) => s.closeDialog)
-  const [src, setSrc] = useState([true, true, true])
-  const [rl, setRl] = useState([true, true, false])
+  const waiting = useInbox((st) => st.items.filter((i) => i.source === 'capture').length)
 
   return (
     <Modal top={80} width={680} onClose={closeDialog}>
       <Header
-        title="Inbox sources & rules"
-        sub="Choose what lands in your Inbox and how Nexday files it."
+        title="Inbox sources"
+        sub="Choose what lands in your Inbox."
         onClose={closeDialog}
       />
       <div className="dl-lb" style={{ paddingTop: 20 }}>
@@ -322,47 +294,20 @@ export function InboxRulesDialog(): React.JSX.Element {
               <b>{s.name}</b>
               <i>{s.sub}</i>
             </div>
-            {s.static ? (
-              <span style={{ fontSize: 12, color: '#767676' }}>{s.static}</span>
-            ) : (
-              <Toggle2
-                on={src[i - 1]}
-                onChange={(v) => setSrc(src.map((x, n) => (n === i - 1 ? v : x)))}
-              />
-            )}
+            <span style={{ fontSize: 12, color: '#767676' }}>
+              {i === 0 ? `${waiting} waiting` : s.static}
+            </span>
           </div>
         ))}
-        <div className="dl-s" style={{ borderBottom: 0 }}>
-          <div className="dl-ic" style={{ borderStyle: 'dashed', color: '#767676' }}>
-            <Icon name="plus" size={15} />
-          </div>
-          <div className="t">
-            <b style={{ color: '#6B6B6B' }}>Connect another source</b>
-          </div>
-          <button style={{ fontSize: 13, fontWeight: 500 }}>Browse</button>
-        </div>
       </div>
       <div className="dl-lb">
         <span>Rules</span>
-        <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>
-          {rl.filter(Boolean).length} active
-        </span>
       </div>
-      <div className="col" style={{ borderTop: '1px solid #EDEDEB' }}>
-        {rules.map((r, i) => (
-          <div
-            className="dl-rl"
-            key={i}
-            style={i === rules.length - 1 ? { borderBottom: 0 } : undefined}
-          >
-            <span>{r.parts}</span>
-            <span className="m">{r.used}</span>
-            <Toggle2 on={rl[i]} onChange={(v) => setRl(rl.map((x, n) => (n === i ? v : x)))} />
-          </div>
-        ))}
+      <div style={{ padding: '4px 0 12px', fontSize: 13, color: '#767676' }}>
+        Rules for filing email, Slack and GitHub items arrive together with those sources.
       </div>
       <div className="dl-foot" style={{ marginTop: 8, paddingTop: 18 }}>
-        <Button>+ New rule</Button>
+        <span />
         <div className="row" style={{ gap: 10 }}>
           <Kbd>esc</Kbd>
           <Button variant="dark" onClick={closeDialog}>

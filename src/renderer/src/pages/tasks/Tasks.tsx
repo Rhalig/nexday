@@ -19,6 +19,7 @@ import {
 } from '../../components/Pickers'
 import type { Task, TaskGroup } from '../../data/tasks'
 import TaskDrawer from './TaskDrawer'
+import { TasksEmpty } from './TasksStates'
 import './tasks.css'
 
 const projectOrder: Project[] = ['planner', 'moving', 'reading', 'personal']
@@ -112,6 +113,8 @@ export default function Tasks(): React.JSX.Element {
         .flatMap((g) => g.tasks.map((t) => ({ task: t, groupId: g.id })))
         .find((x) => x.task.id === id)
     : undefined
+
+  if (total === 0 && !id) return <TasksEmpty />
 
   return (
     <main className="panel">
