@@ -260,15 +260,15 @@ function Preferences(): React.JSX.Element {
   return (
     <>
       <Head title="Preferences" sub="How Nexday looks and behaves for you." />
-      <Row title="Language" sub="Used for menus and AI suggestions.">
+      <Row title="Language" sub="More languages are coming.">
         <Cyc
-          value={prefs.language}
-          options={['English', 'Türkçe']}
+          value="English"
+          options={['English']}
           onChange={(language) => set({ language: language as typeof prefs.language })}
         />
       </Row>
-      <Row title="Time zone" sub="Calendar events and your plan follow this.">
-        <Sel>Europe/Istanbul · GMT+3</Sel>
+      <Row title="Time zone" sub="Taken from your Mac. Calendar events and your plan follow it.">
+        <Sel>{timeZoneName()}</Sel>
       </Row>
       <Row title="Time format" sub="Shown across the day strip and tasks.">
         <Seg
@@ -298,17 +298,17 @@ function Preferences(): React.JSX.Element {
           onChange={(i) => set({ density: i === 0 ? 'Comfortable' : 'Compact' })}
         />
       </Row>
-      <Row title="Sounds" sub="A soft tone when you complete a task.">
+      <Row title="Sounds" sub="Play the system sound with desktop notifications.">
         <Sp />
         <Tg on={prefs.sounds} onChange={(sounds) => set({ sounds })} />
       </Row>
-      <Row title="Reduce motion" sub="Turn off animations in the day strip and lists.">
+      <Row title="Reduce motion" sub="Turn off animations and transitions across the app.">
         <Sp />
         <Tg on={prefs.reduceMotion} onChange={(reduceMotion) => set({ reduceMotion })} />
       </Row>
       <Row
         title="Show completed tasks"
-        sub="Keep finished tasks visible for the rest of the day."
+        sub="Keep finished tasks in the Today plan for the rest of the day."
         end
       >
         <Sp />
@@ -531,9 +531,15 @@ function Calendars(): React.JSX.Element {
           w={220}
         />
       </Row>
-      <Row title="Show declined events" sub="Keep them in the day strip as faded blocks." end>
+      <Row title="Show declined events" sub="Keep events you declined on your calendar." end>
         <Sp />
-        <Tg on={calPrefs.showDeclined} onChange={(showDeclined) => setCal({ showDeclined })} />
+        <Tg
+          on={calPrefs.showDeclined}
+          onChange={(showDeclined) => {
+            setCal({ showDeclined })
+            void useCalendar.getState().refresh()
+          }}
+        />
       </Row>
     </>
   )
@@ -628,11 +634,11 @@ function Notifications(): React.JSX.Element {
   const rows: Array<[string, string, [boolean, boolean, boolean]]> = [
     ['Daily plan', 'Every work day at 08:30', [true, false, true]],
     ['Up next', 'Before meetings and planned tasks', [true, false, true]],
-    ['Inbox suggestions', 'When Nexday finds something to triage', [false, false, true]],
+    ['Inbox suggestions', 'Coming soon', [false, false, true]],
     ['Tasks due today', 'A nudge at 16:00 for open tasks', [true, false, true]],
     ['Habit reminders', 'At the time of each habit slot', [true, false, false]],
     ['Weekly review', 'Friday at 17:00', [false, true, false]],
-    ['Shared notes and mentions', 'When someone edits or mentions you', [true, true, true]]
+    ['Shared notes and mentions', 'Coming soon', [true, true, true]]
   ]
   const prefs = useUI((s) => s.notifPrefs)
   const set = useUI((s) => s.setNotifPrefs)
@@ -643,7 +649,7 @@ function Notifications(): React.JSX.Element {
   return (
     <>
       <Head title="Notifications" sub="Choose what Nexday tells you, and where." />
-      <Row title="Quiet hours" sub="No push notifications during this window.">
+      <Row title="Quiet hours" sub="No desktop notifications during this window.">
         <TimeSel value={prefs.quietStart} onChange={(quietStart) => set({ quietStart })} w={110} />
         <span style={{ color: 'var(--ink2)' }}>to</span>
         <TimeSel value={prefs.quietEnd} onChange={(quietEnd) => set({ quietEnd })} w={110} />
@@ -662,7 +668,7 @@ function Notifications(): React.JSX.Element {
         <span className="st-sp" style={{ fontSize: 12.5, color: 'var(--ink3)' }}>
           What to notify
         </span>
-        {['Push', 'Email', 'In app'].map((h) => (
+        {['Desktop', 'Email (soon)', 'In app (soon)'].map((h) => (
           <span key={h} className="st-c" style={{ fontSize: 12.5, color: 'var(--ink3)' }}>
             {h}
           </span>

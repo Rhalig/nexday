@@ -14,6 +14,7 @@ import {
 import { Sidebar } from './Sidebar'
 import { useUI } from '../store/ui'
 import { useCalendar } from '../store/calendar'
+import { startNotifier } from '../lib/notifier'
 
 export function AppShell(): React.JSX.Element {
   const navigate = useNavigate()
@@ -26,6 +27,9 @@ export function AppShell(): React.JSX.Element {
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [])
+
+  // Desktop notifications follow Settings › Notifications.
+  useEffect(() => startNotifier(), [])
 
   // Global shortcuts: ⌘K palette, ⌘T / ⌘E / ⌘N create
   useEffect(() => {

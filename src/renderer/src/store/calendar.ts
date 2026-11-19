@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useUI } from './ui'
 import { sampleWeekEvents, type KindedEvent } from '../data/calendar'
 import type { EventKind } from '../data/calendar'
 import {
@@ -103,7 +104,7 @@ const weekdayIndex = (d: Date): number => (d.getDay() + 6) % 7
 function convert(raw: RawEvent[]): KindedEvent[] {
   const out: KindedEvent[] = []
   for (const r of raw) {
-    if (r.declined) continue
+    if (r.declined && !useUI.getState().calPrefs.showDeclined) continue
     const s = new Date(r.start)
     const e = new Date(r.end)
     if (r.allDay) {
@@ -306,6 +307,8 @@ export const useCalendar = create<CalendarState>((set, get) => {
   /** When Mac Calendar is connected, the new event is written there too; its identifier is kept. */
   const pushToMac = async (id: string): Promise<void> => {
     if (!api?.create) return
+    // "Calendar to Nexday" only reads: nothing is written back to the Mac.
+    if (useUI.getState().calPrefs.syncDirection !== 'Two-way') return
     const status = get().status === 'unknown' ? await loadStatus() : get().status
     if (status !== 'authorized') return
     const ev = get().own.find((e) => e.id === id)
@@ -381,7 +384,9 @@ export const useCalendar = create<CalendarState>((set, get) => {
       set({ day: date })
       await get().loadWeek(parseDayKey(date))
     },
-    add: ({ title, date, start, end, kind = 'personal', location, allDay, rrule }) => {
+    add: ({ title, date, start, end, kind: given, location, allDay, rrule }) => {
+      const pref = useUI.getState().calPrefs.newEventCalendar
+      const kind: EventKind = given ?? (pref === 'Work' ? 'work' : pref === 'Planner MVP' ? 'acc' : 'personal')
       const day = parseDayKey(date)
       const [sh, sm] = start.split(':').map(Number)
       const [eh, em] = end.split(':').map(Number)

@@ -1,6 +1,7 @@
 import { Icon } from '../../components/Icon'
 import { projectColor } from '../../components/ui'
 import { projects, type Project } from '../../data/tasks'
+import { T } from '../../lib/prefs'
 import { DAY_END, DAY_START, clock, fmtMin, type PlanGroup, type PlanTask, type TodayData } from '../../lib/today'
 
 const hints: Record<string, string> = {}
@@ -10,7 +11,7 @@ const Meta = ({ project, right, hot, mono }: { project: Project; right: string; 
     <div className="swatch" style={{ background: projectColor[project], width: 10, height: 10, borderRadius: 3 }} />
     {projects[project].name}
     <span className={mono ? 'r mono' : 'r'} style={hot ? { color: 'var(--acc-text)', fontWeight: 500 } : undefined}>
-      {right}
+      {T(right)}
     </span>
   </div>
 )
@@ -70,7 +71,7 @@ export function TodayCalendar({ data, nowMin }: { data: TodayData; nowMin: numbe
         <div className="col" style={{ width: 48, flex: 'none' }}>
           {hoursLabels.map((h) => (
             <div className="tv-hl" key={h}>
-              {h}
+              {T(h)}
             </div>
           ))}
         </div>
@@ -84,7 +85,7 @@ export function TodayCalendar({ data, nowMin }: { data: TodayData; nowMin: numbe
                 style={{ top: yOf(Math.max(e.start, DAY_START)), height: Math.max(22, (e.end - e.start) * PX - 4) }}
               >
                 <b>{e.title}</b>
-                <i>{e.hint}</i>
+                <i>{T(e.hint)}</i>
               </div>
             ))}
           {data.gaps.map((g) => (
@@ -101,14 +102,14 @@ export function TodayCalendar({ data, nowMin }: { data: TodayData; nowMin: numbe
             .map((t) => (
               <div className="tv-ev chip" key={t.key} style={{ top: yOf(Math.max(t.start, DAY_START)), borderLeftColor: 'var(--acc)' }}>
                 <b>
-                  {t.title} · {clock(t.start)}
+                  {t.title} · {T(clock(t.start))}
                 </b>
               </div>
             ))}
           {nowMin >= DAY_START && nowMin <= DAY_END && (
             <div style={{ position: 'absolute', left: 0, right: 0, top: yOf(nowMin), height: 2, background: 'var(--acc)', borderRadius: 1 }}>
               <span style={{ position: 'absolute', left: -4, top: -3, width: 8, height: 8, borderRadius: '50%', background: 'var(--acc)' }} />
-              <span style={{ position: 'absolute', right: 0, top: -18, fontSize: 11, color: 'var(--acc-text)', fontWeight: 500 }}>{clock(nowMin)}</span>
+              <span style={{ position: 'absolute', right: 0, top: -18, fontSize: 11, color: 'var(--acc-text)', fontWeight: 500 }}>{T(clock(nowMin))}</span>
             </div>
           )}
         </div>

@@ -28,6 +28,7 @@ import { useAuth } from './store/auth'
 import { useCalendar } from './store/calendar'
 import { retryLoad, useSync } from './lib/cloud'
 import { supabase } from './lib/supabase'
+import { useUI } from './store/ui'
 
 function Placeholder({ name }: { name: string }): React.JSX.Element {
   return (
@@ -35,6 +36,12 @@ function Placeholder({ name }: { name: string }): React.JSX.Element {
       <span className="muted">{name} — not built yet</span>
     </main>
   )
+}
+
+/** The page the person chose to open first (Settings › Preferences). */
+function StartPage(): React.JSX.Element {
+  const start = useUI((s) => s.prefs.startPage)
+  return <Navigate to={start === 'Calendar' ? '/calendar' : start === 'Inbox' ? '/inbox' : '/today'} replace />
 }
 
 function CalendarEmptyRoute(): React.JSX.Element {
@@ -118,7 +125,7 @@ export default function App(): React.JSX.Element {
           <Route path="/settings/:tab?" element={<Settings />} />
           <Route path="/focus" element={<Focus />} />
           <Route element={<AppShell />}>
-            <Route index element={<Navigate to="/today" replace />} />
+            <Route index element={<StartPage />} />
             <Route path="/today" element={<Today />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/calendar/empty" element={<CalendarEmptyRoute />} />

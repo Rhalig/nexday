@@ -30,6 +30,7 @@ import {
   weekdayShort
 } from '../../lib/clock'
 import { parseCapture } from '../../lib/capture'
+import { T } from '../../lib/prefs'
 import './calendar.css'
 
 type View = 'day' | 'week' | 'month'
@@ -160,7 +161,7 @@ function WeekView({ onOpen }: { onOpen: (id: string) => void }): React.JSX.Eleme
         <div className="wg-hours">
           {hours.map((h) => (
             <div className="wg-hour" key={h}>
-              <span>{h}</span>
+              <span>{T(`${h}:00`).replace(':00', '')}</span>
             </div>
           ))}
         </div>
@@ -202,7 +203,7 @@ function WeekEvent({
       style={{ top: (e.start - GRID_START) * px, height: (e.end - e.start) * px }}
     >
       <span className="ev-t">{e.title}</span>
-      {e.sub && <span className="ev-sub">{e.sub}</span>}
+      {e.sub && <span className="ev-sub">{T(e.sub)}</span>}
     </div>
   )
 }
@@ -263,7 +264,7 @@ function createEventFromText(text: string): void {
   const end = `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
   useCalendar
     .getState()
-    .add({ title: p.title || text, date: dayKey(date), start, end, kind: 'personal' })
+    .add({ title: p.title || text, date: dayKey(date), start, end })
 }
 
 /** Same capture bar as Today, with calendar examples. */
@@ -312,7 +313,7 @@ function DayView({
         <div className="dg-hours">
           {hours.map((h) => (
             <div className="dg-hr" key={h}>
-              <span>{h}</span>
+              <span>{T(`${h}:00`).replace(':00', '')}</span>
             </div>
           ))}
         </div>
@@ -411,7 +412,7 @@ function DayEvent({
       <span className="ev-t" style={small ? { fontSize: 12.5 } : undefined}>
         {e.title}
       </span>
-      {(e.daySub ?? e.sub) && <span className="ev-sub">{e.daySub ?? e.sub}</span>}
+      {(e.daySub ?? e.sub) && <span className="ev-sub">{T(e.daySub ?? e.sub ?? '')}</span>}
     </div>
   )
 }

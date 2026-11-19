@@ -32,14 +32,17 @@ A day planner: Today, Inbox, Calendar, Tasks, Notes, Habits, Projects, Settings,
 ## Decisions already made
 Cloud accounts with Supabase free tier. AI = Gemini free tier (key must live in a Supabase Edge Function secret, never in the app; note the free tier may use content for training, so move to paid before public launch). Mac only. No Apple sign-in. Google Calendar API and Gmail inbox come later (Google verification is slow; Gmail needs a security assessment). Mac Calendar already covers Google calendars through EventKit. Payment shows $6 Pro, limits may change (so keep them in the `plans` table).
 
+## Settings are applied now
+- Preferences (`lib/prefs.ts`, subscribes to the UI store at import time): time format (`T(text)` rewrites every "HH:MM" in a string; used in task rows, Today, Calendar grid/events, task drawer; strings built elsewhere, e.g. Inbox suggestion chips, still show 24-hour), date format (`pageDate`/`shortDate` in `lib/clock.ts`), density (`data-density` on `<html>`, CSS in components.css), reduce motion (`data-reduce-motion`, motion.css), start page (`StartPage` route in App.tsx), show completed tasks (Today plan), sounds (silent flag on notifications). Language only offers English; time zone shows the Mac's.
+- Notifications (`lib/notifier.ts`, started in AppShell): native desktop notifications from a 30 s check: daily plan (work days 08:30–09:30), up next (events and timed tasks, lead time from settings), tasks still open (16:00), habit reminders (at the slot), weekly review (Fri 17:00). Respects pause, quiet hours and the Desktop checkbox of each row; fired keys are remembered per day (`kv notifFired`). Email and in-app columns, Inbox suggestions and Shared rows are marked "soon" and do nothing.
+- Calendars: sync direction (Two-way writes new events to Mac Calendar, "Calendar to Nexday" does not), new events' default kind, show declined events.
+- Tested: notifier and `T()` with a script and fake stores, preferences toggles in the browser preview. Not tested: a real macOS notification from the packaged app (needs the notification permission prompt).
+
 ## Not done yet (suggested order)
-1. Real SMTP for confirmation/reset emails (dashboard-only, needs the owner). The in-app reset flow is done: `/reset` + `recovery` state in `store/auth.ts` (the reset request leaves a 1-hour flag, the opened link leaves a pending flag that survives a restart; both are cleared on save/cancel).
-   - Resend or Brevo account, verify a domain (`onboarding@resend.dev` works for testing).
-   - Supabase Dashboard → Authentication → Emails → SMTP: host `smtp.resend.com`, port 465 (SSL) or 587 (STARTTLS), user `resend`, password = API key, sender `no-reply@<domain>`. No secret goes in the app or this repo.
-   - Test from a **packaged** app (only registered apps receive `nexday://` links): Forgot password → email → link → app opens on “Set a new password”.
-2. Apply the saved Preferences across the UI (date/time format, density, start page), and implement “Move unfinished tasks” (needs a stored date on tasks; the current groups have none). “Reserve time for habits” is wired into the planner; “Ask before changing the plan” is inherent in the Auto-schedule preview.
-3. Native notifications, launch at login, editable keyboard shortcuts, drag and drop on Calendar/Board, real notes editor (notes can be created and read now, not edited), subtask editing, event rescheduling.
-4. Release: Apple Developer ID + notarization, auto-update, Intel/universal build, crash reporting, privacy policy and terms, tests (none yet), account deletion flow.
+1. Real SMTP for confirmation/reset emails (dashboard-only, needs the owner): Resend or Brevo, then Supabase Dashboard → Authentication → Emails → SMTP (host `smtp.resend.com`, port 465/587, user `resend`, password = API key). Test from a packaged app (only registered apps receive `nexday://` links).
+2. Move unfinished tasks (needs a stored date on tasks), launch at login, editable keyboard shortcuts, drag and drop on Calendar/Board, real notes editor, subtask editing, event rescheduling.
+3. Release: Apple Developer ID + notarization, auto-update, Intel/universal build, crash reporting, privacy policy and terms, tests (none yet).
+4. Deploy the other Edge Functions (`ai`, `billing`, `stripe-webhook`); Stripe and Gemini setup by the owner.
 5. Optional: rotate the Google OAuth client secret (it appeared in a chat once), publish the Google app out of Testing.
 
 ## Calendar done

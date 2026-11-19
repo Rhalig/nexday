@@ -1,5 +1,6 @@
 import { projects, type Project } from '../data/tasks'
 import { Checkbox, cn, projectColor } from './ui'
+import { T } from '../lib/prefs'
 
 type Props = {
   title: string
@@ -40,7 +41,7 @@ export function TaskRow({
         <span>{projects[project].name}</span>
       </div>
       {energy !== undefined && <span className="en">{energy}</span>}
-      <span className={cn('du', hot && 'hot')}>{time}</span>
+      <span className={cn('du', hot && 'hot')}>{T(time)}</span>
     </div>
   )
 }

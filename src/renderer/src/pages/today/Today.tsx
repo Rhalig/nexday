@@ -34,6 +34,7 @@ import {
 } from '../../lib/today'
 import './today.css'
 import { greeting, useIdentity } from '../../lib/identity'
+import { T } from '../../lib/prefs'
 
 type View = 'list' | 'board' | 'calendar'
 
@@ -45,7 +46,17 @@ export default function Today(): React.JSX.Element {
   const [ghostTask, setGhostTask] = useState<GhostTask | null>(null)
   const openDialog = useUI((s) => s.openDialog)
 
-  const { data, now } = useTodayData()
+  const { data: raw, now } = useTodayData()
+  const showCompleted = useUI((s) => s.prefs.showCompleted)
+  // "Show completed tasks" off: finished tasks leave the plan, the counts still include them.
+  const data = showCompleted
+    ? raw
+    : {
+        ...raw,
+        plan: raw.plan
+          .map((g) => ({ ...g, tasks: g.tasks.filter((t) => !t.done) }))
+          .filter((g) => g.tasks.length > 0)
+      }
   const storedHabits = useHabits((s) => s.habits)
   const history = useHabits((s) => s.history)
   const habits = storedHabits.map((h) => (supabase ? { ...h, ...habitNumbers(h, history, now) } : h))
@@ -124,7 +135,7 @@ export default function Today(): React.JSX.Element {
               <div className="strip-head">
                 <h2>Day strip</h2>
                 <span className="muted" style={{ fontSize: 12 }}>
-                  07:00 – 23:00
+                  {T('07:00 – 23:00')}
                 </span>
                 <div className="legend">
                   {data.legend.map((l) => (
@@ -162,14 +173,14 @@ export default function Today(): React.JSX.Element {
                       >
                         <div
                           className={cn('dcard', item.kind, (lanes > 1 || to - from < 90) && 'tight')}
-                          title={item.hint ? `${item.title} · ${item.hint}` : item.title}
+                          title={item.hint ? `${item.title} · ${T(item.hint)}` : item.title}
                         >
                           {item.kind === 'free' ? (
                             <span>{item.title}</span>
                           ) : (
                             <>
                               <span className="dcard-t">{item.title}</span>
-                              <span className="dcard-h">{item.hint}</span>
+                              <span className="dcard-h">{T(item.hint)}</span>
                             </>
                           )}
                         </div>
@@ -208,7 +219,7 @@ export default function Today(): React.JSX.Element {
               <div className="hours">
                 {hours.map((h) => (
                   <span className="hour" key={h}>
-                    {h}
+                    {T(`${h}:00`).replace(':00', '')}
                   </span>
                 ))}
               </div>
@@ -219,7 +230,7 @@ export default function Today(): React.JSX.Element {
                     <Icon name="bolt" size={18} />
                   </span>
                   <p>
-                    {`You are free ${clock(nextGap.start)}–${clock(nextGap.end)} (${fmtMin(nextGap.end - nextGap.start)}).`}
+                    {T(`You are free ${clock(nextGap.start)}–${clock(nextGap.end)} (${fmtMin(nextGap.end - nextGap.start)}).`)}
                     {data.noTimeCount > 0 &&
                       ` ${data.noTimeCount} ${data.noTimeCount === 1 ? 'task has' : 'tasks have'} no time yet.`}
                   </p>
@@ -268,7 +279,7 @@ export default function Today(): React.JSX.Element {
                       {g.link && (
                         <div className="grp-link">
                           <Icon name="link" size={12} strokeWidth={2} />
-                          <span>{g.link}</span>
+                          <span>{T(g.link)}</span>
                         </div>
                       )}
                       <div className="grp-line" />
@@ -321,7 +332,7 @@ export default function Today(): React.JSX.Element {
                         {data.upNext.title}
                       </span>
                       <span className="mono muted" style={{ fontSize: 12.5 }}>
-                        {data.upNext.meta}
+                        {T(data.upNext.meta)}
                         {data.upNext.kind === 'task' ? ' · Task' : ''}
                       </span>
                     </>

@@ -75,12 +75,30 @@ export const weekdayShort = (d: Date): string => WEEKDAY_SHORT[d.getDay()]
 export const monthLong = (d: Date): string => MONTH_LONG[d.getMonth()]
 export const monthShort = (d: Date): string => MONTH_SHORT[d.getMonth()]
 
-/** "Thursday, November 19" — the line above every page title. */
-export const pageDate = (d: Date = appToday()): string =>
-  `${weekdayLong(d)}, ${monthLong(d)} ${d.getDate()}`
+let dateStyle: '17 Nov 2026' | 'Nov 17, 2026' | '2026-11-17' = '17 Nov 2026'
+/** Set from Settings › Preferences (see lib/prefs.ts). */
+export const setDateStyle = (s: typeof dateStyle): void => {
+  dateStyle = s
+}
+
+/** "Thursday, 19 Nov 2026" / "Thursday, Nov 19, 2026" / "Thursday, 2026-11-19" — the line above every page title. */
+export const pageDate = (d: Date = appToday()): string => {
+  const day =
+    dateStyle === '2026-11-17'
+      ? dayKey(d)
+      : dateStyle === 'Nov 17, 2026'
+        ? `${monthShort(d)} ${d.getDate()}, ${d.getFullYear()}`
+        : `${d.getDate()} ${monthShort(d)} ${d.getFullYear()}`
+  return `${weekdayLong(d)}, ${day}`
+}
 
 /** "Nov 19, 2026" */
-export const shortDate = (d: Date): string => `${monthShort(d)} ${d.getDate()}, ${d.getFullYear()}`
+export const shortDate = (d: Date): string =>
+  dateStyle === '2026-11-17'
+    ? dayKey(d)
+    : dateStyle === 'Nov 17, 2026'
+      ? `${monthShort(d)} ${d.getDate()}, ${d.getFullYear()}`
+      : `${d.getDate()} ${monthShort(d)} ${d.getFullYear()}`
 
 /** "19:30" from a date. */
 export const clockTime = (d: Date): string =>

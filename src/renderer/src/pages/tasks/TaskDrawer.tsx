@@ -7,6 +7,8 @@ import { Button, cn, projectColor } from '../../components/ui'
 import { describeTask, projects, taskDetails, type Task, type TaskGroup } from '../../data/tasks'
 import { useTasks } from '../../store/tasks'
 
+import { T } from '../../lib/prefs'
+
 type Props = { task: Task; groupId: TaskGroup['id']; onClose: () => void }
 
 export default function TaskDrawer({ task, groupId, onClose }: Props): React.JSX.Element {
@@ -15,7 +17,8 @@ export default function TaskDrawer({ task, groupId, onClose }: Props): React.JSX
   const [confirm, setConfirm] = useState(false)
   const navigate = useNavigate()
   const detail = taskDetails[task.title]
-  const { when, length } = describeTask(task, groupId)
+  const { when: whenRaw, length } = describeTask(task, groupId)
+  const when = T(whenRaw)
   const subDone = detail?.subtasks?.filter((s) => s.done).length ?? 0
 
   const finish = (): void => {

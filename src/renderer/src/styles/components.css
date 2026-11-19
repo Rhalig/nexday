@@ -226,3 +226,17 @@
   border-radius: 50%;
   background: #fff;
 }
+
+/* ---------- Preferences: density ---------- */
+[data-density='compact'] .task {
+  min-height: 36px;
+}
+[data-density='compact'] .hb-row {
+  min-height: 64px;
+}
+[data-density='compact'] .pj-t {
+  height: 36px;
+}
+[data-density='compact'] .grp {
+  padding-top: 14px;
+}
