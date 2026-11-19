@@ -31,6 +31,11 @@ const api = {
     ipcRenderer.on('auth:callback', handler)
     return () => ipcRenderer.removeListener('auth:callback', handler)
   },
+  reminders: {
+    status: (): Promise<unknown> => ipcRenderer.invoke('rem:status'),
+    request: (): Promise<unknown> => ipcRenderer.invoke('rem:request'),
+    list: (): Promise<unknown> => ipcRenderer.invoke('rem:list')
+  },
   calendar: {
     status: (): Promise<unknown> => ipcRenderer.invoke('cal:status'),
     request: (): Promise<unknown> => ipcRenderer.invoke('cal:request'),

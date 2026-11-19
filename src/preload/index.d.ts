@@ -24,6 +24,11 @@ declare global {
       }
       openExternal: (url: string) => Promise<void>
       onAuthCallback: (cb: (url: string) => void) => () => void
+      reminders: {
+        status: () => Promise<unknown>
+        request: () => Promise<unknown>
+        list: () => Promise<unknown>
+      }
       calendar: {
         status: () => Promise<unknown>
         request: () => Promise<unknown>

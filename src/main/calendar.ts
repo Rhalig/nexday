@@ -34,6 +34,9 @@ export function initCalendar(): void {
   // The permission sheet can wait on the person, so this call gets a long timeout.
   ipcMain.handle('cal:request', () => run(['request'], 75000))
   ipcMain.handle('cal:calendars', () => run(['calendars']))
+  ipcMain.handle('rem:status', () => run(['reminders-status']))
+  ipcMain.handle('rem:request', () => run(['reminders-request'], 75000))
+  ipcMain.handle('rem:list', () => run(['reminders']))
   ipcMain.handle('cal:events', (_e, startMs: number, endMs: number) => {
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return { error: 'range' }
     return run(['events', String(Math.floor(startMs / 1000)), String(Math.floor(endMs / 1000))])

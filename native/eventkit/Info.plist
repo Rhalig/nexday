@@ -7,5 +7,7 @@
   <key>CFBundleVersion</key><string>1</string>
   <key>NSCalendarsUsageDescription</key><string>Nexday reads your calendar and adds the events you create to it.</string>
   <key>NSCalendarsFullAccessUsageDescription</key><string>Nexday reads your calendar and adds the events you create to it.</string>
+  <key>NSRemindersUsageDescription</key><string>Nexday reads your reminders so you can import them as tasks.</string>
+  <key>NSRemindersFullAccessUsageDescription</key><string>Nexday reads your reminders so you can import them as tasks.</string>
 </dict>
 </plist>

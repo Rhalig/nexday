@@ -94,6 +94,27 @@ func recurrenceRule(from text: String) -> EKRecurrenceRule? {
     )
 }
 
+func reminderStatusName() -> String {
+    switch EKEventStore.authorizationStatus(for: .reminder) {
+    case .notDetermined: return "notDetermined"
+    case .restricted: return "restricted"
+    case .denied: return "denied"
+    case .authorized, .fullAccess: return "authorized"
+    case .writeOnly: return "writeOnly"
+    @unknown default: return "unknown"
+    }
+}
+
+func requestReminders() {
+    let sem = DispatchSemaphore(value: 0)
+    if #available(macOS 14.0, *) {
+        store.requestFullAccessToReminders { _, _ in sem.signal() }
+    } else {
+        store.requestAccess(to: .reminder) { _, _ in sem.signal() }
+    }
+    _ = sem.wait(timeout: .now() + 60)
+}
+
 let args = CommandLine.arguments
 guard args.count >= 2 else { fail("usage") }
 
@@ -104,6 +125,40 @@ case "status":
 case "request":
     if statusName() == "notDetermined" { requestAccess() }
     out(["status": statusName()])
+
+case "reminders-status":
+    out(["status": reminderStatusName()])
+
+case "reminders-request":
+    if reminderStatusName() == "notDetermined" { requestReminders() }
+    out(["status": reminderStatusName()])
+
+case "reminders":
+    // Open (not completed) reminders, with their due date when they have one.
+    guard reminderStatusName() == "authorized" else { fail("notAuthorized") }
+    let predicate = store.predicateForIncompleteReminders(withDueDateStarting: nil, ending: nil, calendars: nil)
+    let sem = DispatchSemaphore(value: 0)
+    var found: [EKReminder] = []
+    store.fetchReminders(matching: predicate) { result in
+        found = result ?? []
+        sem.signal()
+    }
+    _ = sem.wait(timeout: .now() + 20)
+    let iso = ISO8601DateFormatter()
+    let cal = Calendar.current
+    let list = found.map { r -> [String: Any] in
+        var item: [String: Any] = [
+            "id": r.calendarItemIdentifier,
+            "title": r.title ?? "Untitled",
+            "list": r.calendar.title
+        ]
+        if let c = r.dueDateComponents, let d = cal.date(from: c) {
+            item["due"] = iso.string(from: d)
+            item["hasTime"] = c.hour != nil
+        }
+        return item
+    }
+    out(list)
 
 case "calendars":
     guard statusName() == "authorized" else { fail("notAuthorized") }

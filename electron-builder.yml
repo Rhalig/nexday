@@ -43,6 +43,8 @@ mac:
   extendInfo:
     NSCalendarsUsageDescription: Nexday reads your calendar events to plan around them.
     NSCalendarsFullAccessUsageDescription: Nexday reads your calendar events to plan around them.
+    NSRemindersUsageDescription: Nexday reads your reminders so you can import them as tasks.
+    NSRemindersFullAccessUsageDescription: Nexday reads your reminders so you can import them as tasks.
   notarize: false
 dmg:
   title: ${productName}
