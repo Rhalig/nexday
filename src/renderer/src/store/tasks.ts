@@ -59,6 +59,8 @@ type TasksState = {
   add: (task: Task, group: TaskGroup['id']) => void
   /** Adds many tasks at once (import). */
   addMany: (items: Array<{ task: Task; group: TaskGroup['id'] }>) => void
+  /** Brings a task finished today back to the open list (unticking it). */
+  reopen: (id: string) => void
   /** Changes a few fields of an open task (the AI refining a quick capture). */
   patch: (id: string, fields: Partial<Pick<Task, 'title' | 'project' | 'energy' | 'estimate'>>) => void
   /** Replaces a task's checklist. */
@@ -107,6 +109,18 @@ export const useTasks = create<TasksState>((set) => ({
       }
     })
   },
+  reopen: (id) =>
+    set((s) => {
+      const d = s.doneToday.find((x) => x.id === id)
+      if (!d) return s
+      const group: TaskGroup['id'] = d.time === null ? 'no-time' : /^\d/.test(d.time) ? 'today' : 'next-week'
+      const task: Task = { id: d.id, title: d.title, project: d.project, energy: d.energy, time: d.time }
+      return {
+        doneToday: s.doneToday.filter((x) => x.id !== id),
+        doneTotals: { ...s.doneTotals, [d.project]: Math.max(0, s.doneTotals[d.project] - 1) },
+        groups: insertTasks(s.groups, [{ task, group }])
+      }
+    }),
   patch: (id, fields) =>
     set((s) => ({
       groups: s.groups.map((g) => ({

@@ -174,9 +174,14 @@ function ProjectView({
             {showDone &&
               doneList.map((t) => (
                 <div className="pj-t done" key={t.id}>
-                  <span className="pj-cb on" aria-label="Done">
+                  <button
+                    className="pj-cb on"
+                    aria-label="Mark not done"
+                    onClick={() => useTasks.getState().reopen(t.id)}
+                    disabled={!doneToday.some((x) => x.id === t.id)}
+                  >
                     <Icon name="check" size={12} strokeWidth={3.2} round />
-                  </span>
+                  </button>
                   <span className="n">{t.title}</span>
                   <span className="e">{t.energy}</span>
                   <span className="w">{new Date(t.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>

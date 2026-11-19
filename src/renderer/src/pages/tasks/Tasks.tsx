@@ -246,6 +246,23 @@ export default function Tasks(): React.JSX.Element {
                 ))}
               </CardDrop>
             ))}
+            {doneToday.length > 0 && (
+              <div className="col">
+                <GroupHeader title="Done today" meta={String(doneToday.length)} />
+                {doneToday.map((t, i) => (
+                  <TaskRow
+                    key={t.id}
+                    done
+                    title={t.title}
+                    project={t.project}
+                    energy={showEnergy ? t.energy : undefined}
+                    time={t.time ?? '—'}
+                    onToggle={() => useTasks.getState().reopen(t.id)}
+                    last={i === doneToday.length - 1}
+                  />
+                ))}
+              </div>
+            )}
           </section>
 
           <aside className="tasks-side">
