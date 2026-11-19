@@ -79,22 +79,24 @@ const schema = {
   }
 } as const
 
+const clip = (v: unknown, max: number): string => String(v ?? '').slice(0, max)
+
 function promptFor(action: string, body: Row): string {
   const today = typeof body.today === 'string' ? body.today : new Date().toISOString().slice(0, 10)
   if (action === 'parse') {
-    return `Today is ${today}. The person typed this into quick capture:\n"""${String(body.text ?? '')}"""
+    return `Today is ${today}. The person typed this into quick capture:\n"""${clip(body.text, 2000)}"""
 Classify it. A timed meeting or appointment is an event; a thing to do is a task; an idea or note is a note.
 If it is an event, fill date, start and end (HH:MM). If it is a task, fill date/start only when the words give them.`
   }
   if (action === 'inbox') {
-    return `Today is ${today}. This item arrived from ${String(body.source ?? 'capture')}:
-Title: ${String(body.title ?? '')}
-Meta: ${String(body.meta ?? '')}
+    return `Today is ${today}. This item arrived from ${clip(body.source || 'capture', 40)}:
+Title: ${clip(body.title, 300)}
+Meta: ${clip(body.meta, 500)}
 Suggest what it should become and when, in one short line of reasoning.`
   }
   return `Today is ${today}. Find the concrete action items hiding in this note (at most 6).
-Title: ${String(body.title ?? '')}
-Note: ${String(body.text ?? '')}`
+Title: ${clip(body.title, 300)}
+Note: ${clip(body.text, 8000)}`
 }
 
 async function gemini(action: string, body: Row): Promise<Row> {
@@ -102,10 +104,10 @@ async function gemini(action: string, body: Row): Promise<Row> {
   if (!key) throw new Error('notConfigured')
   const model = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash'
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM }] },
         contents: [{ role: 'user', parts: [{ text: promptFor(action, body) }] }],

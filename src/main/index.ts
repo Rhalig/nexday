@@ -54,7 +54,11 @@ function createWindow(): void {
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    try {
+      if (new URL(details.url).protocol === 'https:') shell.openExternal(details.url)
+    } catch {
+      /* malformed URL: ignore */
+    }
     return { action: 'deny' }
   })
 
