@@ -3,17 +3,13 @@ import { PageHead, Topbar } from '../../components/page'
 import { QuickCapture } from '../../components/QuickCapture'
 import { Button } from '../../components/ui'
 import { useUI } from '../../store/ui'
-import { useTasks } from '../../store/tasks'
-import { parseCapture, toTask } from '../../lib/capture'
+import { captureTask } from '../../lib/quickTask'
 import { pageDate } from '../../lib/clock'
 import './tasks.css'
 import './tasks-states.css'
 
 const placeholder = 'Add a task… "pay electricity bill Friday 12:00 #moving"'
-const addTask = (text: string): void => {
-  const { task, group } = toTask(parseCapture(text))
-  useTasks.getState().add(task, group)
-}
+const addTask = captureTask
 const hint = 'Nexday reads the day, time and project from plain language.'
 
 export function TasksEmpty(): React.JSX.Element {

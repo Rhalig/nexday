@@ -10,7 +10,7 @@ import { SnoozePopover } from '../../components/Pickers'
 import { projects } from '../../data/tasks'
 import { sourceIcon, useInbox, type InboxItem, type InboxSource } from '../../store/inbox'
 import { daysFromToday, monthShort, pageDate, parseDayKey, weekdayShort } from '../../lib/clock'
-import { aiInboxSuggestion } from '../../lib/ai'
+import { aiInboxSuggestion, minutesFrom, splitWhen } from '../../lib/ai'
 import { useTodayData } from '../../lib/useToday'
 import { fmtMin } from '../../lib/today'
 import './inbox.css'
@@ -25,12 +25,11 @@ const kindIcon = { task: 'tasks', event: 'calendar', note: 'file' } as const
  */
 function friendlyWhen(raw: string | null): string | null {
   if (!raw) return null
-  const m = raw.trim().match(/^(?:(\d{4}-\d{2}-\d{2}))?[ T]?(\d{1,2}:\d{2})?/)
-  if (!m || (!m[1] && !m[2])) return raw
-  const time = m[2] ? m[2].padStart(5, '0') : ''
+  const { date, time } = splitWhen(raw)
+  if (!date && !time) return raw
   let day = ''
-  if (m[1]) {
-    const d = parseDayKey(m[1])
+  if (date) {
+    const d = parseDayKey(date)
     const diff = daysFromToday(d)
     day =
       diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : diff > 1 && diff < 7 ? weekdayShort(d) : `${d.getDate()} ${monthShort(d)}`
@@ -57,7 +56,8 @@ function captureWithAi(text: string): void {
           time: when ?? 'No time yet',
           project: projects[d.project].name,
           duration: d.duration ?? '—',
-          reason: d.reason
+          reason: d.reason,
+          plan: { ...splitWhen(d.when), minutes: minutesFrom(d.duration), project: d.project }
         }
       })
     }

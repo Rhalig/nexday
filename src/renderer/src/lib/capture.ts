@@ -1,4 +1,5 @@
 import type { Project, Task, TaskGroup } from '../data/tasks'
+import { daysFromToday, parseDayKey, weekdayShort } from './clock'
 
 const projectTags: Record<Project, string[]> = {
   planner: ['planner', 'planner-mvp', 'mvp', 'work'],
@@ -18,6 +19,8 @@ export type Parsed = {
   weekday: string | null
   /** Minutes, when the text says how long ('45m', 'for 1h') */
   length: number | null
+  /** True when the text named a day (today, tomorrow, a weekday, next week) */
+  dayWord: boolean
 }
 
 /** Pulls #project, a time (14:30) and a day (today, tomorrow, mon…, next week) out of plain text. */
@@ -63,10 +66,10 @@ export function parseCapture(input: string): Parsed {
   else if (day === 'tomorrow') group = 'tomorrow'
   else if (day === 'week') group = 'next-week'
   else group = time ? 'today' : 'no-time'
-  return { title: cleaned, project, group, time, weekday, length }
+  return { title: cleaned, project, group, time, weekday, length, dayWord: day !== null }
 }
 
-const fmtLen = (n: number): string =>
+export const fmtLen = (n: number): string =>
   n >= 60 ? `${Math.floor(n / 60)}h${n % 60 ? ` ${n % 60}m` : ''}` : `${n}m`
 
 /** New items get their final id immediately, so saving them never renames anything. */
@@ -95,3 +98,25 @@ export function toTask(p: Parsed, fallbackProject: Project = 'personal'): { task
 }
 
 export { weekdays }
+
+/**
+ * Where a day + clock time (+ length) lands in the task groups. A date with no time means 09:00;
+ * a time with no date means today; neither means "No time yet".
+ */
+export function slotFor(
+  date: string | null,
+  start: string | null,
+  minutes: number | null
+): { group: TaskGroup['id']; time: string | null } {
+  const diff = date ? daysFromToday(parseDayKey(date)) : start ? 0 : null
+  const group: TaskGroup['id'] =
+    diff === null ? 'no-time' : diff <= 0 ? 'today' : diff === 1 ? 'tomorrow' : 'next-week'
+  const at = start ?? '09:00'
+  const time =
+    group === 'no-time'
+      ? null
+      : group === 'next-week'
+        ? `${weekdayShort(parseDayKey(date!))} ${at}`
+        : `${at} · ${fmtLen(minutes ?? 30)}`
+  return { group, time }
+}

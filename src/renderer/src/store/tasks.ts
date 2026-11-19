@@ -59,6 +59,8 @@ type TasksState = {
   add: (task: Task, group: TaskGroup['id']) => void
   /** Adds many tasks at once (import). */
   addMany: (items: Array<{ task: Task; group: TaskGroup['id'] }>) => void
+  /** Changes a few fields of an open task (the AI refining a quick capture). */
+  patch: (id: string, fields: Partial<Pick<Task, 'title' | 'project' | 'energy' | 'estimate'>>) => void
   /** Replaces a task's checklist. */
   setSubtasks: (id: string, subtasks: Subtask[]) => void
   /** Moves one task to another day group with a new time (null = no time). */
@@ -105,6 +107,13 @@ export const useTasks = create<TasksState>((set) => ({
       }
     })
   },
+  patch: (id, fields) =>
+    set((s) => ({
+      groups: s.groups.map((g) => ({
+        ...g,
+        tasks: g.tasks.map((t) => (t.id === id ? { ...t, ...fields } : t))
+      }))
+    })),
   setSubtasks: (id, subtasks) =>
     set((s) => ({
       groups: s.groups.map((g) => ({

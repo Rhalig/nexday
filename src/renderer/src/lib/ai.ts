@@ -91,3 +91,16 @@ export const aiNoteActions = (
   title: string,
   text: string
 ): Promise<AiResult<{ items: AiActionItem[] }>> => call('note', { title, text })
+
+/** "2026-11-24 15:00", "2026-11-24", "15:00" → { date, time }. Anything else gives nulls. */
+export function splitWhen(raw: string | null | undefined): { date: string | null; time: string | null } {
+  const m = (raw ?? '').trim().match(/^(?:(\d{4}-\d{2}-\d{2}))?[ T]?(\d{1,2}:\d{2})?/)
+  return { date: m?.[1] ?? null, time: m?.[2] ? m[2].padStart(5, '0') : null }
+}
+
+/** "30 min", "1 hour", "1h 30m", "45m" → minutes (null when unreadable or silly). */
+export function minutesFrom(raw: string | null | undefined): number | null {
+  const m = (raw ?? '').toLowerCase().match(/(?:(\d+(?:\.\d+)?)\s*(?:h|hr|hour)s?)?\s*(?:(\d+)\s*(?:m|min)(?:ute)?s?)?/)
+  const n = Math.round((m?.[1] ? Number(m[1]) * 60 : 0) + (m?.[2] ? Number(m[2]) : 0))
+  return n >= 5 && n <= 960 ? n : null
+}

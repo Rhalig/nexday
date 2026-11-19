@@ -7,7 +7,7 @@ import { Segmented, Toggle, cn } from '../../components/ui'
 import { TodayBoard, TodayCalendar } from './TodayViews'
 import type { GhostTask } from '../../components/GhostInput'
 import { QuickCapture } from '../../components/QuickCapture'
-import { parseCapture, toTask } from '../../lib/capture'
+import { captureTask } from '../../lib/quickTask'
 import { useTasks } from '../../store/tasks'
 import { habitNumbers } from '../../lib/habitStats'
 import { supabase } from '../../lib/supabase'
@@ -440,10 +440,7 @@ export default function Today(): React.JSX.Element {
             'Press Tab to accept the AI suggestion · try "coffee with Ece tomorrow 15:00 #personal"'
           }
           onTask={setGhostTask}
-          onSubmit={(text) => {
-            const { task, group } = toTask(parseCapture(text))
-            useTasks.getState().add(task, group)
-          }}
+          onSubmit={captureTask}
         />
       </div>
     </main>

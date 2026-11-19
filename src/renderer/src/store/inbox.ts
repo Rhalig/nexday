@@ -1,6 +1,10 @@
 import { create } from 'zustand'
 import type { IconName } from '../components/Icon'
-import { newId, parseCapture, toTask } from '../lib/capture'
+import { newId, parseCapture, slotFor, toTask } from '../lib/capture'
+import { appToday, dayKey } from '../lib/clock'
+import type { Project } from '../data/tasks'
+import { useCalendar } from './calendar'
+import { useNotes } from './notes'
 import { supabase } from '../lib/supabase'
 import { useTasks } from './tasks'
 
@@ -21,6 +25,8 @@ export type InboxItem = {
     project: string
     duration: string
     reason: string
+    /** What the AI read from the text: lets accepting create the right thing */
+    plan?: { date: string | null; time: string | null; minutes: number | null; project: Project }
   }
 }
 
@@ -98,11 +104,50 @@ type InboxState = {
   ) => void
 }
 
+const addMinutes = (hhmm: string, n: number): string => {
+  const t = Math.min(23 * 60 + 59, Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3)) + n)
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
+}
+
+/** Turns an accepted AI suggestion into an event, a task or a note. */
+function applyPlan(title: string, kind: string, plan: NonNullable<NonNullable<InboxItem['focus']>['plan']>): void {
+  const today = appToday()
+  if (kind === 'event') {
+    const start = plan.time ?? '09:00'
+    useCalendar.getState().add({
+      title,
+      date: plan.date ?? dayKey(today),
+      start,
+      end: addMinutes(start, plan.minutes ?? 60),
+      allDay: false
+    })
+  } else if (kind === 'note') {
+    useNotes.getState().add(title)
+  } else {
+    const { group, time } = slotFor(plan.date, plan.time, plan.minutes)
+    useTasks.getState().add(
+      {
+        id: newId('t'),
+        title,
+        project: plan.project,
+        energy: 'Light',
+        time,
+        ...(plan.minutes ? { estimate: plan.minutes } : {})
+      },
+      group
+    )
+  }
+}
+
 export const useInbox = create<InboxState>((set) => ({
   items: supabase ? [] : sampleInbox,
   accept: (id) =>
     set((s) => {
       const item = s.items.find((i) => i.id === id)
+      if (item?.focus?.plan) {
+        applyPlan(item.title, item.focus.kind, item.focus.plan)
+        return { items: s.items.filter((i) => i.id !== id) }
+      }
       // A task suggestion becomes a real task; events and notes are only cleared for now.
       if (item && item.suggestion.label.startsWith('Task')) {
         const hint = item.suggestion.label.replace(/^Task · /, '')

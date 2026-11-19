@@ -7,7 +7,7 @@ import { Button, GroupHeader, Segmented, Toggle, projectColor } from '../../comp
 import { filterGroups, projects, type Project, type TaskFilter } from '../../data/tasks'
 import { countOpen, useTasks } from '../../store/tasks'
 import { useUI } from '../../store/ui'
-import { parseCapture, toTask } from '../../lib/capture'
+import { captureTask } from '../../lib/quickTask'
 import { addDays, appToday, pageDate, weekdayIndex, weekdayShort } from '../../lib/clock'
 import { parseTime } from '../../lib/today'
 import {
@@ -322,10 +322,7 @@ export default function Tasks(): React.JSX.Element {
         placeholder={'Add a task… "pay electricity bill Friday 12:00 #moving"'}
         button="Add"
         hint="Nexday reads the day, time and project from plain language."
-        onSubmit={(text) => {
-          const { task, group } = toTask(parseCapture(text))
-          useTasks.getState().add(task, group)
-        }}
+        onSubmit={captureTask}
       />
       {open && (
         <TaskDrawer task={open.task} groupId={open.groupId} onClose={() => navigate('/tasks')} />
