@@ -9,7 +9,7 @@ import { useUI } from '../../store/ui'
 import { SnoozePopover } from '../../components/Pickers'
 import { projects } from '../../data/tasks'
 import { sourceIcon, useInbox, type InboxItem, type InboxSource } from '../../store/inbox'
-import { pageDate } from '../../lib/clock'
+import { daysFromToday, monthShort, pageDate, parseDayKey, weekdayShort } from '../../lib/clock'
 import { aiInboxSuggestion } from '../../lib/ai'
 import { useTodayData } from '../../lib/useToday'
 import { fmtMin } from '../../lib/today'
@@ -17,6 +17,26 @@ import './inbox.css'
 
 const kindLabel = { task: 'Task', event: 'Event', note: 'Note' } as const
 const kindIcon = { task: 'tasks', event: 'calendar', note: 'file' } as const
+
+/**
+ * The AI answers with "2026-11-24 15:00" (or just a date, or a time). Show it the way capture does:
+ * "Today 15:00", "Tomorrow 15:00", "Tue 15:00" within a week, "24 Nov 15:00" beyond. The short
+ * forms are also what accepting the suggestion reads back as a day.
+ */
+function friendlyWhen(raw: string | null): string | null {
+  if (!raw) return null
+  const m = raw.trim().match(/^(?:(\d{4}-\d{2}-\d{2}))?[ T]?(\d{1,2}:\d{2})?/)
+  if (!m || (!m[1] && !m[2])) return raw
+  const time = m[2] ? m[2].padStart(5, '0') : ''
+  let day = ''
+  if (m[1]) {
+    const d = parseDayKey(m[1])
+    const diff = daysFromToday(d)
+    day =
+      diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : diff > 1 && diff < 7 ? weekdayShort(d) : `${d.getDate()} ${monthShort(d)}`
+  }
+  return [day, time].filter(Boolean).join(' ')
+}
 
 /** Capture first (instant), then let AI improve the suggestion in place when it answers. */
 function captureWithAi(text: string): void {
@@ -26,14 +46,15 @@ function captureWithAi(text: string): void {
     (r) => {
       if ('error' in r) return
       const d = r.data
+      const when = friendlyWhen(d.when)
       inbox.refine(id, {
         suggestion: {
           icon: kindIcon[d.kind],
-          label: `${kindLabel[d.kind]}${d.when ? ` · ${d.when}` : ''}`
+          label: `${kindLabel[d.kind]}${when ? ` · ${when}` : ''}`
         },
         focus: {
           kind: d.kind,
-          time: d.when ?? 'No time yet',
+          time: when ?? 'No time yet',
           project: projects[d.project].name,
           duration: d.duration ?? '—',
           reason: d.reason
