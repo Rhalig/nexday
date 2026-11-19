@@ -437,7 +437,7 @@ export default function Today(): React.JSX.Element {
           placeholder={'Type anything… "coffee with Ece tomorrow 15:00 #personal"'}
           button="Send"
           hint={
-            'Press Tab to accept the AI suggestion · try "coffee with Ece tomorrow 15:00 #personal"'
+            'Press Tab to accept the suggestion · try "coffee with Ece tomorrow 15:00 #personal"'
           }
           onTask={setGhostTask}
           onSubmit={(text) => {

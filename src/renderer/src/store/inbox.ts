@@ -91,7 +91,7 @@ type InboxState = {
   reset: () => void
   /** A line from quick capture lands in the inbox first; returns its id. */
   capture: (text: string) => string
-  /** The AI suggestion arrives a moment later and replaces the regex one in place. */
+  /** Replaces the first suggestion of a captured item in place. */
   refine: (
     id: string,
     patch: { suggestion?: InboxItem['suggestion']; focus?: InboxItem['focus'] }

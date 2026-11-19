@@ -320,7 +320,7 @@ function PropRow({
 
 export function NewPopup({ type }: { type: NewType }): React.JSX.Element {
   const navigate = useNavigate()
-  const { closeNew, openNew, openDialog, newTitle } = useUI()
+  const { closeNew, openNew, newTitle } = useUI()
   const [title, setTitle] = useState(newTitle)
   const c = configs[type]
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -357,11 +357,6 @@ export function NewPopup({ type }: { type: NewType }): React.JSX.Element {
       })
     } else if (type === 'note' && text) {
       noteId = useNotes.getState().add(text)
-      if (!noteId) {
-        closeNew()
-        openDialog('upgrade', 'notes')
-        return
-      }
     }
     closeNew()
     if (noteId) navigate(`/notes/${noteId}`)

@@ -6,12 +6,10 @@ import { Overlay } from './Overlay'
 import { Button, Kbd, cn } from './ui'
 import { unreadCount, useNotifs, type Notif } from '../store/notifs'
 import { useProjects } from '../store/projects'
-import { withinLimit } from '../lib/plan'
 import { useUI } from '../store/ui'
 import './popups.css'
 import { useIdentity } from '../lib/identity'
 import { retryNow, useSync } from '../lib/cloud'
-import { usePlan } from '../lib/plan'
 import { useCalendar } from '../store/calendar'
 
 /** Closes on Escape (capture phase so it wins over a drawer underneath). */
@@ -36,7 +34,6 @@ function Catcher({ onClose }: { onClose: () => void }): React.JSX.Element {
 
 export function ProfileMenu(): React.JSX.Element {
   const who = useIdentity()
-  const planId = usePlan((s) => s.id)
   const { closePanel, openPanel, autoSchedule, pauseNotifs, toggle } = useUI()
   const navigate = useNavigate()
   useEscape(closePanel)
@@ -70,7 +67,7 @@ export function ProfileMenu(): React.JSX.Element {
           <div className="col" style={{ flex: 1 }}>
             <span style={{ fontSize: 13.5, fontWeight: 500 }}>{who.name}</span>
             <span style={{ fontSize: 12, color: '#767676' }}>
-              Personal space · {planId === 'pro' ? 'Pro' : 'Free'}
+              Personal space · Beta
             </span>
           </div>
         </div>
@@ -491,20 +488,13 @@ const colors = ['#F38020', '#5B6578', '#A4505A', '#2E8B57', '#3B6FD4']
 export function NewProjectPopup(): React.JSX.Element {
   const navigate = useNavigate()
   const closePanel = useUI((s) => s.closePanel)
-  const openDialog = useUI((s) => s.openDialog)
   const add = useProjects((s) => s.add)
-  const custom = useProjects((s) => s.custom)
   const [name, setName] = useState('')
   const [color, setColor] = useState('#3B6FD4')
 
   const create = (): void => {
     const n = name.trim()
     if (!n) return
-    if (!withinLimit('projects', custom.length)) {
-      closePanel()
-      openDialog('upgrade', 'projects')
-      return
-    }
     const slug = add(n, color)
     closePanel()
     navigate(`/projects/${slug}`)

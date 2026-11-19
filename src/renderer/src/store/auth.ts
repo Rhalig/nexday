@@ -1,7 +1,6 @@
 import type { Session } from '@supabase/supabase-js'
 import { create } from 'zustand'
 import { startCloud, stopCloud } from '../lib/cloud'
-import { usePlan } from '../lib/plan'
 import { AUTH_REDIRECT, supabase } from '../lib/supabase'
 
 /**
@@ -103,7 +102,6 @@ type AuthState = Saved & {
   resetPassword: (email: string) => Promise<AuthResult>
   updatePassword: (password: string) => Promise<AuthResult>
   cancelRecovery: () => void
-  signInWithGoogle: () => Promise<AuthResult>
   signOut: () => Promise<void>
   /** Mock sign-in, only used when Supabase is not configured */
   signIn: (p: { name?: string; email?: string }) => void
@@ -166,12 +164,6 @@ export const useAuth = create<AuthState>((set, get) => ({
     // Sign-in, confirmation and reset links open nexday://auth/callback?code=…
     window.api?.onAuthCallback(async (link) => {
       const u = new URL(link)
-      // nexday://billing/success comes back from Stripe Checkout: the webhook may still be in flight.
-      if (u.hostname === 'billing') {
-        void usePlan.getState().load()
-        setTimeout(() => void usePlan.getState().load(), 3000)
-        return
-      }
       const code = u.searchParams.get('code')
       // PKCE reset links carry only a code, so fall back to "a reset was asked for recently".
       const isRecovery = u.searchParams.get('type') === 'recovery' || resetWasRequested()
@@ -235,21 +227,6 @@ export const useAuth = create<AuthState>((set, get) => ({
     set({ recovery: false })
   },
 
-  signInWithGoogle: async () => {
-    if (!supabase) return { error: 'not configured' }
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: AUTH_REDIRECT, skipBrowserRedirect: true }
-    })
-    if (error || !data.url)
-      return { error: error ? friendly(error.message) : 'Could not start Google sign-in.' }
-    forgetReset()
-    clearRecovery()
-    set({ recovery: false })
-    if (window.api) await window.api.openExternal(data.url)
-    else window.open(data.url, '_blank')
-    return {}
-  },
 
   signOut: async () => {
     if (supabase) await supabase.auth.signOut()

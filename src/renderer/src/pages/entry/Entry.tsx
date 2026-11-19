@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import logo from '../../assets/logo.jpg'
-import googleIcon from '../../assets/google.svg'
 import previewToday from '../../assets/preview-today.png'
 import previewRegister from '../../assets/preview-register.png'
 import { useAuth } from '../../store/auth'
@@ -52,14 +51,6 @@ function Split({
   )
 }
 
-const Divider = ({ my }: { my: number }): React.JSX.Element => (
-  <div className="nx-or" style={{ margin: `${my}px 0` }}>
-    <i />
-    <span>or with email</span>
-    <i />
-  </div>
-)
-
 const Eye = (
   <svg
     width="16"
@@ -76,17 +67,6 @@ const Eye = (
     <circle cx="12" cy="12" r="3" />
   </svg>
 )
-
-function Social({ verb, onDone }: { verb: string; onDone: () => void }): React.JSX.Element {
-  return (
-    <div className="col" style={{ gap: 10 }}>
-      <button className="nx-btn" onClick={onDone}>
-        <img src={googleIcon} width={16} height={16} alt="" />
-        <span>{verb} with Google</span>
-      </button>
-    </div>
-  )
-}
 
 function Password({
   placeholder,
@@ -170,16 +150,6 @@ export function Login(): React.JSX.Element {
     if (r.error) setError(r.error)
     else navigate('/today')
   }
-  const social = async (): Promise<void> => {
-    setError(null)
-    if (!auth.configured) {
-      auth.signIn({})
-      navigate('/today')
-      return
-    }
-    const r = await auth.signInWithGoogle()
-    if (r.error) setError(r.error)
-  }
 
   return (
     <Split
@@ -189,13 +159,9 @@ export function Login(): React.JSX.Element {
     >
       <h1>Welcome back</h1>
       <p className="nx-sub">Log in to see what today looks like.</p>
-      <div style={{ marginTop: 28 }}>
-        <Social verb="Continue" onDone={() => void social()} />
-      </div>
-      <Divider my={22} />
       <form
         className="col"
-        style={{ gap: 16 }}
+        style={{ gap: 16, marginTop: 28 }}
         onSubmit={(e) => {
           e.preventDefault()
           void submit()
@@ -286,16 +252,6 @@ export function Register(): React.JSX.Element {
       navigate('/forgot/sent', { state: { email: email.trim(), kind: 'confirm' } })
     else navigate('/onboarding/1')
   }
-  const social = async (): Promise<void> => {
-    setError(null)
-    if (!auth.configured) {
-      auth.signIn({})
-      navigate('/onboarding/1')
-      return
-    }
-    const r = await auth.signInWithGoogle()
-    if (r.error) setError(r.error)
-  }
   return (
     <Split
       preview={previewRegister}
@@ -303,14 +259,10 @@ export function Register(): React.JSX.Element {
       sub="Meetings, tasks, notes and habits sit side by side, so nothing gets double-booked."
     >
       <h1>Create your account</h1>
-      <p className="nx-sub">Free for 14 days. No card needed.</p>
-      <div style={{ marginTop: 24 }}>
-        <Social verb="Sign up" onDone={() => void social()} />
-      </div>
-      <Divider my={20} />
+      <p className="nx-sub">Free while Nexday is in beta.</p>
       <form
         className="col"
-        style={{ gap: 14 }}
+        style={{ gap: 14, marginTop: 24 }}
         onSubmit={(e) => {
           e.preventDefault()
           void create()

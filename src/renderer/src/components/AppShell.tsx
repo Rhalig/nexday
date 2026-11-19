@@ -10,7 +10,6 @@ import {
   ProjectSettingsDialog,
   ShareDialog,
   TemplatesDialog,
-  UpgradeDialog
 } from './Dialogs'
 import { Sidebar } from './Sidebar'
 import { useUI } from '../store/ui'
@@ -89,7 +88,6 @@ export function AppShell(): React.JSX.Element {
       {dialog?.name === 'templates' && <TemplatesDialog />}
       {dialog?.name === 'projectSettings' && <ProjectSettingsDialog slug={dialog.slug ?? ''} />}
       {dialog?.name === 'share' && <ShareDialog slug={dialog.slug ?? ''} />}
-      {dialog?.name === 'upgrade' && <UpgradeDialog resource={dialog.slug} />}
     </>
   )
 }

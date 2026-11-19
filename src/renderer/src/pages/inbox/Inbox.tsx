@@ -7,41 +7,11 @@ import { QuickCapture } from '../../components/QuickCapture'
 import { Button, GroupHeader, Kbd, Segmented, cn } from '../../components/ui'
 import { useUI } from '../../store/ui'
 import { SnoozePopover } from '../../components/Pickers'
-import { projects } from '../../data/tasks'
 import { sourceIcon, useInbox, type InboxItem, type InboxSource } from '../../store/inbox'
 import { pageDate } from '../../lib/clock'
-import { aiInboxSuggestion } from '../../lib/ai'
 import { useTodayData } from '../../lib/useToday'
 import { fmtMin } from '../../lib/today'
 import './inbox.css'
-
-const kindLabel = { task: 'Task', event: 'Event', note: 'Note' } as const
-const kindIcon = { task: 'tasks', event: 'calendar', note: 'file' } as const
-
-/** Capture first (instant), then let AI improve the suggestion in place when it answers. */
-function captureWithAi(text: string): void {
-  const inbox = useInbox.getState()
-  const id = inbox.capture(text)
-  void aiInboxSuggestion(text, 'Captured by you · just now · via quick capture', 'capture').then(
-    (r) => {
-      if ('error' in r) return
-      const d = r.data
-      inbox.refine(id, {
-        suggestion: {
-          icon: kindIcon[d.kind],
-          label: `${kindLabel[d.kind]}${d.when ? ` · ${d.when}` : ''}`
-        },
-        focus: {
-          kind: d.kind,
-          time: d.when ?? 'No time yet',
-          project: projects[d.project].name,
-          duration: d.duration ?? '—',
-          reason: d.reason
-        }
-      })
-    }
-  )
-}
 
 type Filter = 'all' | InboxSource
 
@@ -94,7 +64,7 @@ function InboxZero(): React.JSX.Element {
         button="Add"
         hint="Captured items land here until you plan them."
         suggestions={INBOX_SUGGESTIONS}
-        onSubmit={captureWithAi}
+        onSubmit={(text) => void useInbox.getState().capture(text)}
       />
     </main>
   )
@@ -306,7 +276,7 @@ export default function Inbox(): React.JSX.Element {
         button="Send"
         hint="Everything you capture lands here first, then Nexday suggests where it belongs."
         suggestions={INBOX_SUGGESTIONS}
-        onSubmit={captureWithAi}
+        onSubmit={(text) => void useInbox.getState().capture(text)}
       />
     </main>
   )

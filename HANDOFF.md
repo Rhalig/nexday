@@ -11,7 +11,7 @@ A day planner: Today, Inbox, Calendar, Tasks, Notes, Habits, Projects, Settings,
 - Check: `./node_modules/.bin/tsc --noEmit -p tsconfig.web.json --composite false` and the same with `tsconfig.node.json`.
 - Package (Apple Silicon, ad-hoc signed, no Developer ID yet):
   `npm run build:eventkit && ./node_modules/.bin/electron-vite build && CSC_IDENTITY_AUTO_DISCOVERY=false ./node_modules/.bin/electron-builder --mac dmg zip --arm64 -c.mac.identity=- -c.mac.hardenedRuntime=false -c.directories.output=$HOME/nexday-release4`
-  (the last built .app is `~/nexday-release3/mac-arm64/Nexday.app`; Google sign-in only works from a packaged app, because macOS routes `nexday://` links to registered apps only).
+  (the last built .app is `~/nexday-release3/mac-arm64/Nexday.app`; email confirmation and reset links only work from a packaged app, because macOS routes `nexday://` links to registered apps only).
 - Config: `.env` holds `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (public key, gitignored). Never put a secret/service key in the app.
 
 ## Code map (`src/renderer/src`)
@@ -23,10 +23,10 @@ A day planner: Today, Inbox, Calendar, Tasks, Notes, Habits, Projects, Settings,
 - Main process (`src/main`): `storage.ts` (JSON file), `secure.ts` (keychain-encrypted values), `calendar.ts` + `native/eventkit/main.swift` (Mac Calendar via EventKit: read, create, delete), `nexday://` deep link handling in `index.ts`.
 
 ## Backend (Supabase project `xsullpmifpyxkkbguznp`, URL https://xsullpmifpyxkkbguznp.supabase.co)
-- Edge Functions in `supabase/functions/`: `ai` (Gemini), `billing` (Stripe Checkout), `stripe-webhook`, `delete-account`. Only `delete-account` is deployed; each file header lists the secrets it needs.
+- Edge Functions in `supabase/functions/`: only `delete-account` (the `ai`, `billing` and `stripe-webhook` ones were removed, see "Beta is free"). It is deployed; each file header lists the secrets it needs.
 - Schema in `supabase/migrations/0001_init.sql` and `0002_habit_meta.sql`, both already applied (through the dashboard SQL editor; no CLI link). 14 tables, row level security on all, signup trigger creates profile and a 14-day trial, `plans` table holds limits (free: 5 projects, 50 notes, 1 calendar, 200 AI/month; Pro $6).
 - Auth: email+password and Google. Redirect URL `nexday://auth/callback` is allowed. Email confirmation is on; Supabase's default email sender is rate-limited, a real SMTP (Resend/Brevo) is still needed.
-- Google Cloud project `nexday-515118` ("Nexday"), OAuth consent in Testing mode with the owner's Gmail as the only test user, Web client whose redirect is the Supabase callback. Google sign-in was tested by the owner and works.
+- Google Cloud project `nexday-515118` ("Nexday"), OAuth consent in Testing mode with the owner's Gmail as the only test user, Web client whose redirect is the Supabase callback. Google sign-in was removed from the app for the beta.
 - Cloud-synced today: tasks, inbox, habits (+ check-ins), notifications, custom projects, notes (with body/metadata in `notes.body` JSON), events created inside Nexday (all-day, rrule, Mac external id), two UI settings (autoSchedule, pauseNotifs). Sample notes are seeded once per account (flagged `settings.notesSeeded`), staggered a second apart so list order survives `order by created_at`.
 
 ## Decisions already made
@@ -43,8 +43,6 @@ Cloud accounts with Supabase free tier. AI = Gemini free tier (key must live in 
 1. Real SMTP for confirmation/reset emails (dashboard-only, needs the owner): Resend or Brevo, then Supabase Dashboard → Authentication → Emails → SMTP (host `smtp.resend.com`, port 465/587, user `resend`, password = API key). Test from a packaged app (only registered apps receive `nexday://` links).
 2. Launch at login, editable keyboard shortcuts, subtask editing, recurring/all-day and Mac-only event rescheduling.
 3. Release: Apple Developer ID + notarization, auto-update, Intel/universal build, crash reporting, privacy policy and terms, tests (none yet).
-4. Deploy the other Edge Functions (`ai`, `billing`, `stripe-webhook`); Stripe and Gemini setup by the owner.
-5. Optional: rotate the Google OAuth client secret (it appeared in a chat once), publish the Google app out of Testing.
 
 ## Notes editor
 - `pages/notes/NoteEditor.tsx`: title input + one plain-text writing area (`Note.text`, saved in `notes.body.text`; the preview line `summary` follows it). Conventions per line (`lib/noteText.ts`): `# heading`, `- bullet`, `[ ] action item` (`[x]` done, `[>]` sent to the plan). `/` opens a command menu (action item, bullet, heading), Enter continues a list, Enter on an empty marker ends it, the bottom bar applies the same prefixes. Auto-saves 600 ms after typing stops and on leaving; the side card lists the action items (tick to mark done), "Add N to plan" creates tasks in "No time yet" and marks the lines `[>]`, "Find with AI" appends `[ ]` lines from the `ai` function. Delete note is in the top bar.
@@ -71,19 +69,15 @@ Cloud accounts with Supabase free tier. AI = Gemini free tier (key must live in 
 - Preferences (`ui.prefs`), Notifications (`ui.notifPrefs`) and Calendars sync rules (`ui.calPrefs`) are controlled and persisted the same way. They are stored, not yet applied everywhere (see Not done #2).
 - “Reserve time for habits” adds every habit's time+length as a busy block in the planner.
 
-## Limits & payments done (needs Stripe setup)
-- `lib/plan.ts` loads `subscriptions` + `plans` + this month's `ai_usage`; cloud loads it after sign-in and resets on sign-out.
-- Enforced: notes (Free 50) and user-created projects (Free 5) block creation and open an “Upgrade” dialog; AI is enforced server-side in the Edge Function; a Mac Calendar connection counts as the one calendar (its internal calendars are not counted). Limit checks are client-side except AI.
-- Settings › Billing shows the real plan and live usage (projects, notes, AI calls) and its buttons start Stripe Checkout. `lib/billing.ts` opens the returned URL externally.
-- `supabase/functions/billing/index.ts` creates a Stripe Checkout subscription session; `supabase/functions/stripe-webhook/index.ts` verifies the signature and upserts `subscriptions` (plan pro/free, status, period end). Success/cancel return through `nexday://billing/success|cancel`, which reloads the plan.
-- Setup (owner): create a recurring $6 price in Stripe → add secrets `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`; deploy `billing`; add webhook endpoint `https://<ref>.supabase.co/functions/v1/stripe-webhook` with `checkout.session.completed` + `customer.subscription.created/updated/deleted`; add `STRIPE_WEBHOOK_SECRET` and deploy `stripe-webhook`. Test in Stripe test mode first.
+## Beta distribution
+- The beta is a direct download from the owner's website, not the App Store. An ad-hoc signed app shows "unidentified developer" on first launch and the owner accepts that; Apple Developer ID and notarization are NOT needed for the beta. Testers open it with right-click › Open (or System Settings › Privacy & Security › Open Anyway). Auto-update without a Developer ID is not practical, so the beta ships by re-downloading.
 
-## AI done (needs deployment)
-- `supabase/functions/delete-account/index.ts` (deployed, Verify JWT on; tested end to end with a throwaway user: data deleted, login afterwards fails): verifies the caller, cancels an active Stripe subscription first (refuses to delete if that fails or `STRIPE_SECRET_KEY` is missing while a Stripe subscription exists), then `auth.admin.deleteUser`; every table cascades from `auth.users`. Deploy with "Verify JWT" ON, no extra secrets. Client: `lib/account.ts` + `DeleteAccountDialog` (Settings › Data & privacy, type DELETE).
-- `supabase/functions/ai/index.ts` holds the Gemini key and does three actions: `parse` (quick-capture classification), `inbox` (one suggestion for a captured item) and `note` (action items). It checks `plans.limits.ai_per_month` and the current month's `ai_usage.calls`, then increments the counter. `GEMINI_MODEL` defaults to `gemini-2.5-flash`.
-- Deploy: Supabase Dashboard → Edge Functions → Create function `ai`, paste the file, Deploy; or `supabase link --project-ref xsullpmifpyxkkbguznp && supabase functions deploy ai`. Then Edge Functions → Secrets → add `GEMINI_API_KEY` (Google AI Studio). No key in the app or repo.
-- Client `lib/ai.ts`. Inbox quick capture shows the regex suggestion instantly and replaces it with the AI one when it arrives. Note editor has “Find action items” → “Add all to plan” (lands in No time yet, ready for auto-schedule).
-- Until the function is deployed the UI says “AI is not set up yet” and the rest of the app works unchanged. The task quick-capture path still uses the regex parser.
+## Beta is free (AI, billing, Google sign-in removed)
+- Decision: the beta is free, so there are no plan limits, no Upgrade dialog, no Settings › Plan & billing, no Stripe, no AI, and no "Continue with Google" button. Sign-in is email + password only. Register says "Free while Nexday is in beta."
+- Removed from the app: `lib/plan.ts`, `lib/billing.ts`, `lib/ai.ts`, `UpgradeDialog`, project/note limit checks, the Inbox AI suggestion, the note editor's "Find with AI", `signInWithGoogle`. Removed from the repo: Edge Functions `ai`, `billing`, `stripe-webhook` (git history has them if paid plans or AI come back).
+- Kept on purpose: the `plans`/`subscriptions`/`ai_usage` tables and the signup trigger (harmless, ready for later), the `nexday://` link handler (email confirmation and password reset still use it), and `delete-account` (still deployed; its Stripe branch only runs if a Stripe subscription exists, which cannot happen now).
+- Supabase dashboard: the Google provider can be switched off under Authentication › Providers; the Google Cloud project is no longer needed for the beta.
+- `delete-account` is deployed (Verify JWT on) and was tested end to end with a throwaway user. Client: `lib/account.ts` + `DeleteAccountDialog` (Settings › Data & privacy, type DELETE).
 
 ## Pitfalls learned
 - Short generic CSS class names collide with older global ones (`.en`, `.sp` both broke things). Prefix new classes (`st-`, `nx-`, `fc-`, `tv-`, `ts-`).

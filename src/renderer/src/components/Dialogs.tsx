@@ -10,7 +10,6 @@ import { useHabits } from '../store/habits'
 import { useCalendar } from '../store/calendar'
 import { useUI } from '../store/ui'
 import { useInbox } from '../store/inbox'
-import { usePlan } from '../lib/plan'
 import { deleteAccount } from '../lib/account'
 import { toStoreTask, type ParsedImport } from '../lib/dataPorter'
 import { PLAN_HORIZON, planDayLabel, planTasks } from '../lib/planning'
@@ -85,48 +84,6 @@ function Toggle2({
   )
 }
 
-/* ---------------- Plan limit ---------------- */
-
-export function UpgradeDialog({ resource }: { resource?: string }): React.JSX.Element {
-  const close = useUI((s) => s.closeDialog)
-  const navigate = useNavigate()
-  const plan = usePlan()
-  const copy: Record<string, { title: string; sub: string }> = {
-    notes: {
-      title: 'Note limit reached',
-      sub: `The Free plan includes ${plan.limits.notes ?? 50} notes. Nexday Pro removes the limit.`
-    },
-    projects: {
-      title: 'Project limit reached',
-      sub: `The Free plan includes ${plan.limits.projects ?? 5} projects. Nexday Pro removes the limit.`
-    },
-    ai: {
-      title: 'AI limit reached',
-      sub: `The Free plan includes ${plan.limits.ai_per_month ?? 200} AI suggestions a month. Nexday Pro removes the limit.`
-    }
-  }
-  const c = copy[resource ?? ''] ?? {
-    title: 'Free plan limit reached',
-    sub: 'Nexday Pro removes the limits on projects, notes and AI suggestions.'
-  }
-  return (
-    <Modal top={240} width={460} onClose={close}>
-      <Header title={c.title} sub={c.sub} onClose={close} />
-      <div className="row" style={{ justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>
-        <Button onClick={close}>Not now</Button>
-        <Button
-          variant="dark"
-          onClick={() => {
-            close()
-            navigate('/settings/compare')
-          }}
-        >
-          See plans
-        </Button>
-      </div>
-    </Modal>
-  )
-}
 
 /* ---------------- Delete account ---------------- */
 

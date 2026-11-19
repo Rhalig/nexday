@@ -21,7 +21,6 @@ import {
   useUI
 } from '../store/ui'
 import { addDays, appToday, dayKey, daysFromToday, startOfDay, startOfWeek, weekdayIndex } from './clock'
-import { usePlan } from './plan'
 import { kv } from './persist'
 import { supabase } from './supabase'
 
@@ -1004,7 +1003,6 @@ export async function startCloud(userId: string): Promise<void> {
   useSync.setState({ ready: false, state: 'idle', error: null, loadError: null })
   try {
     await loadAll(userId)
-    await usePlan.getState().load()
   } catch (e) {
     // Do not start saving on top of an empty app: show a retry screen instead.
     console.error('[cloud] load failed', e)
@@ -1068,7 +1066,6 @@ export function stopCloud(): void {
   useProjects.setState({ custom: [] })
   useNotes.setState({ notes: [] })
   useCalendar.getState().reset()
-  usePlan.getState().reset()
   useUI.setState({
     autoSchedule: true,
     pauseNotifs: false,

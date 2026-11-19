@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { notes as sampleNotes, type Note } from '../data/notes'
-import { withinLimit } from '../lib/plan'
 import { summaryOf } from '../lib/noteText'
 import { appToday, clockTime } from '../lib/clock'
 import { supabase } from '../lib/supabase'
@@ -14,10 +13,9 @@ type NotesState = {
   remove: (id: string) => void
 }
 
-export const useNotes = create<NotesState>((set, get) => ({
+export const useNotes = create<NotesState>((set) => ({
   notes: supabase ? [] : sampleNotes,
   add: (title) => {
-    if (!withinLimit('notes', get().notes.length)) return null
     const id = crypto.randomUUID()
     const note: Note = {
       id,

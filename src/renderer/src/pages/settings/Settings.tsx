@@ -1,17 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
-import { DeleteAccountDialog, ImportDialog, Modal } from '../../components/Dialogs'
+import { DeleteAccountDialog, ImportDialog } from '../../components/Dialogs'
 import { cn } from '../../components/ui'
 import { useAuth } from '../../store/auth'
 import { useIdentity, timeZoneName } from '../../lib/identity'
 import { useCalendar } from '../../store/calendar'
 import { useUI } from '../../store/ui'
 import { GO_TO, SHORTCUTS, comboOf, keycaps, problemWith, resolveShortcuts, type ShortcutId } from '../../lib/shortcuts'
-import { useNotes } from '../../store/notes'
-import { useProjects } from '../../store/projects'
-import { usePlan } from '../../lib/plan'
-import { startCheckout } from '../../lib/billing'
 import {
   buildJsonExport,
   buildTasksCsv,
@@ -29,8 +25,7 @@ const tabs = [
   ['integrations', 'Integrations'],
   ['notifications', 'Notifications'],
   ['shortcuts', 'Shortcuts'],
-  ['data', 'Data & privacy'],
-  ['billing', 'Plan & billing']
+  ['data', 'Data & privacy']
 ] as const
 
 type Tab = (typeof tabs)[number][0]
@@ -209,7 +204,6 @@ const tick = (size: number, color: string, w: number): React.JSX.Element => (
 
 function Profile(): React.JSX.Element {
   const who = useIdentity()
-  const planId = usePlan((st) => st.id)
   return (
     <>
       <div className="row" style={{ gap: 18, paddingBottom: 26 }}>
@@ -232,7 +226,7 @@ function Profile(): React.JSX.Element {
         <div className="col" style={{ gap: 3, flex: 1 }}>
           <span style={{ fontSize: 18, fontWeight: 500 }}>{who.name}</span>
           <span style={{ fontSize: 13.5, color: 'var(--ink2)' }}>
-            Personal space · {planId === 'pro' ? 'Pro' : 'Free'} plan
+            Personal space · Free during the beta
           </span>
         </div>
       </div>
@@ -997,250 +991,13 @@ function Data(): React.JSX.Element {
   )
 }
 
-function Billing({ compare }: { compare: () => void }): React.JSX.Element {
-  const plan = usePlan()
-  const notesCount = useNotes((s) => s.notes.length)
-  const projectsCount = useProjects((s) => s.custom.length)
-  const [upBusy, setUpBusy] = useState(false)
-  const [upErr, setUpErr] = useState<string | null>(null)
-  const pro = plan.id === 'pro'
-  useEffect(() => {
-    void usePlan.getState().load()
-  }, [])
-  const pct = (used: number, limit?: number | null): number =>
-    typeof limit === 'number' && limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0
-  const of = (used: number, limit?: number | null): string => `${used} of ${limit ?? '∞'}`
-  const upgrade = async (): Promise<void> => {
-    setUpErr(null)
-    setUpBusy(true)
-    const r = await startCheckout()
-    setUpBusy(false)
-    if (r.error) setUpErr(r.error)
-  }
-  const feats = [
-    'Unlimited projects and notes',
-    'Up to 5 connected calendars',
-    'Weekly auto-schedule',
-    'Meeting notes with action items',
-    'Priority support'
-  ]
-  const us = (n: string, pct: number, v: string, end?: boolean): React.JSX.Element => (
-    <div className={cn('st-us', end && 'end')} key={n}>
-      <span className="n">{n}</span>
-      <div className="st-bar">
-        <i style={{ width: `${pct}%` }} />
-      </div>
-      <span className="v">{v}</span>
-    </div>
-  )
-  return (
-    <>
-      <Head
-        title="Plan & billing"
-        sub={pro ? 'You are on Nexday Pro. Thank you.' : 'You are on the Free plan.'}
-        pb={24}
-      />
-      <div
-        className="row"
-        style={{
-          gap: 56,
-          alignItems: 'flex-start',
-          padding: '24px 0',
-          borderTop: '1px solid var(--line)'
-        }}
-      >
-        <div className="col" style={{ flex: 1, gap: 4 }}>
-          <span style={{ fontSize: 13, color: 'var(--ink3)' }}>Nexday Pro</span>
-          <div className="row" style={{ gap: 6, alignItems: 'baseline' }}>
-            <span style={{ fontSize: 32, fontWeight: 500 }}>$6</span>
-            <span style={{ fontSize: 14, color: 'var(--ink2)' }}>per month</span>
-          </div>
-          <span
-            style={{
-              fontSize: 13.5,
-              color: 'var(--ink2)',
-              lineHeight: 1.5,
-              marginTop: 6,
-              maxWidth: 300
-            }}
-          >
-            Unlimited projects and calendars, and Nexday can plan your whole week.
-          </span>
-          <div className="row" style={{ gap: 10, marginTop: 18 }}>
-            {pro ? (
-              <span className="st-btn">You are on Pro</span>
-            ) : (
-              <span className="st-btn dark" onClick={() => void upgrade()}>
-                {upBusy ? 'Opening checkout…' : 'Upgrade to Pro'}
-              </span>
-            )}
-            <span className="st-btn" onClick={compare}>
-              Compare plans
-            </span>
-          </div>
-          {upErr && (
-            <span style={{ fontSize: 12.5, color: 'var(--err)', lineHeight: 1.5, marginTop: 8 }}>
-              {upErr}
-            </span>
-          )}
-        </div>
-        <div className="col" style={{ flex: 1 }}>
-          {feats.map((f) => (
-            <div className="st-f" key={f}>
-              {tick(16, '#F38020', 2.4)}
-              {f}
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ fontSize: 12.5, color: 'var(--ink3)', padding: '26px 0 8px' }}>
-        Usage this month
-      </div>
-      {us(
-        'Projects',
-        pct(projectsCount, plan.limits.projects),
-        of(projectsCount, plan.limits.projects)
-      )}
-      {us('Connected calendars', pct(1, plan.limits.calendars), of(1, plan.limits.calendars))}
-      {us(
-        'Nexday suggestions',
-        pct(plan.aiUsed, plan.limits.ai_per_month),
-        of(plan.aiUsed, plan.limits.ai_per_month)
-      )}
-      {us('Notes', pct(notesCount, plan.limits.notes), of(notesCount, plan.limits.notes), true)}
-      <div style={{ fontSize: 12.5, color: 'var(--ink3)', padding: '26px 0 8px' }}>Billing</div>
-      <div className="st-us">
-        <span className="n">Payment method</span>
-        <span style={{ fontSize: 13.5, color: 'var(--ink3)', flex: 1 }}>
-          {pro ? 'Stripe' : 'None added'}
-        </span>
-        {!pro && <span className="st-btn">Add card</span>}
-      </div>
-      <div className="st-us end">
-        <span className="n">Invoices</span>
-        <span style={{ fontSize: 13.5, color: 'var(--ink3)', flex: 1 }}>No invoices yet</span>
-      </div>
-    </>
-  )
-}
-
-function CompareDialog({ onClose }: { onClose: () => void }): React.JSX.Element {
-  const [yearly, setYearly] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const upgrade = async (): Promise<void> => {
-    setBusy(true)
-    const r = await startCheckout()
-    setBusy(false)
-    if (!r.error) onClose()
-  }
-  const rows: Array<[string, string, string | true]> = [
-    ['Projects', 'Up to 5', 'Unlimited'],
-    ['Notes', 'Up to 50', 'Unlimited'],
-    ['Connected calendars', '1', 'Up to 5'],
-    ['Nexday suggestions', '200 per month', 'Unlimited'],
-    ['Weekly auto-schedule', '—', true],
-    ['Meeting notes with action items', '—', true],
-    ['Support', 'Community', 'Priority']
-  ]
-  const seg = (on: boolean): React.CSSProperties => ({
-    height: 28,
-    lineHeight: '28px',
-    padding: '0 14px',
-    borderRadius: 7,
-    fontSize: 12.5,
-    cursor: 'pointer',
-    ...(on
-      ? { background: '#fff', boxShadow: '0 1px 2px rgba(0,0,0,.08)', fontWeight: 500 }
-      : { color: '#6B6B6B' })
-  })
-  return (
-    <Modal top={110} width={760} onClose={onClose} style={{ width: 760, lineHeight: 1.5 }}>
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div className="col">
-          <span style={{ fontSize: 20, fontWeight: 500 }}>Compare plans</span>
-          <span style={{ fontSize: 13, color: '#6B6B6B' }}>
-            Everything in Free stays free. Pro removes the limits and lets Nexday plan your week.
-          </span>
-        </div>
-        <button className="dl-x" onClick={onClose} aria-label="Close">
-          <Icon name="x" size={16} strokeWidth={1.9} />
-        </button>
-      </div>
-      <div className="row" style={{ marginTop: 20, alignItems: 'flex-end' }}>
-        <div style={{ flex: 1 }}>
-          <div
-            className="row"
-            style={{
-              padding: 3,
-              borderRadius: 10,
-              background: '#F5F5F4',
-              border: '1px solid #EDEDEB',
-              width: 'fit-content'
-            }}
-          >
-            <span style={seg(!yearly)} onClick={() => setYearly(false)}>
-              Monthly
-            </span>
-            <span style={seg(yearly)} onClick={() => setYearly(true)}>
-              Yearly · 2 months free
-            </span>
-          </div>
-        </div>
-        <div className="col" style={{ width: 160, lineHeight: 1.3 }}>
-          <span style={{ fontSize: 13, color: '#6B6B6B' }}>Free</span>
-          <span style={{ fontSize: 24, fontWeight: 500 }}>$0</span>
-        </div>
-        <div className="col" style={{ width: 160, lineHeight: 1.3 }}>
-          <span style={{ fontSize: 13, color: '#B4500A' }}>Nexday Pro</span>
-          <span style={{ fontSize: 24, fontWeight: 500 }}>
-            {yearly ? '$5' : '$6'}{' '}
-            <span style={{ fontSize: 13, fontWeight: 400, color: '#6B6B6B' }}>per month</span>
-          </span>
-        </div>
-      </div>
-      <div className="col" style={{ marginTop: 14, borderTop: '1px solid #EDEDEB' }}>
-        {rows.map(([a, b, c]) => (
-          <div
-            key={a}
-            className="row"
-            style={{ minHeight: 46, borderBottom: '1px solid #EDEDEB', fontSize: 13.5 }}
-          >
-            <span style={{ flex: 1 }}>{a}</span>
-            <span style={{ width: 160, color: '#6B6B6B' }}>{b}</span>
-            <span style={{ width: 160, fontWeight: 500 }}>
-              {c === true ? tick(16, '#F38020', 2.4) : c}
-            </span>
-          </div>
-        ))}
-      </div>
-      <div className="row" style={{ justifyContent: 'space-between', marginTop: 20 }}>
-        <div className="row" style={{ gap: 8 }}>
-          <span className="sn-k" style={{ padding: '1px 5px' }}>
-            esc
-          </span>
-          <span style={{ fontSize: 12, color: '#6B6B6B' }}>Close</span>
-        </div>
-        <div className="row" style={{ gap: 10 }}>
-          <button className="btn" onClick={onClose}>
-            Maybe later
-          </button>
-          <button className="btn dark" onClick={() => void upgrade()} disabled={busy}>
-            {busy ? 'Opening checkout…' : `Upgrade to Pro · ${yearly ? '$5' : '$6'}/mo`}
-          </button>
-        </div>
-      </div>
-    </Modal>
-  )
-}
-
 /* ---------- shell ---------- */
 
 export default function Settings(): React.JSX.Element {
   const { tab = 'profile' } = useParams()
   const navigate = useNavigate()
-  const compare = tab === 'compare'
-  const current = (compare ? 'billing' : (tabs.find((t) => t[0] === tab)?.[0] ?? 'profile')) as Tab
-  const back = (): void => void navigate(compare ? '/settings/billing' : '/today')
+  const current = (tabs.find((t) => t[0] === tab)?.[0] ?? 'profile') as Tab
+  const back = (): void => void navigate('/today')
   const go = (t: Tab): void => void navigate(`/settings/${t}`)
 
   useEffect(() => {
@@ -1300,15 +1057,11 @@ export default function Settings(): React.JSX.Element {
                 {current === 'notifications' && <Notifications />}
                 {current === 'shortcuts' && <Shortcuts />}
                 {current === 'data' && <Data />}
-                {current === 'billing' && (
-                  <Billing compare={() => void navigate('/settings/compare')} />
-                )}
               </div>
             </div>
           </div>
         </div>
       </div>
-      {compare && <CompareDialog onClose={() => void navigate('/settings/billing')} />}
     </>
   )
 }
