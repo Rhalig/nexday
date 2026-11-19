@@ -264,7 +264,8 @@ export function AutoScheduleDialog(): React.JSX.Element {
     groups,
     events,
     { ...plan, useEnergy, buffer: bufferOn ? plan.buffer : 0 },
-    plan.reserveHabits ? habits.map((h) => ({ time: h.time, length: h.length })) : []
+    plan.reserveHabits ? habits.filter((h) => !h.paused).map((h) => ({ time: h.time, length: h.length })) : [],
+    Object.fromEntries(Object.entries(projectPrefs).filter(([, p]) => p.weekly).map(([k, p]) => [k, (p.weekly ?? 0) * 60]))
   )
   const pending = result.placements
   const days = new Set(pending.map((p) => p.date)).size
@@ -573,12 +574,13 @@ export function ProjectSettingsDialog({ slug }: { slug?: string }): React.JSX.El
   const [color, setColor] = useState(pref?.color ?? p.color)
   const [auto, setAuto] = useState(pref?.auto !== false)
   const [side, setSide] = useState(pref?.sidebar !== false)
+  const [weekly, setWeekly] = useState(pref?.weekly ?? 0)
   const [confirmDel, setConfirmDel] = useState(false)
   useEscape(closeDialog)
 
   const save = (): void => {
     const n = name.trim()
-    useUI.getState().setProjectPref(key, { auto, sidebar: side, ...(builtinKey ? { description: desc, color } : null) })
+    useUI.getState().setProjectPref(key, { auto, sidebar: side, weekly: weekly || undefined, ...(builtinKey ? { description: desc, color } : null) })
     if (custom && n) useProjects.getState().update(custom.slug, { name: n, color, description: desc })
     closeDialog()
   }
@@ -645,6 +647,17 @@ export function ProjectSettingsDialog({ slug }: { slug?: string }): React.JSX.El
           <span className="dl-pl">Auto-schedule</span>
           <span style={{ fontSize: 14, flex: 1 }}>Place tasks from this project in my free time</span>
           <Toggle2 on={auto} onChange={setAuto} />
+        </div>
+        <div className="dl-pr">
+          <span className="dl-pl">Time per week</span>
+          <select className="dl-field" value={weekly} onChange={(e) => setWeekly(Number(e.target.value))} aria-label="Time per week">
+            <option value={0}>No limit</option>
+            {[1, 2, 3, 5, 8, 10, 15, 20].map((h) => (
+              <option key={h} value={h}>
+                {h} h per week
+              </option>
+            ))}
+          </select>
         </div>
         <div className="dl-pr">
           <span className="dl-pl">In sidebar</span>

@@ -28,6 +28,7 @@ type HabitsState = {
   /** Ids of habits skipped today */
   skipped: string[]
   skipToday: (id: string) => void
+  setPaused: (id: string, paused: boolean) => void
   toggleToday: (id: string) => void
   add: (name: string, opts?: { time?: string; lengthMin?: number; days?: number[] }) => void
 }
@@ -42,6 +43,7 @@ export const useHabits = create<HabitsState>((set) => ({
       saveSkips(skipped)
       return { skipped }
     }),
+  setPaused: (id, paused) => set((s) => ({ habits: s.habits.map((h) => (h.id === id ? { ...h, paused } : h)) })),
   add: (name, opts) =>
     set((s) => {
       const time = opts?.time || '09:00'

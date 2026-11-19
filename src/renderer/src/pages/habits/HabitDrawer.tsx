@@ -33,6 +33,7 @@ export default function HabitDrawer({
 }): React.JSX.Element {
   const toggleToday = useHabits((s) => s.toggleToday)
   const skipToday = useHabits((s) => s.skipToday)
+  const setPaused = useHabits((s) => s.setPaused)
   const skipped = useHabits((s) => s.skipped.includes(habit.id))
   const today = appToday()
   const month = monthCells(today, habit.doneToday)
@@ -156,10 +157,10 @@ export default function HabitDrawer({
 
       <div style={{ flex: 1 }} />
       <div className="row" style={{ gap: 10, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
-        <span style={{ fontSize: 13.5, color: 'var(--ink2)' }}>Pause habit</span>
+        <Button onClick={() => setPaused(habit.id, !habit.paused)}>{habit.paused ? 'Resume habit' : 'Pause habit'}</Button>
         <span style={{ flex: 1 }} />
         <Button
-          disabled={habit.doneToday}
+          disabled={habit.doneToday || habit.paused}
           onClick={() => {
             skipToday(habit.id)
             onClose()

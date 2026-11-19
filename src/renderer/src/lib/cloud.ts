@@ -404,7 +404,8 @@ const habitRow = (h: Habit): Row => ({
     streak: h.streak,
     checkIns: h.checkIns,
     upNextIn: h.upNextIn,
-    upNextNote: h.upNextNote
+    upNextNote: h.upNextNote,
+    paused: h.paused === true ? true : undefined
   },
   deleted_at: null
 })

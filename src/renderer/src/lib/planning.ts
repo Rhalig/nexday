@@ -7,6 +7,7 @@ import {
   dayKey,
   daysFromToday,
   parseDayKey,
+  startOfWeek,
   weekdayIndex,
   weekdayShort
 } from './clock'
@@ -150,9 +151,15 @@ export function planTasks(
   events: KindedEvent[],
   settings: PlanSettings,
   habits: Array<{ time: string; length: string }> = [],
+  /** Project → minutes per week it may take (Project settings › Time per week). Missing = no limit. */
+  weeklyCapMin: Record<string, number> = {},
   now: Date = appToday()
 ): PlanResult {
   const nowMin = now.getHours() * 60 + now.getMinutes()
+
+  // Minutes each capped project already has in a week (planned tasks + what this run places).
+  const weekUsed = new Map<string, number>()
+  const weekKey = (project: string, date: string): string => `${project}|${dayKey(startOfWeek(parseDayKey(date)))}`
 
   // What already sits on each day.
   const taken = new Map<string, Array<{ start: number; len: number; deep: boolean }>>()
@@ -165,6 +172,7 @@ export function planTasks(
       const list = taken.get(date) ?? []
       list.push({ ...slot, deep: t.energy === 'Deep focus' })
       taken.set(date, list)
+      if (weeklyCapMin[t.project]) weekUsed.set(weekKey(t.project, date), (weekUsed.get(weekKey(t.project, date)) ?? 0) + slot.len)
     }
   }
 
@@ -208,10 +216,15 @@ export function planTasks(
       if (placed.has(t.id)) continue
       const len = lenOf(t)
       if (settings.useEnergy && t.energy === 'Deep focus' && deepUsed + len > deepCap) continue
+      // A project with a weekly time limit stops taking slots in a week once it is used up.
+      const cap = weeklyCapMin[t.project]
+      const capKey = weekKey(t.project, date)
+      if (cap && (weekUsed.get(capKey) ?? 0) + len > cap) continue
       const slot = take(gaps, len, t.energy, settings.useEnergy)
       if (slot === null) continue
       gaps = subtract(gaps, slot, slot + len, settings.buffer)
       if (t.energy === 'Deep focus') deepUsed += len
+      if (cap) weekUsed.set(capKey, (weekUsed.get(capKey) ?? 0) + len)
       placed.add(t.id)
       const start = fromMin(slot)
       const end = fromMin(slot + len)

@@ -71,7 +71,7 @@ export default function Today(): React.JSX.Element {
       }
   const storedHabits = useHabits((s) => s.habits)
   const history = useHabits((s) => s.history)
-  const habits = storedHabits.map((h) => (supabase ? { ...h, ...habitNumbers(h, history, now) } : h))
+  const habits = storedHabits.filter((h) => !h.paused).map((h) => (supabase ? { ...h, ...habitNumbers(h, history, now) } : h))
   const notes = useNotes((s) => s.notes)
 
   const nowMin = now.getHours() * 60 + now.getMinutes()

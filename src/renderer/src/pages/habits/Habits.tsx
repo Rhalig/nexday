@@ -85,10 +85,11 @@ export default function Habits(): React.JSX.Element {
 
   if (id === 'empty' || stored.length === 0) return <HabitsEmpty />
 
-  const total = habits.length
-  const done = habits.filter((h) => h.doneToday).length
+  const live = habits.filter((h) => !h.paused)
+  const total = live.length
+  const done = live.filter((h) => h.doneToday).length
   const visible = filter === 'all' ? habits : habits.filter((h) => h.group === filter)
-  const next = habits.find((h) => !h.doneToday && !skipped.includes(h.id))
+  const next = live.find((h) => !h.doneToday && !skipped.includes(h.id))
   const open = id ? habits.find((h) => h.id === id) : undefined
 
   const tabs = [
@@ -157,12 +158,13 @@ export default function Habits(): React.JSX.Element {
             {visible.map((h, i) => (
               <div
                 className={cn('hb-row', i === 0 && 'first', i === visible.length - 1 && 'last')}
+                style={h.paused ? { opacity: 0.55 } : undefined}
                 key={h.id}
                 onClick={() => navigate(`/habits/${h.id}`)}
               >
                 <div className="col" style={{ flex: 1, minWidth: 0 }}>
                   <span className="hb-name">{h.name}</span>
-                  <span className="hb-sub">{h.sub}</span>
+                  <span className="hb-sub">{h.paused ? 'Paused · ' : ''}{h.sub}</span>
                 </div>
                 <WeekCells habit={h} history={history} onToggle={() => toggleToday(h.id)} />
                 <div className="hb-rate">
@@ -239,8 +241,8 @@ export default function Habits(): React.JSX.Element {
                   Open calendar
                 </a>
               </div>
-              {habits.map((h, i) => (
-                <div className={cn('hb-slot', i === habits.length - 1 && 'last')} key={h.id}>
+              {live.map((h, i) => (
+                <div className={cn('hb-slot', i === live.length - 1 && 'last')} key={h.id}>
                   <span className="mono muted" style={{ fontSize: 12.5, width: 42 }}>
                     {h.time}
                   </span>

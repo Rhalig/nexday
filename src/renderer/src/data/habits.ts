@@ -17,6 +17,8 @@ export type Habit = {
   doneToday: boolean
   upNextIn: string
   upNextNote?: string
+  /** Paused habits stay in the list but are left out of Today, reminders and the planner */
+  paused?: boolean
 }
 
 export const initialHabits: Habit[] = [

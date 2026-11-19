@@ -115,7 +115,7 @@ export function checkNotifications(now: Date = appToday()): void {
   if (push(ROW.habits)) {
     for (const h of useHabits.getState().habits) {
       const t = toMin(h.time)
-      if (!h.doneToday && mins >= t && mins < t + 10) once(`${day}|habit|${h.id}`, h.name, `Time for your habit (${h.length}).`)
+      if (!h.paused && !h.doneToday && mins >= t && mins < t + 10) once(`${day}|habit|${h.id}`, h.name, `Time for your habit (${h.length}).`)
     }
   }
 
