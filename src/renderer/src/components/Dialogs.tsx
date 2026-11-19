@@ -10,6 +10,7 @@ import { useHabits } from '../store/habits'
 import { useCalendar } from '../store/calendar'
 import { useUI } from '../store/ui'
 import { useInbox } from '../store/inbox'
+import { useNotes } from '../store/notes'
 import { deleteAccount } from '../lib/account'
 import { toStoreTask, type ParsedImport } from '../lib/dataPorter'
 import { PLAN_HORIZON, planDayLabel, planTasks } from '../lib/planning'
@@ -598,8 +599,14 @@ export function TemplatesDialog(): React.JSX.Element {
           <Button
             variant="dark"
             onClick={() => {
+              // A new note with the template's sections as headings, action-item sections ready to type into.
+              const id = useNotes.getState().add(t.id === 'blank' ? 'Untitled note' : t.label)
+              const body = t.sections
+                .map(([h]) => `# ${h}\n${/action items|next steps/i.test(h) ? '[ ] ' : ''}`)
+                .join('\n')
+              if (body) useNotes.getState().update(id, { text: body })
               closeDialog()
-              navigate('/notes/n1')
+              navigate(`/notes/${id}`)
             }}
           >
             Use template

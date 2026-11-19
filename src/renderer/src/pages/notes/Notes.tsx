@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
 import { PageHead, Topbar } from '../../components/page'
@@ -9,7 +9,9 @@ import { useUI } from '../../store/ui'
 import { useNotes } from '../../store/notes'
 import { pageDate } from '../../lib/clock'
 import { noteTabs, type Note, type NoteCategory } from '../../data/notes'
-import { actionItems, noteText, openActionCount, parseNote } from '../../lib/noteText'
+import { actionItems, noteText, openActionCount } from '../../lib/noteText'
+import { ConfirmDialog } from '../../components/DrawerParts'
+import { NoteBody } from './NoteBody'
 import './notes.css'
 
 type Filter = 'all' | NoteCategory
@@ -24,6 +26,8 @@ export default function Notes(): React.JSX.Element {
   const notes = useNotes((s) => s.notes)
   const [filter, setFilter] = useState<Filter>('all')
   const [selectedId, setSelectedId] = useState('')
+  const [ctx, setCtx] = useState<{ x: number; y: number; id: string } | null>(null)
+  const [deleting, setDeleting] = useState<Note | null>(null)
 
   const visible = filter === 'all' ? notes : notes.filter((n) => n.category === filter)
   const selected = notes.find((n) => n.id === selectedId) ?? visible[0] ?? notes[0]
@@ -93,6 +97,11 @@ export default function Notes(): React.JSX.Element {
                         className={cn('note', n.id === selected?.id && 'on')}
                         onClick={() => setSelectedId(n.id)}
                         onDoubleClick={() => navigate(`/notes/${n.id}`)}
+                        onContextMenu={(e) => {
+                          e.preventDefault()
+                          setSelectedId(n.id)
+                          setCtx({ x: e.clientX, y: e.clientY, id: n.id })
+                        }}
                       >
                         <span className="nt">{n.title}</span>
                         <span className="ns">{n.summary}</span>
@@ -110,7 +119,12 @@ export default function Notes(): React.JSX.Element {
             </section>
 
             {selected && (
-              <Preview note={selected} onOpen={() => navigate(`/notes/${selected.id}`)} />
+              <Preview
+                key={selected.id}
+                note={selected}
+                onOpen={() => navigate(`/notes/${selected.id}`)}
+                onDelete={() => setDeleting(selected)}
+              />
             )}
           </div>
         )}
@@ -126,17 +140,70 @@ export default function Notes(): React.JSX.Element {
           setSelectedId(id)
         }}
       />
+      {ctx && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 59 }} onMouseDown={() => setCtx(null)} onContextMenu={(e) => { e.preventDefault(); setCtx(null) }} />
+          <div className="note-ctx" style={{ left: Math.min(ctx.x, window.innerWidth - 190), top: Math.min(ctx.y, window.innerHeight - 100) }}>
+            <button
+              onClick={() => {
+                navigate(`/notes/${ctx.id}`)
+                setCtx(null)
+              }}
+            >
+              Open
+            </button>
+            <button
+              className="danger"
+              onClick={() => {
+                setDeleting(notes.find((n) => n.id === ctx.id) ?? null)
+                setCtx(null)
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        </>
+      )}
+      {deleting && (
+        <ConfirmDialog
+          title="Delete this note?"
+          body={<>“{deleting.title}” will be removed. This cannot be undone.</>}
+          confirmLabel="Delete note"
+          onConfirm={() => {
+            useNotes.getState().remove(deleting.id)
+            setDeleting(null)
+            setSelectedId('')
+          }}
+          onCancel={() => setDeleting(null)}
+        />
+      )}
     </main>
   )
 }
 
-function Preview({ note, onOpen }: { note: Note; onOpen: () => void }): React.JSX.Element {
-  const text = noteText(note)
-  const lines = parseNote(text)
-  const items = actionItems(text)
-  const open = items.filter((a) => a.state === 'open').length
+function Preview({ note, onOpen, onDelete }: { note: Note; onOpen: () => void; onDelete: () => void }): React.JSX.Element {
+  // Edited in place: the title and the text save a moment after typing stops.
+  const [title, setTitle] = useState(note.title)
+  const [initial] = useState(() => noteText(note))
+  const latest = useRef({ title: note.title, text: initial, dirty: false })
+  const items = actionItems(latest.current.text)
+  const [open, setOpen] = useState(items.filter((a) => a.state === 'open').length)
+  const save = (): void => {
+    const c = latest.current
+    if (!c.dirty) return
+    c.dirty = false
+    useNotes.getState().update(note.id, { title: c.title.trim() || 'Untitled note', text: c.text })
+  }
+  useEffect(() => {
+    const t = setInterval(save, 700)
+    return () => {
+      clearInterval(t)
+      save()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   return (
-    <article className="preview" onDoubleClick={onOpen}>
+    <article className="preview">
       {note.linked && (
         <div className="row" style={{ gap: 8 }}>
           <div
@@ -153,7 +220,16 @@ function Preview({ note, onOpen }: { note: Note; onOpen: () => void }): React.JS
           </span>
         </div>
       )}
-      <h2>{note.title}</h2>
+      <input
+        className="pv-title"
+        value={title}
+        placeholder="Untitled note"
+        onChange={(e) => {
+          setTitle(e.target.value)
+          latest.current.title = e.target.value
+          latest.current.dirty = true
+        }}
+      />
       <div className="row muted" style={{ gap: 8, fontSize: 12.5, marginTop: 4 }}>
         <span>{note.edited}</span>
         <span>·</span>
@@ -162,49 +238,42 @@ function Preview({ note, onOpen }: { note: Note; onOpen: () => void }): React.JS
       </div>
 
       <div style={{ marginTop: 22 }}>
-        {lines.length === 0 || !text.trim() ? (
-          <p className="muted" style={{ fontSize: 15 }}>
-            Empty note. Double-click to start writing.
-          </p>
-        ) : (
-          lines.map((l, i) =>
-            l.kind === 'blank' ? (
-              <div key={i} style={{ height: 10 }} />
-            ) : l.kind === 'h' ? (
-              <h3 key={i} style={{ marginTop: 18 }}>
-                {l.text}
-              </h3>
-            ) : l.kind === 'bullet' ? (
-              <div className="li" key={i}>
-                <div className="dot-b" />
-                <span>{l.text}</span>
-              </div>
-            ) : l.kind === 'todo' ? (
-              <div className="li" key={i} style={{ color: l.state === 'open' ? undefined : 'var(--ink3)' }}>
-                <div className="cb" style={l.state === 'open' ? undefined : { background: 'var(--acc)', borderColor: 'var(--acc)' }} />
-                <span style={{ textDecoration: l.state === 'done' ? 'line-through' : undefined }}>{l.text}</span>
-              </div>
-            ) : (
-              <p className="pv-p" key={i}>
-                {l.text}
-              </p>
-            )
-          )
-        )}
+        <NoteBody
+          value={initial}
+          compact
+          placeholder="Start writing…  Type / for commands"
+          onChange={(t) => {
+            latest.current.text = t
+            latest.current.dirty = true
+            setOpen(actionItems(t).filter((a) => a.state === 'open').length)
+          }}
+        />
       </div>
 
-      {items.length > 0 && (
-        <div className="row" style={{ marginTop: 24, gap: 8 }}>
-          <span style={{ color: '#E2680C', display: 'flex' }}>
-            <Icon name="bolt" size={14} strokeWidth={2} />
-          </span>
-          <span style={{ fontSize: 14, fontWeight: 500 }}>
-            {open} open action {open === 1 ? 'item' : 'items'}
-          </span>
-          <span style={{ flex: 1 }} />
-          <Button onClick={onOpen}>Open note</Button>
-        </div>
-      )}
+      <div className="row" style={{ marginTop: 24, gap: 8 }}>
+        {open > 0 && (
+          <>
+            <span style={{ color: '#E2680C', display: 'flex' }}>
+              <Icon name="bolt" size={14} strokeWidth={2} />
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 500 }}>
+              {open} open action {open === 1 ? 'item' : 'items'}
+            </span>
+          </>
+        )}
+        <span style={{ flex: 1 }} />
+        <Button onClick={onDelete}>
+          <Icon name="trash" size={15} />
+        </Button>
+        <Button
+          onClick={() => {
+            save()
+            onOpen()
+          }}
+        >
+          Open full page
+        </Button>
+      </div>
     </article>
   )
 }

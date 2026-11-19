@@ -1,29 +1,15 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Icon, type IconName } from '../../components/Icon'
+import { Icon } from '../../components/Icon'
 import { Button, Kbd } from '../../components/ui'
 import { useNotes } from '../../store/notes'
 import { useTasks } from '../../store/tasks'
 import { aiNoteActions } from '../../lib/ai'
-import { actionItems, noteText, parseLine, setTodoState } from '../../lib/noteText'
+import { actionItems, noteText, setTodoState } from '../../lib/noteText'
+import { NoteBody, type NoteBodyHandle } from './NoteBody'
 import { appToday, clockTime } from '../../lib/clock'
 import type { Note } from '../../data/notes'
 import './notes.css'
-
-const commands: Array<{ icon: IconName; label: string; hint: string; prefix: string }> = [
-  { icon: 'checkSquare', label: 'Action item', hint: '[ ]', prefix: '[ ] ' },
-  { icon: 'list', label: 'Bulleted list', hint: '-', prefix: '- ' },
-  { icon: 'heading', label: 'Heading', hint: '#', prefix: '# ' }
-]
-
-/** Start/end offsets of the line the caret is on. */
-function lineAt(text: string, pos: number): { start: number; end: number } {
-  const start = text.lastIndexOf('\n', pos - 1) + 1
-  const nl = text.indexOf('\n', pos)
-  return { start, end: nl === -1 ? text.length : nl }
-}
-
-const MARKER = /^(\s*)(\[( |x|X|>)\]\s?|[-*•]\s+|#{1,3}\s+)/
 
 export default function NoteEditor(): React.JSX.Element {
   const { id } = useParams()
@@ -49,13 +35,11 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
   const [text, setText] = useState(() => noteText(note))
   const [dirty, setDirty] = useState(false)
   const [savedAt, setSavedAt] = useState<string | null>(null)
-  const [menu, setMenu] = useState<{ query: string; index: number } | null>(null)
-  const [dismissed, setDismissed] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
   const [aiBusy, setAiBusy] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
-  const area = useRef<HTMLTextAreaElement>(null)
-  const caret = useRef<number | null>(null)
+  const bodyRef = useRef<NoteBodyHandle>(null)
+  const [initial] = useState(() => noteText(note))
   const latest = useRef({ title, text, dirty })
   latest.current = { title, text, dirty }
 
@@ -80,92 +64,15 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
   }, [dirty, title, text])
   useEffect(() => flush, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Grow with the content; put the caret where an edit asked for it.
-  useLayoutEffect(() => {
-    const el = area.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${Math.max(320, el.scrollHeight)}px`
-    if (caret.current !== null) {
-      el.setSelectionRange(caret.current, caret.current)
-      caret.current = null
-    }
-  }, [text])
-
-  const edit = (next: string, at?: number): void => {
-    if (at !== undefined) caret.current = at
+  const onBody = (t: string): void => {
+    setText(t)
+    setDirty(true)
+  }
+  /** A change from outside the writing surface (AI, the side list). */
+  const edit = (next: string): void => {
+    bodyRef.current?.setText(next)
     setText(next)
     setDirty(true)
-    setDismissed(false)
-    syncMenu(next, at ?? area.current?.selectionStart ?? next.length)
-  }
-
-  /** The "/" menu shows while the caret line is just a slash and a word. */
-  const syncMenu = (value: string, pos: number): void => {
-    const { start, end } = lineAt(value, pos)
-    const m = value.slice(start, end).match(/^\/(\w*)$/)
-    setMenu(m ? { query: m[1].toLowerCase(), index: 0 } : null)
-  }
-
-  const shown = useMemo(
-    () => (menu ? commands.filter((c) => c.label.toLowerCase().includes(menu.query)) : []),
-    [menu]
-  )
-  const menuOpen = !!menu && !dismissed && shown.length > 0
-
-  /** Puts a line prefix on the caret line, replacing any marker it already has. */
-  const applyPrefix = (prefix: string): void => {
-    const el = area.current
-    const pos = el?.selectionStart ?? text.length
-    const { start, end } = lineAt(text, pos)
-    const line = text.slice(start, end)
-    const bare = line.replace(MARKER, '').replace(/^\/\w*$/, '')
-    const same = line.startsWith(prefix.trimEnd()) && MARKER.test(line)
-    const nextLine = same ? bare : prefix + bare
-    edit(text.slice(0, start) + nextLine + text.slice(end), start + nextLine.length)
-    el?.focus()
-  }
-
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (menuOpen && menu) {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault()
-        const d = e.key === 'ArrowDown' ? 1 : -1
-        setMenu({ ...menu, index: (menu.index + d + shown.length) % shown.length })
-        return
-      }
-      if (e.key === 'Enter' || e.key === 'Tab') {
-        e.preventDefault()
-        applyPrefix(shown[menu.index].prefix)
-        setMenu(null)
-        return
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        setDismissed(true)
-        return
-      }
-    }
-    // Enter keeps a list going; Enter on an empty marker ends it.
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-      const el = e.currentTarget
-      if (el.selectionStart !== el.selectionEnd) return
-      const pos = el.selectionStart
-      const { start, end } = lineAt(text, pos)
-      const line = text.slice(start, end)
-      const parsed = parseLine(line)
-      if (parsed.kind === 'bullet' || parsed.kind === 'todo') {
-        e.preventDefault()
-        if (!parsed.text.trim()) {
-          edit(text.slice(0, start) + text.slice(end), start)
-        } else {
-          const marker = parsed.kind === 'bullet' ? '- ' : '[ ] '
-          const lead = line.match(/^\s*/)?.[0] ?? ''
-          const insert = `\n${lead}${marker}`
-          edit(text.slice(0, pos) + insert + text.slice(pos), pos + insert.length)
-        }
-      }
-    }
   }
 
   const items = actionItems(text)
@@ -286,7 +193,7 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()
-                  area.current?.focus()
+                  bodyRef.current?.focus()
                 }
               }}
               style={{ border: 0, outline: 'none', background: 'transparent', font: 'inherit', fontSize: 32, fontWeight: 500, padding: 0, width: '100%' }}
@@ -298,41 +205,9 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
               <span>{note.chip.name}</span>
             </div>
 
-            <textarea
-              ref={area}
-              className="ed-area"
-              value={text}
-              placeholder="Start writing…  Type / for commands"
-              spellCheck
-              onChange={(e) => edit(e.target.value, e.target.selectionStart)}
-              onKeyDown={onKeyDown}
-              onKeyUp={(e) => {
-                if (e.key.startsWith('Arrow') && !menuOpen) syncMenu(text, e.currentTarget.selectionStart)
-              }}
-              onClick={(e) => syncMenu(text, e.currentTarget.selectionStart)}
-              onBlur={flush}
-            />
-
-            {menuOpen && menu && (
-              <div className="slash">
-                <div style={{ fontSize: 12, color: 'var(--ink3)', padding: '8px 16px 4px' }}>Add to note</div>
-                {shown.map((c, i) => (
-                  <div
-                    className={i === menu.index ? 'sm on' : 'sm'}
-                    key={c.label}
-                    onMouseDown={(e) => {
-                      e.preventDefault()
-                      applyPrefix(c.prefix)
-                      setMenu(null)
-                    }}
-                  >
-                    <Icon name={c.icon} strokeWidth={1.7} round />
-                    {c.label}
-                    <span className="h">{c.hint}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div onBlur={flush} style={{ marginTop: 30 }}>
+              <NoteBody ref={bodyRef} value={initial} onChange={onBody} placeholder="Start writing…  Type / for commands" />
+            </div>
           </div>
 
           <div className="ed-side">
@@ -431,14 +306,20 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
         </div>
       </div>
 
-      <div className="fmt-bar">
-        <button className="tb" aria-label="Heading" onClick={() => applyPrefix('# ')}>
+      <div className="fmt-bar" onMouseDown={(e) => e.preventDefault()}>
+        <button className="tb" aria-label="Heading" onClick={() => bodyRef.current?.applyKind('h')}>
           <Icon name="heading" strokeWidth={1.7} round />
         </button>
-        <button className="tb" aria-label="Bulleted list" onClick={() => applyPrefix('- ')}>
+        <button className="tb" aria-label="Bold" onClick={() => bodyRef.current?.format('bold')} style={{ fontWeight: 700, fontSize: 15 }}>
+          B
+        </button>
+        <button className="tb" aria-label="Italic" onClick={() => bodyRef.current?.format('italic')} style={{ fontStyle: 'italic', fontSize: 15, fontFamily: 'serif' }}>
+          I
+        </button>
+        <button className="tb" aria-label="Bulleted list" onClick={() => bodyRef.current?.applyKind('bullet')}>
           <Icon name="list" strokeWidth={1.7} round />
         </button>
-        <button className="tb" aria-label="Action item" onClick={() => applyPrefix('[ ] ')}>
+        <button className="tb" aria-label="Action item" onClick={() => bodyRef.current?.applyKind('todo')}>
           <Icon name="checkSquare" strokeWidth={1.7} round />
         </button>
         <span className="tb-sep" />
