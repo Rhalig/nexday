@@ -345,14 +345,17 @@ export default function Tasks(): React.JSX.Element {
         hint="Nexday reads the day, time and project from plain language."
         onSubmit={captureTask}
       />
-      {open && (
-        <TaskDrawer task={open.task} groupId={open.groupId} onClose={() => navigate('/tasks')} />
-      )}
-      {finished && (
+      {(open || finished) && (
+        // One drawer for both states, so ticking only flips the checkbox (no remount, no slide-in again).
         <TaskDrawer
-          done
-          task={{ id: finished.id, title: finished.title, project: finished.project, energy: finished.energy, time: finished.time }}
-          groupId="today"
+          key="task-drawer"
+          done={!open}
+          task={
+            open
+              ? open.task
+              : { id: finished!.id, title: finished!.title, project: finished!.project, energy: finished!.energy, time: finished!.time }
+          }
+          groupId={open ? open.groupId : 'today'}
           onClose={() => navigate('/tasks')}
         />
       )}

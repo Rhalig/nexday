@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
 import { DeleteAccountDialog, ImportDialog } from '../../components/Dialogs'
@@ -90,7 +90,7 @@ function Sel({
     </span>
   )
 }
-/** A Sel that cycles through its options on click (the design has no dropdown yet). */
+/** A real dropdown: click to open the list, pick an option, click elsewhere or press Esc to close. */
 function Cyc({
   value,
   options,
@@ -102,17 +102,65 @@ function Cyc({
   onChange: (v: string) => void
   w?: number
 }): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const away = (e: MouseEvent): void => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const key = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        e.stopImmediatePropagation() // closes the list, not the whole settings page
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', away)
+    window.addEventListener('keydown', key, true)
+    return () => {
+      document.removeEventListener('mousedown', away)
+      window.removeEventListener('keydown', key, true)
+    }
+  }, [open])
   return (
-    <span
-      className="st-sel"
-      style={{ minWidth: w, cursor: 'pointer' }}
-      onClick={() => {
-        const i = options.indexOf(value)
-        onChange(options[(i + 1) % options.length])
-      }}
-    >
-      {value}
-      {chev}
+    <span ref={ref} className="st-dd" style={{ minWidth: w }}>
+      <span
+        className="st-sel"
+        style={{ minWidth: w, cursor: 'pointer' }}
+        role="button"
+        tabIndex={0}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+            e.preventDefault()
+            setOpen(true)
+          }
+        }}
+      >
+        {value}
+        {chev}
+      </span>
+      {open && (
+        <div className="st-menu" role="listbox">
+          {options.map((o) => (
+            <button
+              key={o}
+              role="option"
+              aria-selected={o === value}
+              className={cn('st-opt', o === value && 'on')}
+              onClick={() => {
+                onChange(o)
+                setOpen(false)
+              }}
+            >
+              <span>{o}</span>
+              {o === value && <Icon name="check" size={13} strokeWidth={2.4} round />}
+            </button>
+          ))}
+        </div>
+      )}
     </span>
   )
 }
@@ -359,12 +407,6 @@ function Preferences(): React.JSX.Element {
   )
 }
 
-const nextTime = (t: string, step: number): string => {
-  const [h, m] = t.split(':').map(Number)
-  const n = (h * 60 + m + step) % (24 * 60)
-  return `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`
-}
-
 function TimeSel({
   value,
   onChange,
@@ -375,14 +417,14 @@ function TimeSel({
   w?: number
 }): React.JSX.Element {
   return (
-    <span
-      className="st-sel"
-      style={{ minWidth: w, cursor: 'pointer' }}
-      onClick={() => onChange(nextTime(value, 30))}
-      title="Click to move 30 minutes"
-    >
-      <span className="mono">{value}</span>
-    </span>
+    <input
+      className="st-sel st-time mono"
+      type="time"
+      step={300}
+      value={value}
+      style={{ minWidth: w }}
+      onChange={(e) => e.target.value && onChange(e.target.value)}
+    />
   )
 }
 
