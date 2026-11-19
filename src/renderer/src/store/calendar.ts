@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { supabase } from '../lib/supabase'
 import { useUI } from './ui'
 import { sampleWeekEvents, type KindedEvent } from '../data/calendar'
 import type { EventKind } from '../data/calendar'
@@ -106,7 +107,9 @@ const weekdayIndex = (d: Date): number => (d.getDay() + 6) % 7
 function convert(raw: RawEvent[]): KindedEvent[] {
   const out: KindedEvent[] = []
   for (const r of raw) {
-    if (r.declined && !useUI.getState().calPrefs.showDeclined) continue
+    const prefs = useUI.getState().calPrefs
+    if (r.declined && !prefs.showDeclined) continue
+    if (prefs.hiddenCalendars.includes(r.calendar)) continue
     const s = new Date(r.start)
     const e = new Date(r.end)
     if (r.allDay) {
@@ -267,6 +270,8 @@ const merge = (base: KindedEvent[], own: PlanEvent[], range: Range | null): Kind
 
 /** The sample week only exists while it is the current week; other weeks show what was saved. */
 function sampleBase(range: Range): KindedEvent[] {
+  // The design's sample week is only for the local, account-less preview.
+  if (supabase) return []
   const start = startOfWeek(appToday())
   return sampleWeekEvents(start).filter((e) => e.date >= range.from && e.date <= range.to)
 }

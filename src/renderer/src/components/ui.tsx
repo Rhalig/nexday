@@ -32,7 +32,13 @@ export function Kbd({ children, mono }: { children: ReactNode; mono?: boolean })
   return <span className={cn('kbd', mono && 'mono-kbd')}>{children}</span>
 }
 
-export function Checkbox({ checked = false, onClick }: { checked?: boolean; onClick?: () => void }): React.JSX.Element {
+export function Checkbox({
+  checked = false,
+  onClick
+}: {
+  checked?: boolean
+  onClick?: (e: React.MouseEvent) => void
+}): React.JSX.Element {
   return (
     <button className="cb" role="checkbox" aria-checked={checked} onClick={onClick}>
       <Icon name="check" size={12} strokeWidth={3} />

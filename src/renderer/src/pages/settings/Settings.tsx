@@ -202,6 +202,37 @@ const tick = (size: number, color: string, w: number): React.JSX.Element => (
 
 /* ---------- pages ---------- */
 
+function NameField(): React.JSX.Element {
+  const name = useAuth((s) => s.name)
+  const rename = useAuth((s) => s.rename)
+  const [value, setValue] = useState(name)
+  const [note, setNote] = useState<string | null>(null)
+  useEffect(() => setValue(name), [name])
+  const save = async (): Promise<void> => {
+    if (value.trim() === name) return
+    const r = await rename(value)
+    if (r.error) setNote(r.error)
+    else setNote('Saved')
+    setTimeout(() => setNote(null), 2500)
+  }
+  return (
+    <span className="row" style={{ gap: 10 }}>
+      {note && <span style={{ fontSize: 12.5, color: note === 'Saved' ? 'var(--ink3)' : 'var(--err)' }}>{note}</span>}
+      <input
+        className="st-sel st-in"
+        style={{ minWidth: 320 }}
+        value={value}
+        maxLength={80}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={() => void save()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+        }}
+      />
+    </span>
+  )
+}
+
 function Profile(): React.JSX.Element {
   const who = useIdentity()
   return (
@@ -211,6 +242,7 @@ function Profile(): React.JSX.Element {
           style={{
             width: 64,
             height: 64,
+            flexShrink: 0,
             borderRadius: '50%',
             background: 'var(--ink)',
             color: '#fff',
@@ -225,17 +257,15 @@ function Profile(): React.JSX.Element {
         </div>
         <div className="col" style={{ gap: 3, flex: 1 }}>
           <span style={{ fontSize: 18, fontWeight: 500 }}>{who.name}</span>
-          <span style={{ fontSize: 13.5, color: 'var(--ink2)' }}>
+          <span style={{ fontSize: 13.5, color: 'var(--ink2)', whiteSpace: 'nowrap' }}>
             Personal space · Free during the beta
           </span>
         </div>
       </div>
-      <Row title="Name" sub="Shown on shared plans and notes.">
-        <Sel w={320} chevron={false}>
-          {who.name}
-        </Sel>
+      <Row title="Name" sub="Shown in greetings and on shared plans and notes.">
+        <NameField />
       </Row>
-      <Row title="Email" sub="Used to sign in and for daily digests.">
+      <Row title="Email" sub="Used to sign in. Changing it is not available yet.">
         <Sel w={320} chevron={false}>
           {who.email || '—'}
         </Sel>
@@ -447,31 +477,10 @@ function Calendars(): React.JSX.Element {
         : mac.status === 'denied' || mac.status === 'restricted'
           ? 'Access is off. Allow Nexday in System Settings › Privacy & Security › Calendars.'
           : 'Not connected'
-  const acc = (
-    name: string,
-    sub: string,
-    on: boolean,
-    btns: string[],
-    end?: boolean
-  ): React.JSX.Element => (
-    <div className={cn('st-acc', end && 'end')}>
-      <span className="st-dot" style={on ? undefined : { background: '#D6D6D3' }} />
-      <div className="col" style={{ gap: 3, flex: 1 }}>
-        <span style={{ fontWeight: 500 }}>{name}</span>
-        <span style={{ fontSize: 13, color: 'var(--ink3)' }}>{sub}</span>
-      </div>
-      {btns.map((b) => (
-        <span className="st-btn" key={b}>
-          {b}
-        </span>
-      ))}
-    </div>
-  )
   const cal = (
     color: string,
     name: string,
     n: string,
-    on: boolean,
     end?: boolean
   ): React.JSX.Element => (
     <div key={name} className={cn('st-cal', end && 'end')}>
@@ -479,7 +488,14 @@ function Calendars(): React.JSX.Element {
       <span>{name}</span>
       <Sp />
       <span style={{ fontSize: 13, color: 'var(--ink3)' }}>{n}</span>
-      <Tg init={on} />
+      <Tg
+        on={!calPrefs.hiddenCalendars.includes(name)}
+        onChange={(show) => {
+          const hidden = calPrefs.hiddenCalendars.filter((x) => x !== name)
+          setCal({ hiddenCalendars: show ? hidden : [...hidden, name] })
+          void useCalendar.getState().refresh()
+        }}
+      />
     </div>
   )
   return (
@@ -507,7 +523,6 @@ function Calendars(): React.JSX.Element {
           )
         )}
       </div>
-      {acc('Outlook', 'Not connected', false, ['Connect'], true)}
       <div className="st-h2">Calendars shown in Nexday</div>
       {macOn && mac.calendars.length > 0
         ? mac.calendars.map((c, i) =>
@@ -515,7 +530,6 @@ function Calendars(): React.JSX.Element {
               c.color,
               c.title,
               `${mac.events.filter((e) => e.sub?.includes(c.title)).length} events this week`,
-              true,
               i === mac.calendars.length - 1
             )
           )

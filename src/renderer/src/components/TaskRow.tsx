@@ -16,6 +16,8 @@ type Props = {
   last?: boolean
   enter?: boolean
   onOpen?: () => void
+  /** Ticking the box (finishes the task); the click never opens the row */
+  onToggle?: () => void
   /** Makes the row draggable (see components/dnd.tsx) */
   drag?: Omit<Dragged, 'offsetY'>
 }
@@ -31,6 +33,7 @@ export function TaskRow({
   last,
   enter,
   onOpen,
+  onToggle,
   drag
 }: Props): React.JSX.Element {
   return (
@@ -39,7 +42,13 @@ export function TaskRow({
       onClick={onOpen}
       {...(drag ? dragProps(drag) : null)}
     >
-      <Checkbox checked={done} />
+      <Checkbox
+        checked={done}
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggle?.()
+        }}
+      />
       <span className="tt">{title}</span>
       <div className="tag">
         <div className="swatch" style={{ background: projectColor[project] }} />

@@ -325,6 +325,7 @@ export default function Today(): React.JSX.Element {
                         done={t.done}
                         hot={t.hot}
                         onOpen={t.done ? undefined : () => navigate(`/tasks/${t.id}`)}
+                        onToggle={t.done ? undefined : () => useTasks.getState().remove(t.id)}
                       />
                     ))}
                   </div>
@@ -396,9 +397,18 @@ export default function Today(): React.JSX.Element {
                         </span>
                       </div>
                       <div className="wk">
-                        {cellsFor(h.id, h.doneToday).map((c, n) => (
-                          <div key={n} className={cn('cell', c)} />
-                        ))}
+                        {cellsFor(h.id, h.doneToday).map((c, n) =>
+                          n === todayIdx ? (
+                            <button
+                              key={n}
+                              className={cn('cell', c)}
+                              aria-label={h.doneToday ? 'Undo today' : 'Mark done'}
+                              onClick={() => useHabits.getState().toggleToday(h.id)}
+                            />
+                          ) : (
+                            <div key={n} className={cn('cell', c)} />
+                          )
+                        )}
                       </div>
                     </div>
                   ))}

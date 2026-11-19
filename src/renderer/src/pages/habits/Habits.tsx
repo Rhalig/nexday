@@ -75,7 +75,7 @@ function WeekCells({
 export default function Habits(): React.JSX.Element {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { habits: stored, toggleToday, history } = useHabits()
+  const { habits: stored, toggleToday, skipToday, skipped, history } = useHabits()
   const now = appToday()
   // With an account, streak / rate / check-ins come from the real check-ins, not the saved snapshot.
   const habits = stored.map((h) => (supabase ? { ...h, ...habitNumbers(h, history, now) } : h))
@@ -88,7 +88,7 @@ export default function Habits(): React.JSX.Element {
   const total = habits.length
   const done = habits.filter((h) => h.doneToday).length
   const visible = filter === 'all' ? habits : habits.filter((h) => h.group === filter)
-  const next = habits.find((h) => !h.doneToday)
+  const next = habits.find((h) => !h.doneToday && !skipped.includes(h.id))
   const open = id ? habits.find((h) => h.id === id) : undefined
 
   const tabs = [
@@ -207,7 +207,7 @@ export default function Habits(): React.JSX.Element {
                     {next.upNextNote ? ` · ${next.upNextNote}` : ''}
                   </span>
                   <div className="row" style={{ marginTop: 16, justifyContent: 'space-between' }}>
-                    <button className="row" style={{ height: 36, padding: '0 4px' }}>
+                    <button className="row" style={{ height: 36, padding: '0 4px' }} onClick={() => skipToday(next.id)}>
                       <span className="muted" style={{ fontSize: 13 }}>
                         Skip today
                       </span>
@@ -245,13 +245,24 @@ export default function Habits(): React.JSX.Element {
                     {h.time}
                   </span>
                   <span style={{ flex: 1, fontSize: 13.5 }}>{h.name}</span>
-                  {h.doneToday ? (
-                    <i className="hb-w y sm" style={{ display: 'flex' }}>
-                      <Icon name="check" size={9} strokeWidth={3.5} />
-                    </i>
-                  ) : (
-                    <i className="hb-w t sm" style={{ display: 'flex' }} />
+                  {!h.doneToday && skipped.includes(h.id) && (
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      skipped
+                    </span>
                   )}
+                  <button
+                    aria-label={h.doneToday ? 'Undo today' : 'Mark done'}
+                    style={{ display: 'flex' }}
+                    onClick={() => toggleToday(h.id)}
+                  >
+                    {h.doneToday ? (
+                      <i className="hb-w y sm" style={{ display: 'flex' }}>
+                        <Icon name="check" size={9} strokeWidth={3.5} />
+                      </i>
+                    ) : (
+                      <i className="hb-w t sm" style={{ display: 'flex' }} />
+                    )}
+                  </button>
                 </div>
               ))}
             </div>

@@ -102,6 +102,8 @@ type AuthState = Saved & {
   resetPassword: (email: string) => Promise<AuthResult>
   updatePassword: (password: string) => Promise<AuthResult>
   cancelRecovery: () => void
+  /** Changes the display name (kept in the account's profile data) */
+  rename: (name: string) => Promise<AuthResult>
   signOut: () => Promise<void>
   /** Mock sign-in, only used when Supabase is not configured */
   signIn: (p: { name?: string; email?: string }) => void
@@ -218,6 +220,19 @@ export const useAuth = create<AuthState>((set, get) => ({
     forgetReset()
     clearRecovery()
     set({ recovery: false })
+    return {}
+  },
+
+  rename: async (name) => {
+    const next = name.trim().slice(0, 80)
+    if (!next) return { error: 'Enter a name.' }
+    if (supabase) {
+      const { error } = await supabase.auth.updateUser({ data: { name: next } })
+      if (error) return { error: friendly(error.message) }
+    } else {
+      persistMock({ signedIn: true, name: next, email: get().email })
+    }
+    set({ name: next })
     return {}
   },
 

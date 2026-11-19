@@ -92,12 +92,15 @@ export type CalPrefs = {
   syncDirection: 'Two-way' | 'Calendar to Nexday'
   newEventCalendar: 'Personal' | 'Work' | 'Planner MVP'
   showDeclined: boolean
+  /** Mac calendars switched off in Settings › Calendars (by title) */
+  hiddenCalendars: string[]
 }
 
 export const DEFAULT_CAL_PREFS: CalPrefs = {
   syncDirection: 'Two-way',
   newEventCalendar: 'Personal',
-  showDeclined: false
+  showDeclined: false,
+  hiddenCalendars: []
 }
 
 const cleanMatrix = (raw: unknown): boolean[][] =>
@@ -118,7 +121,9 @@ export function mergeNotifPrefs(raw: unknown): NotifPrefs {
 }
 
 export function mergeCalPrefs(raw: unknown): CalPrefs {
-  return { ...DEFAULT_CAL_PREFS, ...((raw ?? {}) as Partial<CalPrefs>) }
+  const r = { ...DEFAULT_CAL_PREFS, ...((raw ?? {}) as Partial<CalPrefs>) }
+  if (!Array.isArray(r.hiddenCalendars)) r.hiddenCalendars = []
+  return r
 }
 
 /** Anything older or partial in profiles.settings is filled with the defaults. */

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
 import { QuickCapture } from '../../components/QuickCapture'
@@ -5,7 +6,8 @@ import { Button, cn, projectColor } from '../../components/ui'
 import { projects, type Project as ProjectKey, type TaskGroup } from '../../data/tasks'
 import { useUI } from '../../store/ui'
 import { useProjects } from '../../store/projects'
-import { useTasks } from '../../store/tasks'
+import { useTasks, type DoneTask } from '../../store/tasks'
+import { loadDoneTasks } from '../../lib/cloud'
 import { parseCapture, toTask } from '../../lib/capture'
 import { fmtMin, parseTime } from '../../lib/today'
 import './projects.css'
@@ -49,6 +51,24 @@ function ProjectView({
   const allGroups = useTasks((s) => s.groups)
   const doneCount = useTasks((s) => (projectKey ? s.doneTotals[projectKey] : 0))
   const remove = useTasks((s) => s.remove)
+  const doneToday = useTasks((s) => s.doneToday)
+  // Finished tasks stay visible, ticked, under "Done"
+  const [showDone, setShowDone] = useState(true)
+  const [olderDone, setOlderDone] = useState<DoneTask[]>([])
+  useEffect(() => {
+    if (!projectKey) return
+    let alive = true
+    void loadDoneTasks(projectKey).then((rows) => alive && setOlderDone(rows))
+    return () => {
+      alive = false
+    }
+  }, [projectKey, doneCount])
+  const doneList = projectKey
+    ? [
+        ...doneToday.filter((d) => d.project === projectKey),
+        ...olderDone.filter((d) => !doneToday.some((x) => x.id === d.id))
+      ].sort((a, b) => b.at.localeCompare(a.at))
+    : []
 
   const groups = projectKey
     ? allGroups
@@ -145,10 +165,23 @@ function ProjectView({
                 ))}
               </div>
             ))}
-            <div className="pj-done">
-              <Icon name="caretRight" size={14} strokeWidth={2} round />
+            <button className="pj-done" onClick={() => setShowDone(!showDone)}>
+              <span style={{ display: 'flex', transform: showDone ? 'rotate(90deg)' : undefined }}>
+                <Icon name="caretRight" size={14} strokeWidth={2} round />
+              </span>
               Done · {doneCount}
-            </div>
+            </button>
+            {showDone &&
+              doneList.map((t) => (
+                <div className="pj-t done" key={t.id}>
+                  <span className="pj-cb on" aria-label="Done">
+                    <Icon name="check" size={12} strokeWidth={3.2} round />
+                  </span>
+                  <span className="n">{t.title}</span>
+                  <span className="e">{t.energy}</span>
+                  <span className="w">{new Date(t.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
+                </div>
+              ))}
           </div>
 
           <div className="pj-side">

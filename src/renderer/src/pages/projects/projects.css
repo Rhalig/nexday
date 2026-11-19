@@ -213,3 +213,19 @@
   border: 1.5px solid #bdbdba;
   border-radius: 50%;
 }
+
+.pj-cb.on {
+  display: grid;
+  place-items: center;
+  background: var(--acc);
+  border-color: var(--acc);
+  color: #fff;
+}
+.pj-t.done .n {
+  color: var(--ink3);
+  text-decoration: line-through;
+}
+.pj-done {
+  width: 100%;
+  text-align: left;
+}

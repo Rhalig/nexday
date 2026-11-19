@@ -1,3 +1,4 @@
+import { useUI } from '../../store/ui'
 import { Icon } from '../../components/Icon'
 import { projectColor } from '../../components/ui'
 import { projects, type Project } from '../../data/tasks'
@@ -159,6 +160,12 @@ export function TodayCalendar({
               style={{ top: yOf(g.start), height: (g.end - g.start) * PX - 4, border: '1px dashed #CBCBC8', color: 'var(--ink3)', flexDirection: 'row', gap: 12, padding: '10px 14px', alignItems: 'flex-start', pointerEvents: 'none' }}
             >
               <span style={{ fontSize: 12, fontWeight: 500 }}>Free · {fmtMin(g.end - g.start)}</span>
+              <button
+                style={{ fontSize: 12, fontWeight: 500, color: 'var(--acc-text)', pointerEvents: 'auto' }}
+                onClick={() => useUI.getState().openDialog('autoSchedule')}
+              >
+                Fill the gap
+              </button>
             </div>
           ))}
           {blocks
@@ -208,6 +215,14 @@ export function TodayCalendar({
             </div>
           ))
         )}
+        <div className="row" style={{ gap: 10, alignItems: 'flex-start', paddingTop: 16 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--acc-strong)" strokeWidth="2" style={{ marginTop: 2 }}>
+            <path d="M13 2L4 14h7l-1 8 9-12h-7z" />
+          </svg>
+          <span className="muted" style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+            Drag a task on the timeline to move it. Dropped tasks keep their length.
+          </span>
+        </div>
       </div>
     </div>
   )

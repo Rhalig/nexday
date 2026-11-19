@@ -506,6 +506,25 @@ const eventFromRow = (r: Row): PlanEvent => ({
   externalId: (r.external_id as string | null) ?? null
 })
 
+/** Finished tasks of one project, newest first (for the project page's Done list). */
+export async function loadDoneTasks(project: Project): Promise<DoneTask[]> {
+  const id = projectIds[SLUG[project]]
+  if (!supabase || !id) return []
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('status', 'done')
+    .eq('project_id', id)
+    .is('deleted_at', null)
+    .order('completed_at', { ascending: false })
+    .limit(100)
+  if (error || !data) return []
+  return data.map((r) => {
+    const t = groupsFromRows([r]).flatMap((g) => g.tasks)[0]
+    return { id: t.id, title: t.title, project: t.project, energy: t.energy, time: t.time, at: String(r.completed_at) }
+  })
+}
+
 /* ---------------------------------------------------------------- snapshots: what the database already has */
 
 type Snap = Map<string, string>

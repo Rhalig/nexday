@@ -22,7 +22,27 @@ export function AppShell(): React.JSX.Element {
 
   // Read the Mac calendar on launch and again whenever the window comes back to the front.
   useEffect(() => {
-    void useCalendar.getState().refresh()
+    // First launch: ask once for Mac Calendar access so the person's real events show up on their own.
+    void useCalendar
+      .getState()
+      .refresh()
+      .then(async () => {
+        const cal = useCalendar.getState()
+        let asked = false
+        try {
+          asked = localStorage.getItem('nexday.calAsked') === '1'
+        } catch {
+          asked = true
+        }
+        if (cal.status === 'notDetermined' && !asked) {
+          try {
+            localStorage.setItem('nexday.calAsked', '1')
+          } catch {
+            /* ignore */
+          }
+          await cal.connect()
+        }
+      })
     const onFocus = (): void => void useCalendar.getState().refresh()
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)

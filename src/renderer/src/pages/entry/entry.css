@@ -22,7 +22,7 @@
 }
 .nx-panel.stack { flex-direction: column; padding: var(--panel-pt) var(--panel-px) var(--panel-pb); overflow-y: auto; }
 .nx-form { width: 620px; flex-shrink: 0; display: flex; flex-direction: column; padding: var(--panel-pt) var(--panel-px) var(--panel-pb); overflow-y: auto; }
-.nx-brand { display: flex; align-items: center; gap: 10px; height: 36px; flex: none; }
+.nx-brand { display: flex; align-items: center; gap: 10px; height: 36px; flex: none; margin-top: 30px; }
 .nx-brand i { width: 28px; height: 28px; border-radius: 8px; background: center/cover; display: block; }
 .nx-brand span { font-size: 15px; font-weight: 500; }
 .nx-box { width: 360px; margin: auto; display: flex; flex-direction: column; }

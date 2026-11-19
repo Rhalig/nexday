@@ -1,3 +1,4 @@
+import { supabase } from '../lib/supabase'
 import { addDays, appToday, dayKey, sameDay, weekdayShort } from '../lib/clock'
 
 export type EventKind = 'work' | 'blue' | 'acc' | 'personal' | 'health' | 'moved'
@@ -225,7 +226,7 @@ export function monthWeeks(cursor: Date, events: KindedEvent[]): MonthCell[][] {
   for (const list of byDate.values()) list.sort((a, b) => a.time.localeCompare(b.time))
 
   // The design's November filler, only while November 2026 is the month on screen.
-  const designMonth = cursor.getFullYear() === 2026 && cursor.getMonth() === 10
+  const designMonth = !supabase && cursor.getFullYear() === 2026 && cursor.getMonth() === 10
 
   const weeks: MonthCell[][] = []
   for (let w = 0; w < 6; w++) {

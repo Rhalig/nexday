@@ -8,7 +8,7 @@ import { filterGroups, projects, type Project, type TaskFilter } from '../../dat
 import { countOpen, useTasks } from '../../store/tasks'
 import { useUI } from '../../store/ui'
 import { captureTask } from '../../lib/quickTask'
-import { addDays, appToday, pageDate, weekdayIndex, weekdayShort } from '../../lib/clock'
+import { addDays, appToday, dayKey, pageDate, weekdayIndex, weekdayShort } from '../../lib/clock'
 import { parseTime } from '../../lib/today'
 import {
   FilterPopover,
@@ -100,6 +100,14 @@ export default function Tasks(): React.JSX.Element {
   const planning = useUI((st) => st.planning)
   const [filter, setFilter] = useState<TaskFilter>('all')
   const [showEnergy, setShowEnergy] = useState(true)
+  // "Not now" hides the Find-time card for the rest of the day.
+  const [findHidden, setFindHidden] = useState(() => {
+    try {
+      return localStorage.getItem('nexday.findtime.hidden') === dayKey(appToday())
+    } catch {
+      return false
+    }
+  })
   const [view, setView] = useState<TaskView>(defaultView)
   const [pop, setPop] = useState<{ right: number; top: number } | null>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
@@ -228,10 +236,11 @@ export default function Tasks(): React.JSX.Element {
                     drag={{ kind: 'task', id: t.id, title: t.title, minutes: 30 }}
                     title={t.title}
                     project={t.project}
-                    energy={t.energy}
+                    energy={showEnergy ? t.energy : undefined}
                     time={t.time ?? 'Find a time'}
                     hot={t.time === null}
                     onOpen={() => navigate(`/tasks/${t.id}`)}
+                    onToggle={() => useTasks.getState().remove(t.id)}
                     last={gi === groups.length - 1 && ti === g.tasks.length - 1}
                   />
                 ))}
@@ -240,6 +249,7 @@ export default function Tasks(): React.JSX.Element {
           </section>
 
           <aside className="tasks-side">
+            {!findHidden && noTime > 0 && (
             <div className="findtime">
               <div className="row" style={{ gap: 8 }}>
                 <div className="findtime-dot" />
@@ -254,7 +264,18 @@ export default function Tasks(): React.JSX.Element {
                 Drag a task onto a day, or let Auto-schedule place them.
               </span>
               <div className="row" style={{ marginTop: 16, justifyContent: 'space-between' }}>
-                <button className="row" style={{ height: 36, padding: '0 4px' }}>
+                <button
+                  className="row"
+                  style={{ height: 36, padding: '0 4px' }}
+                  onClick={() => {
+                    setFindHidden(true)
+                    try {
+                      localStorage.setItem('nexday.findtime.hidden', dayKey(appToday()))
+                    } catch {
+                      /* private mode: hidden until reload */
+                    }
+                  }}
+                >
                   <span className="muted" style={{ fontSize: 13 }}>
                     Not now
                   </span>
@@ -264,6 +285,7 @@ export default function Tasks(): React.JSX.Element {
                 </Button>
               </div>
             </div>
+            )}
 
             <div className="col">
               <div className="side-head">
