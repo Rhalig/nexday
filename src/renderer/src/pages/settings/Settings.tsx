@@ -4,6 +4,7 @@ import { Icon } from '../../components/Icon'
 import { Modal } from '../../components/Dialogs'
 import { cn } from '../../components/ui'
 import { useAuth } from '../../store/auth'
+import { useIdentity, timeZoneName } from '../../lib/identity'
 import { useCalendar } from '../../store/calendar'
 import { useUI } from '../../store/ui'
 import { useNotes } from '../../store/notes'
@@ -199,6 +200,8 @@ const tick = (size: number, color: string, w: number): React.JSX.Element => (
 /* ---------- pages ---------- */
 
 function Profile(): React.JSX.Element {
+  const who = useIdentity()
+  const planId = usePlan((st) => st.id)
   return (
     <>
       <div className="row" style={{ gap: 18, paddingBottom: 26 }}>
@@ -216,27 +219,28 @@ function Profile(): React.JSX.Element {
             fontWeight: 500
           }}
         >
-          U
+          {who.initial}
         </div>
         <div className="col" style={{ gap: 3, flex: 1 }}>
-          <span style={{ fontSize: 18, fontWeight: 500 }}>Umut Şahin</span>
-          <span style={{ fontSize: 13.5, color: 'var(--ink2)' }}>Personal space · Free plan</span>
+          <span style={{ fontSize: 18, fontWeight: 500 }}>{who.name}</span>
+          <span style={{ fontSize: 13.5, color: 'var(--ink2)' }}>
+            Personal space · {planId === 'pro' ? 'Pro' : 'Free'} plan
+          </span>
         </div>
-        <span className="st-btn">Change photo</span>
       </div>
       <Row title="Name" sub="Shown on shared plans and notes.">
         <Sel w={320} chevron={false}>
-          Umut Şahin
+          {who.name}
         </Sel>
       </Row>
       <Row title="Email" sub="Used to sign in and for daily digests.">
         <Sel w={320} chevron={false}>
-          umutsahin1886@gmail.com
+          {who.email || '—'}
         </Sel>
       </Row>
       <Row title="Time zone" sub="Used for your calendar and daily plan." end>
         <Sel w={320} chevron={false}>
-          Europe/Istanbul (UTC+03:00)
+          {timeZoneName()}
         </Sel>
       </Row>
     </>
@@ -466,10 +470,6 @@ function Calendars(): React.JSX.Element {
         title="Calendars & sync"
         sub="Connect your calendars so Nexday plans around real events."
       />
-      {acc('Google Calendar', 'umutsahin1886@gmail.com · Synced 2 min ago', true, [
-        'Sync now',
-        'Disconnect'
-      ])}
       <div className="st-acc">
         <span className="st-dot" style={macOn ? undefined : { background: '#D6D6D3' }} />
         <div className="col" style={{ gap: 3, flex: 1 }}>
@@ -501,12 +501,13 @@ function Calendars(): React.JSX.Element {
               i === mac.calendars.length - 1
             )
           )
-        : [
-            cal('#5B6578', 'Work', '9 events this week', true),
-            cal('#A4505A', 'Personal', '4 events this week', true),
-            cal('#2E8B57', 'Health', '3 events this week', true),
-            cal('#BDBDBA', 'Birthdays', '0 events this week', false, true)
-          ]}
+        : (
+            <div className="st-cal end" style={{ color: 'var(--ink3)', fontSize: 13 }}>
+              {macOn
+                ? 'No calendars found in Mac Calendar.'
+                : 'Connect Apple Calendar to choose which calendars appear. Google accounts added to the Mac show up there too.'}
+            </div>
+          )}
       <div className="st-h2">Sync rules</div>
       <Row title="Sync direction" sub="Choose where changes are written.">
         <Seg
@@ -532,6 +533,7 @@ function Calendars(): React.JSX.Element {
 }
 
 function Integrations({ go }: { go: (t: Tab) => void }): React.JSX.Element {
+  const mac = useCalendar()
   const it = (
     ic: ReactNode,
     name: string,
@@ -560,6 +562,7 @@ function Integrations({ go }: { go: (t: Tab) => void }): React.JSX.Element {
       {action}
     </div>
   )
+  const soon = <span style={{ fontSize: 12.5, color: 'var(--ink3)' }}>Soon</span>
   const btn = (label: string, on?: () => void): React.JSX.Element => (
     <button className="st-btn s32" onClick={on}>
       {label}
@@ -573,47 +576,40 @@ function Integrations({ go }: { go: (t: Tab) => void }): React.JSX.Element {
         pb={18}
       />
       <div className="st-h2" style={{ paddingTop: 6, paddingBottom: 8 }}>
-        Connected
+        Calendar
       </div>
-      {it('G', 'Gmail', 'umutsahin1886@gmail.com · starred and Nexday label', btn('Manage'), true)}
-      {it('#', 'Slack', 'Nexday workspace · #planner-mvp and direct messages', btn('Manage'), true)}
       {it(
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#1A1A1A"
-          strokeWidth="1.8"
-        >
+        '',
+        'Apple Calendar',
+        'Includes Google and Outlook accounts added to your Mac',
+        btn('Open', () => go('calendars')),
+        mac.status === 'authorized',
+        true
+      )}
+      <div className="st-h2" style={{ paddingBottom: 8 }}>
+        Coming soon
+      </div>
+      {it('G', 'Gmail', 'Turn starred emails into Inbox items', soon, false)}
+      {it('#', 'Slack', 'Mentions and direct messages', soon, false)}
+      {it(
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="1.8">
           <circle cx="6" cy="6" r="2.5" />
           <circle cx="6" cy="18" r="2.5" />
           <circle cx="18" cy="8" r="2.5" />
           <path d="M6 8.5v7M18 10.5c0 4-6 3-12 5" />
         </svg>,
         'GitHub',
-        'planner-mvp · review requests',
-        btn('Manage'),
-        true
+        'Review requests',
+        soon,
+        false
       )}
-      {it(
-        'G',
-        'Google Calendar',
-        'Managed under Calendars & sync',
-        btn('Open', () => go('calendars')),
-        true,
-        true
-      )}
-      <div className="st-h2" style={{ paddingBottom: 8 }}>
-        Available
-      </div>
-      {it('N', 'Notion', 'Link notes and turn database rows into tasks', btn('Connect'), false)}
-      {it('L', 'Linear', 'Pull assigned issues into your Inbox', btn('Connect'), false)}
+      {it('N', 'Notion', 'Link notes and turn database rows into tasks', soon, false)}
+      {it('L', 'Linear', 'Pull assigned issues into your Inbox', soon, false)}
       {it(
         'T',
         'Todoist',
         'Import existing tasks and keep them in sync',
-        btn('Connect'),
+        soon,
         false,
         true
       )}

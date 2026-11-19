@@ -7,6 +7,7 @@ import { unreadCount, useNotifs } from '../store/notifs'
 import { useProjects } from '../store/projects'
 import { useUI } from '../store/ui'
 import { Kbd, cn } from './ui'
+import { useIdentity } from '../lib/identity'
 
 const nav: Array<{ to: string; label: string; icon: IconName; count?: number }> = [
   { to: '/today', label: 'Today', icon: 'sun' },
@@ -26,6 +27,7 @@ const projectNav = [
 const linkClass = ({ isActive }: { isActive: boolean }): string => cn('nav-item', isActive && 'on')
 
 export function Sidebar(): React.JSX.Element {
+  const who = useIdentity()
   const inboxCount = useInbox((s) => s.items.length)
   const openPalette = useUI((s) => s.openPalette)
   const panel = useUI((s) => s.panel)
@@ -95,9 +97,9 @@ export function Sidebar(): React.JSX.Element {
       </nav>
 
       <div className="profile" onClick={() => openPanel('profile')}>
-        <div className="avatar">U</div>
+        <div className="avatar">{who.initial}</div>
         <div className="col" style={{ lineHeight: 1.25 }}>
-          <span style={{ fontWeight: 500 }}>Umut</span>
+          <span style={{ fontWeight: 500 }}>{who.first}</span>
           <span className="muted" style={{ fontSize: 12 }}>
             Personal space
           </span>

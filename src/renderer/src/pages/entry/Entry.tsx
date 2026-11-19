@@ -321,7 +321,7 @@ export function Register(): React.JSX.Element {
           <label className="nx-field">
             <input
               type="text"
-              placeholder="Umut"
+              placeholder="Your name"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />

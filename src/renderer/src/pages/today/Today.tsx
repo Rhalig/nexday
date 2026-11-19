@@ -12,6 +12,7 @@ import { parseCapture, toTask } from '../../lib/capture'
 import { useTasks } from '../../store/tasks'
 import { appToday, pageDate, weekdayLong } from '../../lib/clock'
 import './today.css'
+import { greeting, useIdentity } from '../../lib/identity'
 
 type Slot = {
   w: string
@@ -123,6 +124,7 @@ const habits: Array<{ name: string; meta: string; cells: Array<'y' | 't' | ''> }
 type View = 'list' | 'board' | 'calendar'
 
 export default function Today(): React.JSX.Element {
+  const who = useIdentity()
   const navigate = useNavigate()
   const [energy, setEnergy] = useState(true)
   const [view, setView] = useState<View>('list')
@@ -135,7 +137,7 @@ export default function Today(): React.JSX.Element {
       <div className="panel-scroll">
         <PageHead
           date={pageDate()}
-          title="Good morning, Umut"
+          title={`${greeting()}, ${who.first}`}
           sub="4 events and 7 tasks today. You have a 2-hour gap this afternoon."
           stats={[
             ['Day score', '72/100'],

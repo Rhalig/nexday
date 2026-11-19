@@ -118,3 +118,9 @@ export async function initPersistence(): Promise<void> {
     })
   }
 }
+
+/** Small key/value helpers on the same backend, used by the cloud layer's unsent-changes journal. */
+export const kv = {
+  get: async (key: string): Promise<unknown> => (await backend.load())[key] ?? null,
+  set: (key: string, value: unknown): void => backend.save(key, value)
+}

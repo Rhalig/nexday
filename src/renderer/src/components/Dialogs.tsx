@@ -14,6 +14,7 @@ import { usePlan } from '../lib/plan'
 import { planDayLabel, planTasks } from '../lib/planning'
 import { appToday, startOfWeek } from '../lib/clock'
 import './dialogs.css'
+import { useIdentity } from '../lib/identity'
 
 /** Scrim + centred box. `top` is the distance from the window top, as in the designs. */
 export function Modal({
@@ -266,9 +267,9 @@ const sources: Array<{ icon: IconName; name: string; sub: string; static?: strin
     sub: 'Anything you type with ⌘K · always on',
     static: '2 waiting'
   },
-  { icon: 'mail', name: 'Email', sub: 'umutsahin1886@gmail.com · starred and Nexday label' },
-  { icon: 'hash', name: 'Slack mentions', sub: '#planner-mvp and direct messages' },
-  { icon: 'git', name: 'GitHub reviews', sub: 'Review requests on planner-mvp' }
+  { icon: 'mail', name: 'Email', sub: 'Starred emails · coming soon', static: 'Soon' },
+  { icon: 'hash', name: 'Slack mentions', sub: 'Mentions and direct messages · coming soon', static: 'Soon' },
+  { icon: 'git', name: 'GitHub reviews', sub: 'Review requests · coming soon', static: 'Soon' }
 ]
 const rules: Array<{ parts: ReactNode; used: string }> = [
   {
@@ -718,6 +719,7 @@ type Member = {
 }
 
 export function ShareDialog({ slug }: { slug?: string }): React.JSX.Element {
+  const who = useIdentity()
   const closeDialog = useUI((s) => s.closeDialog)
   const p = useProject(slug)
   const [email, setEmail] = useState('')
@@ -725,34 +727,12 @@ export function ShareDialog({ slug }: { slug?: string }): React.JSX.Element {
   const [link, setLink] = useState(false)
   const [members, setMembers] = useState<Member[]>([
     {
-      name: 'Umut',
-      email: 'umutsahin1886@gmail.com',
-      letter: 'U',
+      name: who.name,
+      email: who.email,
+      letter: who.initial,
       color: '#1A1A1A',
       role: 'Owner',
       owner: true
-    },
-    {
-      name: 'Ece Çelik',
-      email: 'ece@compass.app',
-      letter: 'E',
-      color: '#5B6578',
-      role: 'Can edit'
-    },
-    {
-      name: 'Mert Kaya',
-      email: 'mert@compass.app',
-      letter: 'M',
-      color: '#E2680C',
-      role: 'Can view'
-    },
-    {
-      name: 'ali@studio.co',
-      email: 'Invite sent · waiting',
-      letter: 'A',
-      color: '#fff',
-      role: 'Can edit',
-      pending: true
     }
   ])
 

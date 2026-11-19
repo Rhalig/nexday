@@ -5,6 +5,7 @@ import { Icon } from '../../components/Icon'
 import { Button, cn } from '../../components/ui'
 import { dotColor, fmtTime, type KindedEvent } from '../../data/calendar'
 import { appToday, monthShort, parseDayKey, sameDay, weekdayShort } from '../../lib/clock'
+import { useIdentity } from '../../lib/identity'
 
 const DESIGN_BLUE = '#4A78D4'
 
@@ -22,6 +23,7 @@ export default function EventDrawer({
   repeatLabel?: string
   onDelete?: () => void
 }): React.JSX.Element {
+  const who = useIdentity()
   const navigate = useNavigate()
   const color = e.kind === 'blue' ? DESIGN_BLUE : dotColor[e.kind]
   const range = e.allDay ? 'All day' : `${fmtTime(e.start)} – ${fmtTime(e.end)}`
@@ -116,7 +118,7 @@ export default function EventDrawer({
               <span style={{ fontSize: 12.5 }}>3 going</span>
             </div>
             {[
-              { n: 'Umut Şahin', l: 'U', bg: '#1A1A1A', sub: 'You · Organizer' },
+              { n: who.name, l: who.initial, bg: '#1A1A1A', sub: 'You · Organizer' },
               { n: 'Ece Çelik', l: 'E', bg: '#F38020' },
               { n: 'Mert Kaya', l: 'M', bg: '#5B6578' }
             ].map((g) => (

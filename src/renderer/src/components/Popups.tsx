@@ -9,6 +9,10 @@ import { useProjects } from '../store/projects'
 import { withinLimit } from '../lib/plan'
 import { useUI } from '../store/ui'
 import './popups.css'
+import { useIdentity } from '../lib/identity'
+import { retryNow, useSync } from '../lib/cloud'
+import { usePlan } from '../lib/plan'
+import { useCalendar } from '../store/calendar'
 
 /** Closes on Escape (capture phase so it wins over a drawer underneath). */
 export function useEscape(onClose: () => void): void {
@@ -31,6 +35,8 @@ function Catcher({ onClose }: { onClose: () => void }): React.JSX.Element {
 /* ---------------- Profile menu ---------------- */
 
 export function ProfileMenu(): React.JSX.Element {
+  const who = useIdentity()
+  const planId = usePlan((s) => s.id)
   const { closePanel, openPanel, autoSchedule, pauseNotifs, toggle } = useUI()
   const navigate = useNavigate()
   useEscape(closePanel)
@@ -59,11 +65,13 @@ export function ProfileMenu(): React.JSX.Element {
       <div className="pm">
         <div className="row" style={{ gap: 10, padding: '10px 16px 12px' }}>
           <div className="avatar" style={{ width: 32, height: 32, fontSize: 13 }}>
-            U
+            {who.initial}
           </div>
           <div className="col" style={{ flex: 1 }}>
-            <span style={{ fontSize: 13.5, fontWeight: 500 }}>Umut Şahin</span>
-            <span style={{ fontSize: 12, color: '#767676' }}>Personal space · Free</span>
+            <span style={{ fontSize: 13.5, fontWeight: 500 }}>{who.name}</span>
+            <span style={{ fontSize: 12, color: '#767676' }}>
+              Personal space · {planId === 'pro' ? 'Pro' : 'Free'}
+            </span>
           </div>
         </div>
         <div className="pm-hr" style={{ marginTop: 0 }} />
@@ -103,20 +111,35 @@ export function SyncPopover({
   onClose: () => void
 }): React.JSX.Element {
   useEscape(onClose)
+  const mac = useCalendar()
+  const cloud = useSync()
+  const ago = (t: number | null): string => {
+    if (!t) return 'not yet'
+    const m = Math.floor((Date.now() - t) / 60000)
+    return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${Math.floor(m / 60)} h ago`
+  }
+  const macOn = mac.status === 'authorized'
   const accounts = [
     {
-      letter: 'G',
-      color: '#4A78D4',
-      name: 'Google Calendar',
-      sub: 'umutsahin1886@gmail.com · 3 calendars'
+      letter: 'A',
+      color: undefined,
+      name: 'Apple Calendar',
+      sub: macOn
+        ? `${mac.calendars.length} ${mac.calendars.length === 1 ? 'calendar' : 'calendars'} (includes Google accounts added to the Mac)`
+        : 'Not connected',
+      when: macOn ? ago(mac.lastSync) : '—',
+      ok: macOn
     },
-    { letter: 'A', color: undefined, name: 'Apple Calendar', sub: 'iCloud · 1 calendar' }
+    {
+      letter: 'N',
+      color: undefined,
+      name: 'Nexday cloud',
+      sub: cloud.state === 'error' ? 'Could not save your latest changes' : 'Your tasks, notes and events',
+      when: ago(cloud.lastSync),
+      ok: cloud.state !== 'error'
+    }
   ]
-  const log: Array<[string, string]> = [
-    ['2 events imported from Work', '2 min'],
-    ['Design critique moved to 15:00', '9 min'],
-    ['3 tasks written to Calendar', '34 min']
-  ]
+  const log: Array<[string, string]> = []
   return (
     <>
       <Catcher onClose={onClose} />
@@ -126,10 +149,15 @@ export function SyncPopover({
             <span style={{ fontSize: 15, fontWeight: 500 }}>Calendar sync</span>
             <span className="row" style={{ gap: 6, fontSize: 12.5, color: '#6B6B6B' }}>
               <span className="sp-dot" />
-              Up to date · 2 min ago
+              {cloud.state === 'error' ? 'Needs attention' : cloud.state === 'saving' ? 'Saving…' : 'Up to date'}
             </span>
           </div>
-          <Button onClick={onClose}>
+          <Button
+            onClick={() => {
+              retryNow()
+              void mac.refresh()
+            }}
+          >
             <Icon name="refresh" size={13} strokeWidth={2} />
             Sync now
           </Button>
@@ -157,7 +185,8 @@ export function SyncPopover({
                 <i>{a.sub}</i>
               </div>
               <span className="row" style={{ gap: 6, fontSize: 12, color: '#6B6B6B' }}>
-                <span className="sp-dot" />2 min ago
+                <span className="sp-dot" style={a.ok ? undefined : { background: '#C2362B' }} />
+                {a.when}
               </span>
             </div>
           ))}
@@ -175,6 +204,12 @@ export function SyncPopover({
           Latest changes
         </div>
         <div className="col" style={{ borderTop: '1px solid #EDEDEB' }}>
+          {log.length === 0 && (
+            <div className="sp-lg" style={{ borderBottom: 0 }}>
+              <span>Nothing has changed since you opened Nexday.</span>
+              <span />
+            </div>
+          )}
           {log.map(([t, m], i) => (
             <div
               className="sp-lg"

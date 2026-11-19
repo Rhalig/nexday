@@ -22,6 +22,7 @@ import {
 } from '../store/ui'
 import { addDays, appToday, dayKey, daysFromToday, startOfWeek } from './clock'
 import { usePlan } from './plan'
+import { kv } from './persist'
 import { supabase } from './supabase'
 
 /**
@@ -42,21 +43,33 @@ export const useSync = create<{
   state: SyncState
   ready: boolean
   error: string | null
+  /** Set when the account's data could not be loaded; the app shows a retry screen instead of empty pages */
+  loadError: string | null
   lastSync: number | null
 }>(() => ({
   state: 'idle',
   ready: false,
   error: null,
+  loadError: null,
   lastSync: null
 }))
 
 let chain: Promise<void> = Promise.resolve()
 let pendingWrites = 0
+let hadFailure = false
+let retryTimer: ReturnType<typeof setTimeout> | null = null
+let retryAttempt = 0
 
-/** Writes run one after another so a later change can never land before an earlier one. */
+/**
+ * Writes run one after another so a later change can never land before an earlier one. A write that
+ * still fails after one quiet retry is undone in the "already saved" record (onFail), so the next
+ * flush sees the change again; a timer keeps trying with a growing pause, and everything is also
+ * written to a journal so a quit while offline does not lose it.
+ */
 function enqueue(
   label: string,
-  op: () => PromiseLike<{ error: { message: string } | null }>
+  op: () => PromiseLike<{ error: { message: string } | null }>,
+  onFail?: () => void
 ): void {
   pendingWrites++
   useSync.setState({ state: 'saving' })
@@ -64,7 +77,6 @@ function enqueue(
     try {
       let r = await op()
       if (r.error) {
-        // one quiet retry for a dropped connection
         await new Promise((res) => setTimeout(res, 1500))
         r = await op()
       }
@@ -75,12 +87,102 @@ function enqueue(
         error: null,
         lastSync: Date.now()
       })
+      if (pendingWrites === 0 && hadFailure) {
+        hadFailure = false
+        retryAttempt = 0
+        void writeJournal(true)
+      }
     } catch (e) {
       pendingWrites--
       console.error(`[cloud] ${label} failed`, e)
+      onFail?.()
+      hadFailure = true
       useSync.setState({ state: 'error', error: e instanceof Error ? e.message : String(e) })
+      void writeJournal(false)
+      scheduleRetry()
     }
   })
+}
+
+/** After a failed save, undo the "saved" mark for exactly those ids so they are sent again. */
+function rollback(key: string, prev: Map<string, string>, ids: string[]): () => void {
+  return () => {
+    const cur = last[key] ?? (last[key] = new Map())
+    for (const id of ids) {
+      const old = prev.get(id)
+      if (old === undefined) cur.delete(id)
+      else cur.set(id, old)
+    }
+  }
+}
+
+function scheduleRetry(): void {
+  if (retryTimer || !currentUser) return
+  const delay = Math.min(60000, 5000 * 2 ** retryAttempt)
+  retryAttempt++
+  retryTimer = setTimeout(() => {
+    retryTimer = null
+    flushAll()
+  }, delay)
+}
+
+/** Save everything that differs from what the database has. Safe to call any time. */
+export function flushAll(): void {
+  if (!supabase || !currentUser) return
+  saveTasks(useTasks.getState().groups)
+  saveInbox(useInbox.getState().items)
+  saveHabits(useHabits.getState().habits)
+  saveNotifs(useNotifs.getState().items)
+  saveProjects(useProjects.getState().custom)
+  saveNotes(useNotes.getState().notes)
+  saveEvents(useCalendar.getState().own)
+  saveSettings()
+}
+
+/** "Sync now": try again immediately. */
+export function retryNow(): void {
+  if (retryTimer) clearTimeout(retryTimer)
+  retryTimer = null
+  retryAttempt = 0
+  flushAll()
+}
+
+if (typeof window !== 'undefined') window.addEventListener('online', () => retryNow())
+
+/* ---- journal: the unsent state, kept on this Mac until it has been saved ---- */
+
+const journalKey = (): string => `journal:${currentUser}`
+
+async function writeJournal(clear: boolean): Promise<void> {
+  if (!currentUser) return
+  if (clear) {
+    kv.set(journalKey(), null)
+    return
+  }
+  kv.set(journalKey(), {
+    at: Date.now(),
+    tasks: useTasks.getState().groups,
+    inbox: useInbox.getState().items,
+    habits: useHabits.getState().habits,
+    notifs: useNotifs.getState().items,
+    notes: useNotes.getState().notes,
+    projects: useProjects.getState().custom,
+    events: useCalendar.getState().own
+  })
+}
+
+/** Changes that never reached the server (offline quit): put them back on top of what was loaded. */
+async function applyJournal(userId: string): Promise<boolean> {
+  const j = (await kv.get(`journal:${userId}`)) as Record<string, unknown> | null
+  if (!j || typeof j !== 'object') return false
+  if (Array.isArray(j.tasks)) useTasks.setState({ groups: j.tasks as TaskGroup[] })
+  if (Array.isArray(j.inbox)) useInbox.setState({ items: j.inbox as InboxItem[] })
+  if (Array.isArray(j.habits)) useHabits.setState({ habits: j.habits as Habit[] })
+  if (Array.isArray(j.notifs)) useNotifs.setState({ items: j.notifs as Notif[] })
+  if (Array.isArray(j.notes)) useNotes.setState({ notes: j.notes as Note[] })
+  if (Array.isArray(j.projects)) useProjects.setState({ custom: j.projects as CustomProject[] })
+  if (Array.isArray(j.events)) useCalendar.getState().setOwn(j.events as PlanEvent[])
+  return true
 }
 
 /* ---------------------------------------------------------------- mapping: tasks */
@@ -428,67 +530,84 @@ const TODAY = (): string => dayKey(appToday())
 function saveTasks(groups: TaskGroup[]): void {
   const sb = supabase!
   const next = taskSnap(groups)
-  const { upsert, removed } = changed(last.tasks, next)
+  const prev = last.tasks
+  const { upsert, removed } = changed(prev, next)
   last.tasks = next
   const byId = new Map(flatTasks(groups).map((x) => [x.t.id, x]))
   if (upsert.length) {
     const rows = upsert.map((id) => taskRow(byId.get(id)!.t, byId.get(id)!.g))
-    enqueue('save tasks', () => sb.from('tasks').upsert(rows))
+    enqueue('save tasks', () => sb.from('tasks').upsert(rows), rollback('tasks', prev, upsert))
   }
   for (const id of removed) {
     const mode = removalMode.get(id) ?? 'done'
-    removalMode.delete(id)
     const patch =
       mode === 'deleted'
         ? { deleted_at: new Date().toISOString() }
         : { status: 'done', completed_at: new Date().toISOString() }
-    enqueue('finish task', () => sb.from('tasks').update(patch).eq('id', id))
+    enqueue(
+      'finish task',
+      () => sb.from('tasks').update(patch).eq('id', id),
+      () => {
+        rollback('tasks', prev, [id])()
+        removalMode.set(id, mode)
+      }
+    )
+    removalMode.delete(id)
   }
 }
 
 function saveInbox(items: InboxItem[]): void {
   const sb = supabase!
   const next = inboxSnap(items)
-  const { upsert, removed } = changed(last.inbox, next)
+  const prev = last.inbox
+  const { upsert, removed } = changed(prev, next)
   last.inbox = next
   if (upsert.length) {
     const byId = new Map(items.map((i) => [i.id, i]))
     const rows = upsert.map((id) => inboxRow(byId.get(id)!))
-    enqueue('save inbox', () => sb.from('inbox_items').upsert(rows))
+    enqueue('save inbox', () => sb.from('inbox_items').upsert(rows), rollback('inbox', prev, upsert))
   }
   for (const id of removed)
-    enqueue('resolve inbox item', () =>
-      sb.from('inbox_items').update({ state: 'resolved' }).eq('id', id)
+    enqueue(
+      'resolve inbox item',
+      () => sb.from('inbox_items').update({ state: 'resolved' }).eq('id', id),
+      rollback('inbox', prev, [id])
     )
 }
 
 function saveHabits(habits: Habit[]): void {
   const sb = supabase!
   const next = habitSnap(habits)
-  const { upsert } = changed(last.habits, next)
+  const prev = last.habits
+  const { upsert } = changed(prev, next)
   last.habits = next
   if (upsert.length) {
     const byId = new Map(habits.map((h) => [h.id, h]))
     const rows = upsert.map((id) => habitRow(byId.get(id)!))
-    enqueue('save habits', () => sb.from('habits').upsert(rows))
+    enqueue('save habits', () => sb.from('habits').upsert(rows), rollback('habits', prev, upsert))
   }
   const cn = checkinSnap(habits)
-  const c = changed(last.checkins, cn)
   const prevCheck = last.checkins
+  const c = changed(prevCheck, cn)
   last.checkins = cn
   for (const id of c.upsert) {
     if (cn.get(id) === 'true')
-      enqueue('check in', () =>
-        sb
-          .from('habit_checkins')
-          .upsert(
-            { habit_id: id, day: TODAY(), done: true, deleted_at: null },
-            { onConflict: 'habit_id,day' }
-          )
+      enqueue(
+        'check in',
+        () =>
+          sb
+            .from('habit_checkins')
+            .upsert(
+              { habit_id: id, day: TODAY(), done: true, deleted_at: null },
+              { onConflict: 'habit_id,day' }
+            ),
+        rollback('checkins', prevCheck, [id])
       )
     else if (prevCheck.get(id) === 'true')
-      enqueue('undo check in', () =>
-        sb.from('habit_checkins').delete().eq('habit_id', id).eq('day', TODAY())
+      enqueue(
+        'undo check in',
+        () => sb.from('habit_checkins').delete().eq('habit_id', id).eq('day', TODAY()),
+        rollback('checkins', prevCheck, [id])
       )
   }
 }
@@ -496,18 +615,24 @@ function saveHabits(habits: Habit[]): void {
 function saveNotifs(items: Notif[]): void {
   const sb = supabase!
   const next = notifSnap(items)
-  const { upsert } = changed(last.notifs, next)
+  const prev = last.notifs
+  const { upsert } = changed(prev, next)
   last.notifs = next
   if (!upsert.length) return
   const byId = new Map(items.map((n) => [n.id, n]))
   const rows = upsert.map((id) => notifRow(byId.get(id)!))
-  enqueue('save notifications', () => sb.from('notifications').upsert(rows))
+  enqueue(
+    'save notifications',
+    () => sb.from('notifications').upsert(rows),
+    rollback('notifs', prev, upsert)
+  )
 }
 
 function saveProjects(custom: CustomProject[]): void {
   const sb = supabase!
   const next = projectSnap(custom)
-  const { upsert } = changed(last.projects, next)
+  const prev = last.projects
+  const { upsert } = changed(prev, next)
   last.projects = next
   if (!upsert.length) return
   const byId = new Map(custom.filter((p) => p.id).map((p) => [p.id!, p]))
@@ -519,38 +644,44 @@ function saveProjects(custom: CustomProject[]): void {
     deleted_at: null
   }))
   for (const r of rows) projectIds[String(r.slug)] = String(r.id)
-  enqueue('save projects', () => sb.from('projects').upsert(rows))
+  enqueue('save projects', () => sb.from('projects').upsert(rows), rollback('projects', prev, upsert))
 }
 
 function saveNotes(items: Note[]): void {
   const sb = supabase!
   const next = noteSnap(items)
-  const { upsert, removed } = changed(last.notes, next)
+  const prev = last.notes
+  const { upsert, removed } = changed(prev, next)
   last.notes = next
   if (upsert.length) {
     const byId = new Map(items.map((n) => [n.id, n]))
     const rows = upsert.map((id) => noteRow(byId.get(id)!))
-    enqueue('save notes', () => sb.from('notes').upsert(rows))
+    enqueue('save notes', () => sb.from('notes').upsert(rows), rollback('notes', prev, upsert))
   }
   for (const id of removed)
-    enqueue('delete note', () =>
-      sb.from('notes').update({ deleted_at: new Date().toISOString() }).eq('id', id)
+    enqueue(
+      'delete note',
+      () => sb.from('notes').update({ deleted_at: new Date().toISOString() }).eq('id', id),
+      rollback('notes', prev, [id])
     )
 }
 
 function saveEvents(own: PlanEvent[]): void {
   const sb = supabase!
   const next = eventSnap(own)
-  const { upsert, removed } = changed(last.events, next)
+  const prev = last.events
+  const { upsert, removed } = changed(prev, next)
   last.events = next
   if (upsert.length) {
     const byId = new Map(own.map((e) => [e.id, e]))
     const rows = upsert.map((id) => eventRow(byId.get(id)!))
-    enqueue('save events', () => sb.from('events').upsert(rows))
+    enqueue('save events', () => sb.from('events').upsert(rows), rollback('events', prev, upsert))
   }
   for (const id of removed)
-    enqueue('delete event', () =>
-      sb.from('events').update({ deleted_at: new Date().toISOString() }).eq('id', id)
+    enqueue(
+      'delete event',
+      () => sb.from('events').update({ deleted_at: new Date().toISOString() }).eq('id', id),
+      rollback('events', prev, [id])
     )
 }
 
@@ -559,15 +690,23 @@ function saveSettings(): void {
   const { autoSchedule, pauseNotifs, planning, prefs, notifPrefs, calPrefs } = useUI.getState()
   const block = { autoSchedule, pauseNotifs, planning, prefs, notifPrefs, calPrefs }
   const next = JSON.stringify(block)
-  if (last.settings.get('ui') === next) return
+  const before = last.settings.get('ui')
+  if (before === next) return
   last.settings.set('ui', next)
-  enqueue('save settings', async () => {
-    const { data } = await sb.auth.getUser()
-    if (!data.user) return { error: null }
-    const cur = await sb.from('profiles').select('settings').eq('user_id', data.user.id).single()
-    const settings = { ...((cur.data?.settings as Row) ?? {}), ...block }
-    return sb.from('profiles').update({ settings }).eq('user_id', data.user.id)
-  })
+  enqueue(
+    'save settings',
+    async () => {
+      const { data } = await sb.auth.getUser()
+      if (!data.user) return { error: null }
+      const cur = await sb.from('profiles').select('settings').eq('user_id', data.user.id).single()
+      const settings = { ...((cur.data?.settings as Row) ?? {}), ...block }
+      return sb.from('profiles').update({ settings }).eq('user_id', data.user.id)
+    },
+    () => {
+      if (before === undefined) last.settings.delete('ui')
+      else last.settings.set('ui', before)
+    }
+  )
 }
 
 /* ---------------------------------------------------------------- loading and seeding */
@@ -749,14 +888,22 @@ async function loadAll(userId: string): Promise<void> {
 export async function startCloud(userId: string): Promise<void> {
   if (!supabase || currentUser === userId) return
   currentUser = userId
-  useSync.setState({ ready: false, state: 'idle', error: null })
+  useSync.setState({ ready: false, state: 'idle', error: null, loadError: null })
   try {
     await loadAll(userId)
     await usePlan.getState().load()
   } catch (e) {
+    // Do not start saving on top of an empty app: show a retry screen instead.
     console.error('[cloud] load failed', e)
-    useSync.setState({ state: 'error', error: e instanceof Error ? e.message : String(e) })
+    currentUser = null
+    useSync.setState({
+      ready: false,
+      loadError: e instanceof Error ? e.message : String(e)
+    })
+    return
   }
+  // Changes that never reached the server last time (quit while offline) go back on top.
+  const resumed = await applyJournal(userId)
   unsubscribe.forEach((u) => u())
   unsubscribe = [
     useTasks.subscribe((s, p) => s.groups !== p.groups && saveTasks(s.groups)),
@@ -778,6 +925,16 @@ export async function startCloud(userId: string): Promise<void> {
     )
   ]
   useSync.setState({ ready: true })
+  if (resumed) {
+    hadFailure = true // the journal is cleared once these writes succeed
+    flushAll()
+  }
+}
+
+/** The retry button on the "couldn't load" screen. */
+export function retryLoad(userId: string): void {
+  currentUser = null
+  void startCloud(userId)
 }
 
 /** Called on sign-out: stop saving and clear everything that belonged to the person. */
@@ -803,5 +960,10 @@ export function stopCloud(): void {
     notifPrefs: DEFAULT_NOTIFS,
     calPrefs: DEFAULT_CAL_PREFS
   })
-  useSync.setState({ ready: false, state: 'idle', error: null })
+  if (retryTimer) clearTimeout(retryTimer)
+  retryTimer = null
+  retryAttempt = 0
+  hadFailure = false
+  pendingWrites = 0
+  useSync.setState({ ready: false, state: 'idle', error: null, loadError: null })
 }

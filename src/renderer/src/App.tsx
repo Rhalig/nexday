@@ -26,7 +26,7 @@ import Focus from './pages/focus/Focus'
 import { TasksEmpty, TasksLoading, TasksSyncError } from './pages/tasks/TasksStates'
 import { useAuth } from './store/auth'
 import { useCalendar } from './store/calendar'
-import { useSync } from './lib/cloud'
+import { retryLoad, useSync } from './lib/cloud'
 import { supabase } from './lib/supabase'
 
 function Placeholder({ name }: { name: string }): React.JSX.Element {
@@ -53,10 +53,35 @@ function RequireAuth(): React.JSX.Element {
   const signedIn = useAuth((s) => s.signedIn)
   const ready = useAuth((s) => s.ready)
   const dataReady = useSync((s) => s.ready)
+  const loadError = useSync((s) => s.loadError)
+  const userId = useAuth((s) => s.userId)
   if (!ready) return <></>
   if (!signedIn) return <Navigate to="/launch" replace />
   // With an account, show the app once that person's data has arrived
-  if (supabase && !dataReady) return <div className="drag-strip" />
+  if (supabase && !dataReady) {
+    if (!loadError) return <div className="drag-strip" />
+    return (
+      <>
+        <div className="drag-strip" />
+        <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="col" style={{ maxWidth: 380, textAlign: 'center', gap: 10, alignItems: 'center' }}>
+            <h2 style={{ fontWeight: 500, fontSize: 20 }}>We couldn’t load your data</h2>
+            <p className="muted" style={{ lineHeight: 1.5 }}>
+              Nothing has been changed or lost. Check your connection and try again.
+            </p>
+            <div className="row" style={{ gap: 10, marginTop: 8 }}>
+              <button className="btn" onClick={() => void useAuth.getState().signOut()}>
+                Sign out
+              </button>
+              <button className="btn dark" onClick={() => userId && retryLoad(userId)}>
+                Try again
+              </button>
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
   return <Outlet />
 }
 
@@ -74,7 +99,7 @@ function RecoveryGate(): null {
 function CheckEmailRoute(): React.JSX.Element {
   const { state } = useLocation()
   const s = state as { email?: string; kind?: 'reset' | 'confirm' } | null
-  return <CheckEmail email={s?.email || 'umut@studio.co'} kind={s?.kind} />
+  return <CheckEmail email={s?.email || 'your inbox'} kind={s?.kind} />
 }
 
 export default function App(): React.JSX.Element {

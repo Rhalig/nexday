@@ -7,6 +7,7 @@ import { projectList, type ProjectData } from '../../data/projects'
 import { useUI } from '../../store/ui'
 import { useProjects } from '../../store/projects'
 import './projects.css'
+import { FEATURES } from '../../lib/features'
 
 export default function Project(): React.JSX.Element {
   const { slug } = useParams()
@@ -49,8 +50,7 @@ function ProjectView({ project: p }: { project: ProjectData }): React.JSX.Elemen
         <span style={{ color: '#BDBDBA' }}>/</span>
         <span style={{ fontSize: 13, fontWeight: 500 }}>{p.name}</span>
         <span style={{ flex: 1 }} />
-        <Button style={{ marginRight: p.shareable ? 12 : 12 }}>Synced with Calendar · 2 min ago</Button>
-        {p.shareable && (
+        {FEATURES.sharing && p.shareable && (
           <Button style={{ marginRight: 12 }} onClick={() => useUI.getState().openDialog('share', p.slug)}>
             <Icon name="share" size={14} round />
             Share

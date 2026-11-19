@@ -4,9 +4,18 @@ import { Icon, type IconName } from './Icon'
 import { useUI } from '../store/ui'
 import { Button } from './ui'
 import { useSync } from '../lib/cloud'
+import { useCalendar } from '../store/calendar'
 
 export function Topbar({ icon, section, current, sync: forced }: { icon: IconName; section: string; current: string; sync?: 'ok' | 'error' | 'loading' }): React.JSX.Element {
   const live = useSync((s) => s.state)
+  const cloudAt = useSync((s) => s.lastSync)
+  const macAt = useCalendar((s) => s.lastSync)
+  const macOn = useCalendar((s) => s.status === 'authorized')
+  const ago = (t: number): string => {
+    const m = Math.floor((Date.now() - t) / 60000)
+    return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${Math.floor(m / 60)} h ago`
+  }
+  const okLabel = macOn && macAt ? `Synced with Calendar · ${ago(macAt)}` : cloudAt ? `All changes saved · ${ago(cloudAt)}` : 'All changes saved'
   // The state screens force a look; everywhere else the button shows the real cloud status
   const syncState: 'ok' | 'error' | 'loading' = forced ?? (live === 'error' ? 'error' : live === 'saving' ? 'loading' : 'ok')
   const openNew = useUI((s) => s.openNew)
@@ -35,7 +44,7 @@ export function Topbar({ icon, section, current, sync: forced }: { icon: IconNam
               <path d="M12 7v6M12 16.5v.5" />
             </svg>
           )}
-          <span>{syncState === 'ok' ? 'Synced with Calendar · 2 min ago' : syncState === 'error' ? 'Sync failed' : 'Syncing…'}</span>
+          <span>{syncState === 'ok' ? okLabel : syncState === 'error' ? 'Sync failed' : 'Syncing…'}</span>
         </Button>
         {sync && <SyncPopover anchor={sync} onClose={() => setSync(null)} />}
         <Button variant="dark" onClick={() => openNew('task')}>

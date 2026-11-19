@@ -31,7 +31,7 @@ type OB = {
 }
 const useOB = create<OB>((set) => ({
   uses: [true, true, false, true],
-  connected: { google: true },
+  connected: {},
   days: [true, true, true, true, true, false, false],
   focus: 0,
   project: 'Planner MVP',
@@ -125,7 +125,7 @@ export default function Onboarding(): React.JSX.Element {
   const auth = useAuth()
   const addProject = useProjects((s) => s.add)
   const cal = useCalendar()
-  const name = auth.name || 'Umut'
+  const name = auth.name.split(' ')[0] || 'there'
   const go = (n: number) => (): void => void navigate(`/onboarding/${n}`)
 
   if (![1, 2, 3, 4, 5].includes(step)) return <Navigate to="/onboarding/1" replace />
@@ -162,10 +162,7 @@ export default function Onboarding(): React.JSX.Element {
 
   if (step === 2) {
     const macOk = cal.status === 'authorized'
-    const toggle = (k: string) => (): void => {
-      if (k === 'mac') void cal.connect()
-      else ob.set({ connected: { ...ob.connected, [k]: true } })
-    }
+    const toggle = (): void => void cal.connect()
     const src = (key: string, icon: ReactNode, title: string, sub: string, label: string): React.JSX.Element => (
       <div className="ob-src" key={key}>
         {icon}
@@ -173,12 +170,14 @@ export default function Onboarding(): React.JSX.Element {
           <span style={{ fontSize: 14.5, fontWeight: 500 }}>{title}</span>
           <span style={{ fontSize: 13, color: 'var(--ink2)' }}>{sub}</span>
         </div>
-        {ob.connected[key] || (key === 'mac' && macOk) ? (
+        {key !== 'mac' ? (
+          <span style={{ fontSize: 12.5, color: 'var(--ink3)' }}>via Mac</span>
+        ) : macOk ? (
           <div className="row" style={{ gap: 6, color: 'var(--acc-text)', fontSize: 13, fontWeight: 500 }}>
             {tick(14, 2.6, 'currentColor')}Connected
           </div>
         ) : (
-          <button className="nx-btn auto" onClick={toggle(key)}>
+          <button className="nx-btn auto" onClick={toggle}>
             {label}
           </button>
         )}
@@ -198,9 +197,9 @@ export default function Onboarding(): React.JSX.Element {
             'Uses the accounts already in Calendar. Asks for access once.',
             'Allow access'
           )}
-          {src('google', <img src={googleCal} width={28} height={28} alt="" />, 'Google Calendar', 'umut@studio.co · 4 calendars', 'Connect')}
-          {src('apple', <img src={appleIcon} width={24} height={24} alt="" style={{ margin: '0 2px' }} />, 'Apple Calendar', 'iCloud calendars', 'Connect')}
-          {src('outlook', <img src={outlookIcon} width={28} height={28} alt="" />, 'Outlook', 'Microsoft 365 and Outlook.com', 'Connect')}
+          {src('google', <img src={googleCal} width={28} height={28} alt="" />, 'Google Calendar', 'Add the account to your Mac and it shows up here', '')}
+          {src('apple', <img src={appleIcon} width={24} height={24} alt="" style={{ margin: '0 2px' }} />, 'Apple Calendar', 'iCloud calendars', '')}
+          {src('outlook', <img src={outlookIcon} width={28} height={28} alt="" />, 'Outlook', 'Microsoft 365 and Outlook.com', '')}
         </div>
         <div className="row" style={{ gap: 8, marginTop: 20 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#767676" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
