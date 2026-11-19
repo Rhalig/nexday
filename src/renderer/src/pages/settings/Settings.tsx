@@ -7,6 +7,7 @@ import { useAuth } from '../../store/auth'
 import { useIdentity, timeZoneName } from '../../lib/identity'
 import { useCalendar } from '../../store/calendar'
 import { useUI } from '../../store/ui'
+import { GO_TO, SHORTCUTS, comboOf, keycaps, problemWith, resolveShortcuts, type ShortcutId } from '../../lib/shortcuts'
 import { useNotes } from '../../store/notes'
 import { useProjects } from '../../store/projects'
 import { usePlan } from '../../lib/plan'
@@ -710,101 +711,143 @@ function Notifications(): React.JSX.Element {
 }
 
 function Shortcuts(): React.JSX.Element {
-  const keys = (ks: string[], then?: boolean): ReactNode =>
-    ks.map((k, i) => (
-      <span key={i} className="row" style={{ gap: 6 }}>
-        {then && i === 1 && (
-          <span className="a" style={{ color: 'var(--ink3)', fontSize: 12.5, margin: '0 2px' }}>
-            then
-          </span>
-        )}
-        <span className="st-kbd l">{k}</span>
-      </span>
-    ))
-  const grp = (title: string, items: Array<[string, string[], boolean?]>): React.JSX.Element => (
-    <div className="st-grp">
-      <div className="st-gh">{title}</div>
-      {items.map(([n, k, then]) => (
-        <div className="st-sc" key={n}>
-          <span>{n}</span>
-          <Sp />
-          {keys(k, then)}
-        </div>
-      ))}
-    </div>
-  )
+  const prefs = useUI((s) => s.prefs)
+  const setPrefs = useUI((s) => s.setPrefs)
+  const map = resolveShortcuts(prefs)
+  const [editing, setEditing] = useState<ShortcutId | null>(null)
+  const [problem, setProblem] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    if (!editing) return
+    const onKey = (e: KeyboardEvent): void => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.key === 'Escape') {
+        setEditing(null)
+        setProblem(null)
+        return
+      }
+      const combo = comboOf(e)
+      if (!combo) {
+        if (!['Meta', 'Control', 'Shift', 'Alt'].includes(e.key)) setProblem('Hold ⌘ or Ctrl together with a key.')
+        return
+      }
+      const bad = problemWith(combo, editing, map)
+      if (bad) return setProblem(bad)
+      const def = SHORTCUTS.find((x) => x.id === editing)!.def
+      const next = { ...prefs.shortcuts }
+      if (combo === def) delete next[editing]
+      else next[editing] = combo
+      setPrefs({ shortcuts: next })
+      setEditing(null)
+      setProblem(null)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  })
+
+  const q = query.trim().toLowerCase()
+  const shown = (g: 'General' | 'Create'): typeof SHORTCUTS =>
+    SHORTCUTS.filter((x) => x.group === g && (!q || x.label.toLowerCase().includes(q)))
+  const grp = (title: string, items: typeof SHORTCUTS): React.JSX.Element | null =>
+    items.length === 0 ? null : (
+      <div className="st-grp">
+        <div className="st-gh">{title}</div>
+        {items.map((x) => (
+          <div className="st-sc" key={x.id}>
+            <span>{x.label}</span>
+            <Sp />
+            {editing === x.id ? (
+              <span className="st-kbd l" style={{ color: 'var(--accent, #F38020)' }}>
+                {problem ?? 'Press the new keys… (Esc to cancel)'}
+              </span>
+            ) : (
+              <button
+                className="row"
+                style={{ gap: 6 }}
+                title="Click to change"
+                onClick={() => {
+                  setEditing(x.id)
+                  setProblem(null)
+                }}
+              >
+                {keycaps(map[x.id]).map((k, i) => (
+                  <span key={i} className="st-kbd l">
+                    {k}
+                  </span>
+                ))}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    )
+  const goTo = GO_TO.filter((g) => !q || g.label.toLowerCase().includes(q) || 'go to'.includes(q))
+  const changed = Object.keys(prefs.shortcuts).length > 0
   return (
     <>
       <div className="row" style={{ gap: 16, paddingBottom: 22 }}>
         <div className="col" style={{ gap: 3, flex: 1 }}>
           <span style={{ fontSize: 18, fontWeight: 500 }}>Keyboard shortcuts</span>
-          <span style={{ fontSize: 13.5, color: 'var(--ink2)' }}>
-            Click any shortcut to change it.
-          </span>
+          <span style={{ fontSize: 13.5, color: 'var(--ink2)' }}>Click any shortcut to change it.</span>
         </div>
-        <div
+        <label
           className="row"
-          style={{
-            gap: 8,
-            height: 36,
-            width: 220,
-            border: '1px solid var(--line2)',
-            borderRadius: 10,
-            padding: '0 12px'
-          }}
+          style={{ gap: 8, height: 36, width: 220, border: '1px solid var(--line2)', borderRadius: 10, padding: '0 12px' }}
         >
           <Icon name="search" size={14} strokeWidth={1.8} round />
-          <span style={{ fontSize: 13.5, color: 'var(--ink3)' }}>Find a shortcut</span>
-        </div>
-        <span className="st-btn">Reset to defaults</span>
+          <input
+            placeholder="Find a shortcut"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            style={{ border: 0, outline: 0, background: 'transparent', font: 'inherit', fontSize: 13.5, flex: 1, minWidth: 0 }}
+          />
+        </label>
+        {changed && (
+          <button className="st-btn" onClick={() => setPrefs({ shortcuts: {} })}>
+            Reset to defaults
+          </button>
+        )}
       </div>
       <div className="st-srow" style={{ padding: '16px 0' }}>
         <div className="st-l" style={{ width: 'auto', flex: 1 }}>
           <b>Single-key shortcuts</b>
-          <span>Press G then I to jump to Inbox, or T to add a task, without holding ⌘.</span>
+          <span>Press G then I to jump to Inbox, without holding ⌘. Not active while you type.</span>
         </div>
-        <Tg init />
+        <Tg on={prefs.singleKey} onChange={(singleKey) => setPrefs({ singleKey })} />
       </div>
-      <div
-        className="row"
-        style={{
-          gap: 56,
-          alignItems: 'flex-start',
-          paddingTop: 22,
-          borderTop: '1px solid var(--line)'
-        }}
-      >
+      <div className="row" style={{ gap: 56, alignItems: 'flex-start', paddingTop: 22, borderTop: '1px solid var(--line)' }}>
         <div className="col" style={{ flex: 1 }}>
-          {grp('General', [
-            ['Search or command', ['⌘', 'K']],
-            ['Open settings', ['⌘', ',']],
-            ['Show all shortcuts', ['⌘', '/']],
-            ['Close or go back', ['esc']]
-          ])}
-          {grp('Go to', [
-            ['Today', ['G', 'T'], true],
-            ['Inbox', ['G', 'I'], true],
-            ['Calendar', ['G', 'C'], true],
-            ['Tasks', ['G', 'K'], true],
-            ['Notes', ['G', 'N'], true],
-            ['Habits', ['G', 'H'], true]
-          ])}
+          {grp('General', shown('General'))}
+          {(!q || 'close or go back'.includes(q)) && (
+            <div className="st-grp">
+              <div className="st-sc">
+                <span>Close or go back</span>
+                <Sp />
+                <span className="st-kbd l">esc</span>
+              </div>
+            </div>
+          )}
         </div>
         <div className="col" style={{ flex: 1 }}>
-          {grp('Create', [
-            ['New task', ['⌘', 'T']],
-            ['New event', ['⌘', 'E']],
-            ['New note', ['⌘', 'N']],
-            ['New project', ['⌘', '⇧', 'P']]
-          ])}
-          {grp('Plan and tasks', [
-            ['Add to plan', ['⌘', '↵']],
-            ['Auto-schedule', ['⌘', '⇧', 'A']],
-            ['Complete task', ['⌘', 'D']],
-            ['Move to tomorrow', ['⌘', ']']],
-            ['Snooze', ['S']],
-            ['Focus the quick-capture bar', ['/']]
-          ])}
+          {grp('Create', shown('Create'))}
+          {goTo.length > 0 && (
+            <div className="st-grp">
+              <div className="st-gh">Go to</div>
+              {goTo.map((g) => (
+                <div className="st-sc" key={g.key} style={prefs.singleKey ? undefined : { opacity: 0.45 }}>
+                  <span>{g.label}</span>
+                  <Sp />
+                  <span className="st-kbd l">G</span>
+                  <span className="a" style={{ color: 'var(--ink3)', fontSize: 12.5, margin: '0 2px' }}>
+                    then
+                  </span>
+                  <span className="st-kbd l">{g.key}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </>

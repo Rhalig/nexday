@@ -44,6 +44,10 @@ export type AppPrefs = {
   sounds: boolean
   reduceMotion: boolean
   showCompleted: boolean
+  /** Changed shortcuts only (id → "Mod+K"); missing ids use their default */
+  shortcuts: Record<string, string>
+  /** "G then a letter" to jump between pages */
+  singleKey: boolean
 }
 
 export const DEFAULT_PREFS: AppPrefs = {
@@ -54,7 +58,9 @@ export const DEFAULT_PREFS: AppPrefs = {
   density: 'Comfortable',
   sounds: true,
   reduceMotion: false,
-  showCompleted: true
+  showCompleted: true,
+  shortcuts: {},
+  singleKey: true
 }
 
 export type NotifPrefs = {
@@ -101,7 +107,9 @@ const cleanMatrix = (raw: unknown): boolean[][] =>
 
 /** Anything older or partial in profiles.settings is filled with the defaults. */
 export function mergePrefs(raw: unknown): AppPrefs {
-  return { ...DEFAULT_PREFS, ...((raw ?? {}) as Partial<AppPrefs>) }
+  const r = { ...DEFAULT_PREFS, ...((raw ?? {}) as Partial<AppPrefs>) }
+  if (!r.shortcuts || typeof r.shortcuts !== 'object') r.shortcuts = {}
+  return r
 }
 
 export function mergeNotifPrefs(raw: unknown): NotifPrefs {
