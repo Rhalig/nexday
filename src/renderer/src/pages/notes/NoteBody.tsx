@@ -145,6 +145,7 @@ export const NoteBody = forwardRef<
   rowsRef.current = rows
   const els = useRef(new Map<string, HTMLDivElement>())
   const pending = useRef<{ id: string; at: Caret } | null>(null)
+  const pendingStyle = useRef<'bold' | 'italic' | null>(null)
   const active = useRef<string | null>(null)
   const emitted = useRef(value)
   const onChangeRef = useRef(onChange)
@@ -192,6 +193,14 @@ export const NoteBody = forwardRef<
     if (el) {
       el.focus()
       placeCaret(el, p.at)
+      // "/bold" and "/italic": switch the style on right after the caret is placed
+      const style = pendingStyle.current
+      pendingStyle.current = null
+      if (style) {
+        document.execCommand('styleWithCSS', false, 'false')
+        document.execCommand(style)
+        reportFormat()
+      }
     }
   })
 
@@ -212,13 +221,9 @@ export const NoteBody = forwardRef<
     const rev = (rowsRef.current.find((r) => r.id === id)?.rev ?? 0) + 1
     if (kind === 'bold' || kind === 'italic') {
       // Clear the "/bold" text, then switch the style on: what is typed next comes out bold / italic.
+      pendingStyle.current = kind
       patchRow(id, { md: '', rev }, { id, at: 'start' })
       setMenu(null)
-      setTimeout(() => {
-        document.execCommand('styleWithCSS', false, 'false')
-        document.execCommand(kind)
-        reportFormat()
-      }, 0)
       return
     }
     patchRow(id, { kind, state: 'open', md: '', rev }, { id, at: 'start' })

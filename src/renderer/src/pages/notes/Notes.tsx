@@ -263,7 +263,7 @@ function Preview({ note, onOpen, onDelete }: { note: Note; onOpen: () => void; o
             <span style={{ color: '#E2680C', display: 'flex' }}>
               <Icon name="bolt" size={14} strokeWidth={2} />
             </span>
-            <span style={{ fontSize: 14, fontWeight: 500 }}>
+            <span style={{ fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap' }}>
               {open} open action {open === 1 ? 'item' : 'items'}
             </span>
           </>

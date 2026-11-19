@@ -421,3 +421,6 @@ button.cb18 svg { color: #fff; stroke: #fff; }
 .ed-x:hover { background: #f5f5f4; color: var(--ink); }
 .ed-add { gap: 8px; color: var(--ink3); height: 36px; }
 .ed-add-in { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13.5px; color: var(--ink); }
+
+/* Bold in notes must really be bold (the global b rule is only medium weight) */
+.nb-line b, .nb-line strong, .ed-body b, .ed-body strong { font-weight: 700; }

@@ -22,6 +22,8 @@ export default function Project(): React.JSX.Element {
   const { slug } = useParams()
   const custom = useProjects((s) => s.custom.find((c) => c.slug === slug))
   const key = slug ? SLUG_KEY[slug] : undefined
+  // Re-render when the colour is changed in Project settings
+  useUI((s) => (key ? s.projectPrefs[key]?.color : undefined))
   if (key) return <ProjectView key={slug} slug={slug!} name={projects[key].name} color={projectColor[key]} projectKey={key} />
   if (custom)
     return <ProjectView key={custom.slug} slug={custom.slug} name={custom.name} color={custom.color} projectKey={custom.slug} />
