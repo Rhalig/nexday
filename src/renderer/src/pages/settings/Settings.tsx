@@ -1028,7 +1028,7 @@ export default function Settings(): React.JSX.Element {
       <div className="drag-strip" />
       <div className="st">
         <div className="st-card">
-          <div className="row" style={{ height: 36, gap: 12, paddingLeft: 24, flex: 'none' }}>
+          <div className="row" style={{ height: 36, gap: 12, paddingLeft: 24, marginTop: 34, flex: 'none' }}>
             <span className="st-btn" style={{ padding: '0 16px 0 12px' }} onClick={back}>
               <Icon name="chevronLeft" size={15} strokeWidth={1.8} />
               Back to Nexday
