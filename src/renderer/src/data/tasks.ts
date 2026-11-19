@@ -10,7 +10,11 @@ export type Task = {
   time: string | null
   /** Estimated length in minutes, when known */
   estimate?: number
+  /** Checklist inside the task */
+  subtasks?: Subtask[]
 }
+
+export type Subtask = { id: string; title: string; done: boolean }
 
 export type TaskGroup = {
   id: 'today' | 'tomorrow' | 'next-week' | 'no-time'
@@ -33,7 +37,7 @@ export const taskGroups: TaskGroup[] = [
     meta: '3 · 1h 30m',
     tasks: [
       { id: 't1', title: 'Sketch empty state screens', project: 'planner', energy: 'Deep focus', time: '09:30 · 30m' },
-      { id: 't2', title: 'Prepare 3 home screen variations for critique', project: 'planner', energy: 'Deep focus', time: '14:30 · 30m' },
+      { id: 't2', title: 'Prepare 3 home screen variations for critique', project: 'planner', energy: 'Deep focus', time: '14:30 · 30m', subtasks: [{ id: 's1', title: 'Pick the 3 strongest variations', done: true }, { id: 's2', title: 'Export frames at 2x', done: false }, { id: 's3', title: 'Write a two-line rationale for each', done: false }] },
       { id: 't3', title: 'Finish chapter 4 for book club', project: 'reading', energy: 'Light', time: '18:00 · 30m' }
     ]
   },
@@ -89,7 +93,6 @@ export type TaskDetail = {
   hint?: string
   linkedEvent?: { title: string; time: string }
   notes?: string
-  subtasks?: Array<{ title: string; done: boolean }>
   linkedNote?: { title: string; edited: string }
   activity?: string[]
 }
@@ -101,11 +104,6 @@ export const taskDetails: Record<string, TaskDetail> = {
     linkedEvent: { title: 'Design critique', time: '15:00' },
     notes:
       'Show the variations side by side, not one by one. Include empty states and keep the rationale to two lines each.',
-    subtasks: [
-      { title: 'Pick the 3 strongest variations', done: true },
-      { title: 'Export frames at 2x', done: false },
-      { title: 'Write a two-line rationale for each', done: false }
-    ],
     linkedNote: { title: 'Design critique prep', edited: 'Edited today 10:12' },
     activity: [
       'Added from the note Design critique prep · yesterday 18:12',

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import type { Subtask } from '../../data/tasks'
 import { ConfirmDialog, DrawerHeader, PopMenu, type MenuItem } from '../../components/DrawerParts'
 import { Drawer } from '../../components/Drawer'
 import { Icon } from '../../components/Icon'
@@ -11,15 +12,34 @@ import { T } from '../../lib/prefs'
 
 type Props = { task: Task; groupId: TaskGroup['id']; onClose: () => void }
 
-export default function TaskDrawer({ task, groupId, onClose }: Props): React.JSX.Element {
+export default function TaskDrawer({ task: taskProp, groupId, onClose }: Props): React.JSX.Element {
   const remove = useTasks((s) => s.remove)
+  const setSubtasks = useTasks((s) => s.setSubtasks)
+  // read the live task so checklist edits show at once
+  const task = useTasks((s) => s.groups.flatMap((g) => g.tasks).find((t) => t.id === taskProp.id)) ?? taskProp
+  const subs: Subtask[] = task.subtasks ?? []
+  const [draft, setDraft] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
+  const save = (next: Subtask[]): void => setSubtasks(task.id, next)
+  const addSub = (): void => {
+    const title = draft.trim().slice(0, 200)
+    if (title) save([...subs, { id: crypto.randomUUID(), title, done: false }])
+    setDraft('')
+  }
+  const commitEdit = (): void => {
+    const title = editText.trim().slice(0, 200)
+    if (editing) save(title ? subs.map((x) => (x.id === editing ? { ...x, title } : x)) : subs.filter((x) => x.id !== editing))
+    setEditing(null)
+  }
   const [menu, setMenu] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const navigate = useNavigate()
   const detail = taskDetails[task.title]
   const { when: whenRaw, length } = describeTask(task, groupId)
   const when = T(whenRaw)
-  const subDone = detail?.subtasks?.filter((s) => s.done).length ?? 0
+  const subDone = subs.filter((x) => x.done).length
 
   const finish = (): void => {
     remove(task.id)
@@ -114,28 +134,85 @@ export default function TaskDrawer({ task, groupId, onClose }: Props): React.JSX
             </>
           )}
 
-          {detail?.subtasks && (
-            <>
-              <div className="dw-h" style={{ paddingTop: 28 }}>
-                Subtasks
-                <span style={{ flex: 1 }} />
-                <span style={{ fontSize: 12.5 }}>
-                  {subDone} of {detail.subtasks.length}
+          <div className="dw-h" style={{ paddingTop: 28 }}>
+            Subtasks
+            <span style={{ flex: 1 }} />
+            {subs.length > 0 && (
+              <span style={{ fontSize: 12.5 }}>
+                {subDone} of {subs.length}
+              </span>
+            )}
+          </div>
+          {subs.map((x) => (
+            <div className="dw-row" key={x.id}>
+              <button
+                className={cn('dw-cb', x.done && 'on')}
+                aria-label={x.done ? 'Mark not done' : 'Mark done'}
+                onClick={() => save(subs.map((y) => (y.id === x.id ? { ...y, done: !y.done } : y)))}
+              >
+                {x.done && <Icon name="check" size={11} strokeWidth={3.5} round />}
+              </button>
+              {editing === x.id ? (
+                <input
+                  autoFocus
+                  className="dw-sub-in"
+                  value={editText}
+                  maxLength={200}
+                  onChange={(e) => setEditText(e.target.value)}
+                  onBlur={commitEdit}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitEdit()
+                    if (e.key === 'Escape') setEditing(null)
+                  }}
+                />
+              ) : (
+                <span
+                  style={{ flex: 1, cursor: 'text', ...(x.done ? { color: 'var(--ink3)', textDecoration: 'line-through' } : {}) }}
+                  onClick={() => {
+                    setEditing(x.id)
+                    setEditText(x.title)
+                  }}
+                >
+                  {x.title}
                 </span>
-              </div>
-              {detail.subtasks.map((s) => (
-                <div className="dw-row" key={s.title}>
-                  <span className={cn('dw-cb', s.done && 'on')}>
-                    {s.done && <Icon name="check" size={11} strokeWidth={3.5} round />}
-                  </span>
-                  <span style={s.done ? { color: 'var(--ink3)', textDecoration: 'line-through' } : undefined}>{s.title}</span>
-                </div>
-              ))}
-              <div className="dw-row last" style={{ color: 'var(--ink3)' }}>
-                <Icon name="plus" size={14} strokeWidth={2} round />
-                Add subtask
-              </div>
-            </>
+              )}
+              <button
+                className="dw-sub-x"
+                aria-label="Delete subtask"
+                onClick={() => save(subs.filter((y) => y.id !== x.id))}
+              >
+                <Icon name="x" size={12} strokeWidth={2} round />
+              </button>
+            </div>
+          ))}
+          {adding ? (
+            <div className="dw-row last">
+              <Icon name="plus" size={14} strokeWidth={2} round />
+              <input
+                autoFocus
+                className="dw-sub-in"
+                placeholder="Subtask, then Enter"
+                value={draft}
+                maxLength={200}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={() => {
+                  addSub()
+                  setAdding(false)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') addSub()
+                  if (e.key === 'Escape') {
+                    setDraft('')
+                    setAdding(false)
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <button className="dw-row last" style={{ color: 'var(--ink3)', width: '100%' }} onClick={() => setAdding(true)}>
+              <Icon name="plus" size={14} strokeWidth={2} round />
+              Add subtask
+            </button>
           )}
 
           {detail?.linkedNote && (
@@ -188,7 +265,7 @@ export default function TaskDrawer({ task, groupId, onClose }: Props): React.JSX
             <>
               “{task.title}” will be removed from Tasks
               {task.time ? ` and from your calendar at ${task.time.slice(0, 5)}` : ''}.
-              {detail?.subtasks ? ` Its ${detail.subtasks.length} subtasks go with it.` : ''} You can undo for 10 seconds.
+              {subs.length ? ` Its ${subs.length} subtasks go with it.` : ''} You can undo for 10 seconds.
             </>
           }
           confirmLabel="Delete task"

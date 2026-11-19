@@ -233,3 +233,25 @@
   border-color: #c2362b;
   color: #fff;
 }
+
+.dw-sub-in {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+.dw-sub-x {
+  opacity: 0;
+  color: var(--ink3);
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+}
+.dw-row:hover .dw-sub-x,
+.dw-sub-x:focus-visible {
+  opacity: 1;
+}

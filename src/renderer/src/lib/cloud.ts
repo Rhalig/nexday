@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { taskGroups, type Energy, type Project, type Task, type TaskGroup } from '../data/tasks'
+import { taskGroups, type Energy, type Project, type Subtask, type Task, type TaskGroup } from '../data/tasks'
 import { initialHabits, type Habit } from '../data/habits'
 import { notes as sampleNotes, type Note, type NoteCategory } from '../data/notes'
 import { sampleInbox, useInbox, type InboxItem } from '../store/inbox'
@@ -512,6 +512,7 @@ const eventFromRow = (r: Row): PlanEvent => ({
 type Snap = Map<string, string>
 const last: Record<string, Snap> = {
   tasks: new Map(),
+  subs: new Map(),
   inbox: new Map(),
   habits: new Map(),
   checkins: new Map(),
@@ -525,7 +526,13 @@ const last: Record<string, Snap> = {
 const flatTasks = (groups: TaskGroup[]): Array<{ t: Task; g: TaskGroup['id'] }> =>
   groups.flatMap((g) => g.tasks.map((t) => ({ t, g: g.id })))
 const taskSnap = (groups: TaskGroup[]): Snap =>
-  new Map(flatTasks(groups).map(({ t, g }) => [t.id, JSON.stringify({ ...t, g })]))
+  new Map(flatTasks(groups).map(({ t, g }) => [t.id, JSON.stringify({ ...t, subtasks: undefined, g })]))
+const subSnap = (groups: TaskGroup[]): Snap =>
+  new Map(
+    flatTasks(groups)
+      .filter(({ t }) => t.subtasks?.length)
+      .map(({ t }) => [t.id, JSON.stringify(t.subtasks)])
+  )
 const inboxSnap = (items: InboxItem[]): Snap => new Map(items.map((i) => [i.id, JSON.stringify(i)]))
 const habitSnap = (hs: Habit[]): Snap =>
   new Map(hs.map((h) => [h.id, JSON.stringify({ ...h, doneToday: undefined })]))
@@ -555,6 +562,30 @@ function saveTasks(groups: TaskGroup[]): void {
   if (upsert.length) {
     const rows = upsert.map((id) => taskRow(byId.get(id)!.t, byId.get(id)!.g))
     enqueue('save tasks', () => sb.from('tasks').upsert(rows), rollback('tasks', prev, upsert))
+  }
+  // Checklists are saved after their task row exists (writes run in order).
+  const nextSubs = subSnap(groups)
+  const prevSubs = last.subs
+  const subDiff = changed(prevSubs, nextSubs)
+  last.subs = nextSubs
+  for (const id of [...subDiff.upsert, ...subDiff.removed]) {
+    if (!byId.has(id)) continue // the task itself left the list
+    const subs = byId.get(id)!.t.subtasks ?? []
+    const keep = new Set(subs.map((s) => s.id))
+    const rows = subs.map((s, i) => ({ id: s.id, task_id: id, title: s.title, done: s.done, position: i, deleted_at: null }))
+    const gone = [...(JSON.parse(prevSubs.get(id) ?? '[]') as Subtask[])].filter((s) => !keep.has(s.id)).map((s) => s.id)
+    enqueue(
+      'save subtasks',
+      async () => {
+        if (rows.length) {
+          const r = await sb.from('subtasks').upsert(rows)
+          if (r.error) return r
+        }
+        if (gone.length) return sb.from('subtasks').update({ deleted_at: new Date().toISOString() }).in('id', gone)
+        return { error: null }
+      },
+      rollback('subs', prevSubs, [id])
+    )
   }
   for (const id of removed) {
     const mode = removalMode.get(id) ?? 'done'
@@ -826,7 +857,7 @@ async function loadAll(userId: string): Promise<void> {
 
   const dayStart = startOfDay(appToday())
   const historyStart = addDays(startOfWeek(appToday()), -77)
-  const [tasks, inbox, habits, checks, notifs, noteRows, eventRows, doneRows, historyChecks, doneAll] =
+  const [tasks, inbox, habits, checks, notifs, noteRows, eventRows, doneRows, historyChecks, doneAll, subRows] =
     await Promise.all([
     sb.from('tasks').select('*').eq('status', 'open').is('deleted_at', null),
     sb
@@ -862,7 +893,8 @@ async function loadAll(userId: string): Promise<void> {
       .lt('day', TODAY())
       .eq('done', true)
       .is('deleted_at', null),
-    sb.from('tasks').select('project_id').eq('status', 'done').is('deleted_at', null)
+    sb.from('tasks').select('project_id').eq('status', 'done').is('deleted_at', null),
+    sb.from('subtasks').select('*').is('deleted_at', null).order('position')
   ])
   for (const r of [
     tasks,
@@ -874,7 +906,8 @@ async function loadAll(userId: string): Promise<void> {
     eventRows,
     doneRows,
     historyChecks,
-    doneAll
+    doneAll,
+    subRows
   ])
     if (r.error) throw r.error
 
@@ -907,8 +940,15 @@ async function loadAll(userId: string): Promise<void> {
     const key = slugToKey(idToSlug[String(r.project_id)] ?? '')
     if (key) doneTotals[key]++
   }
+  const subsByTask: Record<string, Subtask[]> = {}
+  for (const r of subRows.data ?? [])
+    (subsByTask[String(r.task_id)] ??= []).push({ id: String(r.id), title: String(r.title), done: r.done === true })
+  const loaded = groupsFromRows(tasks.data ?? [], mergePlan(settings.planning).moveUnfinished).map((g) => ({
+    ...g,
+    tasks: g.tasks.map((t) => (subsByTask[t.id] ? { ...t, subtasks: subsByTask[t.id] } : t))
+  }))
   useTasks.setState({
-    groups: groupsFromRows(tasks.data ?? [], mergePlan(settings.planning).moveUnfinished),
+    groups: loaded,
     doneToday,
     doneTotals
   })
@@ -934,6 +974,7 @@ async function loadAll(userId: string): Promise<void> {
   })
 
   last.tasks = taskSnap(useTasks.getState().groups)
+  last.subs = subSnap(useTasks.getState().groups)
   last.inbox = inboxSnap(useInbox.getState().items)
   last.habits = habitSnap(useHabits.getState().habits)
   last.checkins = checkinSnap(useHabits.getState().habits)

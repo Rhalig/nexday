@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { taskGroups, type Project, type Task, type TaskGroup } from '../data/tasks'
+import { taskGroups, type Project, type Subtask, type Task, type TaskGroup } from '../data/tasks'
 import { supabase } from '../lib/supabase'
 import { fmtMin, parseTime } from '../lib/today'
 
@@ -59,6 +59,8 @@ type TasksState = {
   add: (task: Task, group: TaskGroup['id']) => void
   /** Adds many tasks at once (import). */
   addMany: (items: Array<{ task: Task; group: TaskGroup['id'] }>) => void
+  /** Replaces a task's checklist. */
+  setSubtasks: (id: string, subtasks: Subtask[]) => void
   /** Moves one task to another day group with a new time (null = no time). */
   move: (id: string, group: TaskGroup['id'], time: string | null) => void
   /** Give no-time tasks a slot: they move into the given day group. */
@@ -103,6 +105,13 @@ export const useTasks = create<TasksState>((set) => ({
       }
     })
   },
+  setSubtasks: (id, subtasks) =>
+    set((s) => ({
+      groups: s.groups.map((g) => ({
+        ...g,
+        tasks: g.tasks.map((t) => (t.id === id ? { ...t, subtasks } : t))
+      }))
+    })),
   move: (id, group, time) =>
     set((s) => {
       const hit = s.groups.flatMap((g) => g.tasks).find((t) => t.id === id)
