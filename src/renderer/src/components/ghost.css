@@ -31,11 +31,12 @@
   font: inherit;
   font-size: 15px;
   letter-spacing: inherit;
-  color: var(--ink);
+  color: transparent;
   caret-color: var(--acc);
   padding: 0;
   z-index: 1;
 }
+.gs-input::selection { background: rgba(243, 128, 32, 0.22); color: transparent; }
 .gs-placeholder {
   position: absolute;
   inset: 0;
@@ -163,3 +164,20 @@
   z-index: 0;
 }
 .gs-auto-t { color: var(--ink3); }
+
+/* The typed text: each new letter eases in (opacity and a 2px rise), nothing else moves */
+.gs-echo {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  font-size: 15px;
+  color: var(--ink);
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.gs-ch.in { animation: gs-char-in 140ms var(--ease-out) backwards; }
+@keyframes gs-char-in {
+  from { opacity: 0; transform: translateY(2px); }
+}

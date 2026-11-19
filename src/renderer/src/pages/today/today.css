@@ -294,7 +294,10 @@
 .tv-card .m .r { margin-left: auto; }
 .tv-card.done { background: transparent; cursor: default; }
 .tv-card.done .t { color: var(--ink3); text-decoration: line-through; text-decoration-color: #bdbdba; }
-.tv-add { display: flex; align-items: center; gap: 8px; height: 36px; font-size: 13px; color: var(--ink3); cursor: pointer; }
+.tv-add { display: flex; align-items: center; gap: 8px; height: 36px; width: 100%; font-size: 13px; color: var(--ink3); cursor: pointer; background: none; border: 0; text-align: left; transition: color var(--dur-hover) ease; }
+@media (hover: hover) and (pointer: fine) { button.tv-add:hover { color: var(--ink); } }
+.tv-add input { flex: 1; min-width: 0; font: inherit; font-size: 13px; color: var(--ink); background: none; border: 0; outline: 0; }
+.tv-add.on { color: var(--ink); cursor: text; }
 .tv-cal { display: flex; gap: 40px; align-items: flex-start; flex: 1; }
 .tv-time { display: flex; flex: 1; align-items: flex-start; padding-top: 8px; }
 .tv-hl { height: 44px; font-size: 11px; color: var(--ink3); font-variant-numeric: tabular-nums; transform: translateY(-8px); line-height: 1.5; }
@@ -319,6 +322,8 @@
   border-left-width: 3px;
 }
 .tv-ev.chip b { font-weight: 500; font-size: 12px; color: var(--ink); white-space: nowrap; }
+.tv-cbx { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid #bdbdba; flex: none; }
+.tv-r { margin-left: auto; font-size: 12px; color: var(--ink2); }
 .tv-ur { display: flex; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
 
 /* Narrow task cards stay readable in the day strip */

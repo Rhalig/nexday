@@ -47,12 +47,14 @@ export type TodayData = {
   focusMin: number
   strip: StripItem[]
   gaps: Gap[]
+  /** Free time around events only: the timeline draws tasks on top of it, like the design */
+  eventGaps: Gap[]
   legend: Array<{ color: string; label: string }>
   plan: PlanGroup[]
   /** Open tasks with a start time, for the timeline view */
   timed: Array<{ id: string; title: string; start: number; end: number }>
   unscheduled: PlanTask[]
-  upNext: { title: string; meta: string; inMin: number; kind: 'event' | 'task' } | null
+  upNext: { title: string; meta: string; inMin: number; kind: 'event' | 'task'; taskId?: string } | null
   noTimeCount: number
 }
 
@@ -178,6 +180,7 @@ export function buildToday(input: {
     ...timed.map((t) => ({ start: t.start, end: t.end }))
   ]
   const gaps = freeGaps(busy, nowMin)
+  const eventGaps = freeGaps(timedEvents.map((x) => ({ start: x.start, end: x.end })), nowMin)
   const strip: StripItem[] = [
     ...timedEvents.map((x) => ({
       key: `e-${x.e.id}`,
@@ -248,7 +251,8 @@ export function buildToday(input: {
         title: nt.title,
         meta: `${clock(nt.start)}–${clock(nt.end)}`,
         inMin: nt.start - nowMin,
-        kind: 'task'
+        kind: 'task',
+        taskId: nt.id
       }
   }
 
@@ -261,6 +265,7 @@ export function buildToday(input: {
     focusMin,
     strip,
     gaps,
+    eventGaps,
     legend,
     plan,
     timed: timed.filter((t) => timedIds.has(t.id)),

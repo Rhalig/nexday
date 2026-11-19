@@ -1,5 +1,7 @@
 import { useUI } from '../../store/ui'
+import { useRef, useState } from 'react'
 import { useTasks } from '../../store/tasks'
+import { parseCapture, toTask } from '../../lib/capture'
 import { Icon } from '../../components/Icon'
 import { projectColor } from '../../components/ui'
 import { projects, type Project } from '../../data/tasks'
@@ -40,6 +42,22 @@ export function TodayBoard({
   onMove: (id: string, start: string, len: number) => void
   onDone: (id: string) => void
 }): React.JSX.Element {
+  // The column whose "Add task" row is open, and what has been typed in it
+  const [adding, setAdding] = useState<string | null>(null)
+  const [text, setText] = useState('')
+  const adder = useRef(false)
+  const addTo = (start: string): void => {
+    if (!adder.current) return // Enter and the blur it causes must not add twice
+    adder.current = false
+    const value = text.trim()
+    setAdding(null)
+    setText('')
+    if (!value) return
+    // A time in the words wins; otherwise the task takes the column's start (no time for Anytime).
+    const p = parseCapture(value)
+    const made = toTask({ ...p, group: 'today', time: p.time ?? (start || '09:00') })
+    useTasks.getState().add(start || p.time ? made.task : { ...made.task, time: null }, 'today')
+  }
   const done: PlanTask[] = plan.flatMap((g) => g.tasks.filter((t) => t.done))
   const groupOf = (id: string): string | undefined => plan.find((g) => g.tasks.some((t) => t.id === id))?.id
   const anytime = plan.find((g) => g.id === 'anytime')
@@ -78,10 +96,39 @@ export function TodayBoard({
                 <Meta project={t.project} right={t.time} hot={t.hot} mono />
               </div>
             ))}
-            <div className="tv-add">
-              <Icon name="plus" size={14} strokeWidth={2} />
-              Add task
-            </div>
+            {adding === c.id ? (
+              <div className="tv-add on">
+                <Icon name="plus" size={14} strokeWidth={2} />
+                <input
+                  autoFocus
+                  value={text}
+                  placeholder={`Add to ${c.title.toLowerCase()}…`}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') addTo(c.start)
+                    else if (e.key === 'Escape') {
+                      e.stopPropagation()
+                      adder.current = false
+                      setAdding(null)
+                      setText('')
+                    }
+                  }}
+                  onBlur={() => addTo(c.start)}
+                />
+              </div>
+            ) : (
+              <button
+                className="tv-add"
+                onClick={() => {
+                  adder.current = true
+                  setAdding(c.id)
+                  setText('')
+                }}
+              >
+                <Icon name="plus" size={14} strokeWidth={2} />
+                Add task
+              </button>
+            )}
           </CardDrop>
         )
       })}
@@ -161,7 +208,7 @@ export function TodayCalendar({
                 <i>{T(e.hint)}</i>
               </div>
             ))}
-          {data.gaps.map((g) => (
+          {data.eventGaps.map((g) => (
             <div
               className="tv-ev"
               key={`g${g.start}`}
@@ -223,7 +270,9 @@ export function TodayCalendar({
               style={{ cursor: 'grab' }}
               {...dragProps({ kind: 'task', id: t.id, title: t.title, minutes: t.len ?? defaultLen })}
             >
+              <span className="tv-cbx" />
               <span style={{ fontSize: 13 }}>{t.title}</span>
+              <span className="tv-r">{fmtMin(t.len ?? defaultLen)}</span>
             </div>
           ))
         )}

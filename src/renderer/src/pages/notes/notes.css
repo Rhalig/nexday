@@ -424,3 +424,7 @@ button.cb18 svg { color: #fff; stroke: #fff; }
 
 /* Bold in notes must really be bold (the global b rule is only medium weight) */
 .nb-line b, .nb-line strong, .ed-body b, .ed-body strong { font-weight: 700; }
+
+/* The formatting bars are only there while writing, and ease away afterwards */
+.nb-tools, .fmt-bar { transition: opacity 220ms ease, translate 220ms var(--ease-out); }
+.nb-tools.tb-hide, .fmt-bar.tb-hide { opacity: 0; translate: 0 4px; pointer-events: none; }

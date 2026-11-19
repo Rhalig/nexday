@@ -332,6 +332,8 @@ export const useCalendar = create<CalendarState>((set, get) => {
     const externalId = (res as { id?: unknown }).id
     if (typeof externalId !== 'string' || !externalId) return
     set((s) => ({ own: s.own.map((e) => (e.id === id ? { ...e, externalId } : e)) }))
+    // Re-read Mac Calendar so the copy it just got is matched to this event and shown once
+    await get().refresh()
   }
 
   return {

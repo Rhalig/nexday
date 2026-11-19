@@ -114,7 +114,7 @@ const habitLen = (label: string): number => {
 export const PLAN_HORIZON = 8
 
 /** The date a task already sits on, from its group and time label. */
-function dateOfScheduled(group: TaskGroup['id'], time: string | null): string | null {
+export function dateOfScheduled(group: TaskGroup['id'], time: string | null): string | null {
   if (!time) return null
   if (group === 'today') return dayKey(appToday())
   if (group === 'tomorrow') return dayKey(addDays(appToday(), 1))

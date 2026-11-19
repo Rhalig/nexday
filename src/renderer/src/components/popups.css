@@ -421,3 +421,9 @@
 }
 .npj-sel:hover,
 .npj-sel:focus { border-color: var(--line2); background: #fff; }
+
+/* Required fields: a red outline and one line saying what is missing */
+.help-ta.err { border-color: var(--err); }
+.help-err { margin-top: 6px; font-size: 12.5px; line-height: 1.4; color: var(--err); }
+.npj-name[aria-invalid='true'] { box-shadow: 0 1px 0 var(--err); }
+.npj-name[aria-invalid='true']::placeholder { color: var(--err); }

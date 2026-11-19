@@ -97,12 +97,22 @@ export default function Tasks(): React.JSX.Element {
   const [dragActive, setDragActive] = useState(false)
   useEffect(() => {
     // Deferred: changing the page inside dragstart can cancel the drag.
-    const on = (): void => void setTimeout(() => setDragActive(true), 0)
-    const off = (): void => setDragActive(false)
+    // The empty days only open for a real drag. A click that moves a pixel also fires dragstart,
+    // and opening and closing the groups for that made the list jump.
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const on = (): void => {
+      clearTimeout(timer)
+      timer = setTimeout(() => setDragActive(true), 180)
+    }
+    const off = (): void => {
+      clearTimeout(timer)
+      setDragActive(false)
+    }
     window.addEventListener('dragstart', on)
     window.addEventListener('dragend', off)
     window.addEventListener('drop', off)
     return () => {
+      clearTimeout(timer)
       window.removeEventListener('dragstart', on)
       window.removeEventListener('dragend', off)
       window.removeEventListener('drop', off)

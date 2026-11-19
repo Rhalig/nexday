@@ -63,7 +63,7 @@ export default function TaskDrawer({ task: taskProp, groupId, onClose, done = fa
   }
 
   const items: MenuItem[] = [
-    { icon: <Icon name="clock" />, label: 'Start focus', hint: 'F', onSelect: () => navigate('/focus') },
+    { icon: <Icon name="clock" />, label: 'Start focus', hint: 'F', onSelect: () => navigate(`/focus/${task.id}`) },
     {
       icon: <Icon name="copy" />,
       label: 'Duplicate',
@@ -346,6 +346,7 @@ export default function TaskDrawer({ task: taskProp, groupId, onClose, done = fa
             Delete
           </button>
           <span style={{ flex: 1 }} />
+          <Button onClick={() => navigate(`/focus/${task.id}`)}>Start focus</Button>
           <Button onClick={tomorrow}>Move to tomorrow</Button>
           <Button variant="dark" onClick={finish}>
             {done ? 'Mark not done' : 'Mark done'}

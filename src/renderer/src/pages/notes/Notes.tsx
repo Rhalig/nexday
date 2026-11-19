@@ -8,6 +8,7 @@ import { Button, GroupHeader, Segmented, cn } from '../../components/ui'
 import { useUI } from '../../store/ui'
 import { useNotes } from '../../store/notes'
 import { pageDate } from '../../lib/clock'
+import { useIdleToolbar } from '../../lib/useIdleToolbar'
 import { noteTabs, type Note, type NoteCategory } from '../../data/notes'
 import { actionItems, noteText, openActionCount } from '../../lib/noteText'
 import { ConfirmDialog } from '../../components/DrawerParts'
@@ -188,6 +189,7 @@ function Preview({ note, onOpen, onDelete }: { note: Note; onOpen: () => void; o
   const latest = useRef({ title: note.title, text: initial, dirty: false })
   const bodyRef = useRef<NoteBodyHandle>(null)
   const [fmt, setFmt] = useState<FormatState>({ bold: false, italic: false, kind: null })
+  const bar = useIdleToolbar()
   const items = actionItems(latest.current.text)
   const [open, setOpen] = useState(items.filter((a) => a.state === 'open').length)
   const save = (): void => {
@@ -242,20 +244,24 @@ function Preview({ note, onOpen, onDelete }: { note: Note; onOpen: () => void; o
       <div style={{ marginTop: 22 }}>
         <NoteBody
           ref={bodyRef}
-          onFormat={setFmt}
+          onFormat={(f) => {
+            setFmt(f)
+            bar.bump()
+          }}
           value={initial}
           compact
           placeholder="Start writing…  Type / for commands"
           onChange={(t) => {
             latest.current.text = t
             latest.current.dirty = true
+            bar.bump()
             setOpen(actionItems(t).filter((a) => a.state === 'open').length)
           }}
         />
       </div>
 
       <div className="row" style={{ marginTop: 24, gap: 8 }}>
-        <div className="nb-tools" style={{ marginTop: 0 }}>
+        <div className={cn('nb-tools', bar.hidden && 'tb-hide')} style={{ marginTop: 0 }} {...bar.hover}>
           <FormatButtons api={bodyRef} state={fmt} />
         </div>
         {open > 0 && (

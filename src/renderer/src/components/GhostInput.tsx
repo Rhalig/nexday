@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Project } from '../data/tasks'
-import { Kbd, cn } from './ui'
+import { Kbd } from './ui'
 import { useTasks } from '../store/tasks'
 import { useProjects } from '../store/projects'
 import './ghost.css'
@@ -38,21 +38,17 @@ export const HABIT_SUGGESTIONS: Suggestion[] = [
 const DAY_WORDS = ['tomorrow', 'today', 'next week', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const PROJECT_TAGS = ['planner', 'moving', 'reading', 'personal']
 
-type Phase = 'idle' | 'typing' | 'ghost' | 'accept' | 'task' | 'pause'
-
-const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
-
 /**
- * Quick-capture input with an animated AI suggestion loop:
- * placeholder → typing → ghost completion → accept (Tab) → task appears → reset.
+ * Quick-capture input. Letters fade in as they are typed; Tab accepts the grey completion.
+ * (The suggestion lists only feed the completion; there is no demo animation.)
  */
 export function GhostInput({
-  onTask,
   onSubmit,
   suggestions = TASK_SUGGESTIONS,
   placeholder = 'Type anything… "coffee with Ece tomorrow 15:00 #personal"',
   button = 'Send'
 }: {
+  /** Kept for callers that still pass it; the demo that used it is gone */
   onTask?: (t: GhostTask | null) => void
   onSubmit?: (text: string) => void
   suggestions?: Suggestion[]
@@ -87,74 +83,19 @@ export function GhostInput({
   }, [value, groups, customProjects, SUGGESTIONS])
   const [focused, setFocused] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  // The suggestion demo only plays while nobody is typing
-  const demo = !focused && value === ''
+  const [animFrom, setAnimFrom] = useState(Infinity)
+  const echoRef = useRef<HTMLDivElement>(null)
+  // The visible text is drawn here, letter by letter, so new letters can animate; the real input keeps the caret.
+  const syncScroll = (): void => {
+    if (echoRef.current && inputRef.current) echoRef.current.style.transform = `translateX(${-inputRef.current.scrollLeft}px)`
+  }
+  useLayoutEffect(syncScroll, [value])
   const submit = (): void => {
     const text = value.trim()
     if (!text) return
     onSubmit?.(text)
     setValue('')
   }
-  const [phase, setPhase] = useState<Phase>('idle')
-  const [idx, setIdx] = useState(0)
-  const [typed, setTyped] = useState(0)
-  const [ghost, setGhost] = useState(0)
-  const [hop, setHop] = useState(0)
-
-  useEffect(() => {
-    let cancelled = false
-    const run = async (): Promise<void> => {
-      let i = 0
-      while (!cancelled) {
-        const s = SUGGESTIONS[i % SUGGESTIONS.length]
-        setIdx(i % SUGGESTIONS.length)
-        setPhase('idle')
-        setTyped(0)
-        setGhost(0)
-        setHop(0)
-        await sleep(5400)
-        if (cancelled) return
-        setPhase('typing')
-        for (let c = 1; c <= s.typed.length; c++) {
-          setTyped(c)
-          await sleep(75)
-          if (cancelled) return
-        }
-        await sleep(400)
-        setPhase('ghost')
-        for (let c = 1; c <= s.ghost.length; c++) {
-          setGhost(c)
-          await sleep(40)
-          if (cancelled) return
-        }
-        await sleep(1000)
-        setPhase('accept')
-        for (let c = 1; c <= s.ghost.length; c++) {
-          setHop(c)
-          await sleep(35)
-          if (cancelled) return
-        }
-        await sleep(500)
-        setPhase('task')
-        onTask?.({ title: s.title, project: s.project })
-        await sleep(2000)
-        if (cancelled) return
-        setPhase('pause')
-        await sleep(7000)
-        onTask?.(null)
-        i++
-      }
-    }
-    void run()
-    return () => {
-      cancelled = true
-      onTask?.(null)
-    }
-  }, [onTask, SUGGESTIONS])
-
-  const s = SUGGESTIONS[idx]
-  const lineVisible = phase === 'typing' || phase === 'ghost' || phase === 'accept'
-
   return (
     <div className="gs-wrap">
       <div className="gs-inner">
@@ -163,13 +104,19 @@ export function GhostInput({
             ref={inputRef}
             className="gs-input"
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => {
+              setAnimFrom(e.target.value.length > value.length ? value.length : Infinity)
+              setValue(e.target.value)
+            }}
+            onScroll={syncScroll}
+            onKeyUp={syncScroll}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') submit()
               else if ((e.key === 'Tab' || (e.key === 'ArrowRight' && e.currentTarget.selectionStart === value.length)) && completion) {
                 e.preventDefault()
+                setAnimFrom(value.length)
                 setValue(value + completion)
               }
             }}
@@ -184,25 +131,17 @@ export function GhostInput({
               </span>
             </div>
           )}
-          <div className="gs-placeholder" style={{ opacity: value !== '' ? 0 : !demo || phase === 'idle' ? 1 : 0 }}>
-            {placeholder}
-          </div>
-          <div className="gs-line" style={{ opacity: demo && lineVisible ? 1 : 0 }}>
-            <span className="gs-typed">{s.typed.slice(0, typed)}</span>
-            {phase === 'typing' && <span className="gs-caret" />}
-            <span className="gs-ghost">
-              {s.ghost.split('').map((ch, n) => (
-                <span key={n} className={cn('g', n < ghost && 'in', n < hop && 'hop')}>
+          <div className="gs-echo" aria-hidden>
+            <div ref={echoRef} style={{ whiteSpace: 'pre' }}>
+              {value.split('').map((ch, n) => (
+                <span key={n} className={n >= animFrom ? 'gs-ch in' : 'gs-ch'} style={n >= animFrom ? { animationDelay: `${Math.min((n - animFrom) * 12, 120)}ms` } : undefined}>
                   {ch}
                 </span>
               ))}
-            </span>
-            <span
-              className="gs-tab"
-              style={{ opacity: phase === 'ghost' ? 1 : 0, transform: phase === 'ghost' ? 'scale(1)' : 'scale(.6)' }}
-            >
-              Tab ↵
-            </span>
+            </div>
+          </div>
+          <div className="gs-placeholder" style={{ opacity: value !== '' ? 0 : 1 }}>
+            {placeholder}
           </div>
         </div>
         <button className="gs-send" onClick={submit}>

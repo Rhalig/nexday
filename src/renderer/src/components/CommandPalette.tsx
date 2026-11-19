@@ -22,7 +22,7 @@ type Entry = {
   meta?: string
   keys?: string[]
   right?: string
-  run: 'plan' | 'inbox' | 'project' | `new:${NewType}` | 'newproject' | 'none'
+  run: 'plan' | 'inbox' | 'focus' | 'project' | `new:${NewType}` | 'newproject' | 'none'
 }
 
 const entries: Entry[] = [
@@ -45,6 +45,15 @@ const entries: Entry[] = [
     meta: '6 items to triage',
     keys: ['G', 'I'],
     run: 'inbox'
+  },
+  {
+    id: 'focus',
+    group: 'Suggested',
+    kind: 'action',
+    icon: 'clock',
+    title: 'Start focus session',
+    meta: 'Work on your next task with a timer',
+    run: 'focus'
   },
   {
     id: 'nt',
@@ -243,6 +252,7 @@ export function CommandPalette(): React.JSX.Element {
       return
     }
     if (e.run === 'inbox') navigate('/inbox')
+    if (e.run === 'focus') navigate('/focus')
     if (e.run === 'project') navigate('/projects/planner-mvp')
   }
 
@@ -281,7 +291,7 @@ export function CommandPalette(): React.JSX.Element {
   }))
 
   return (
-    <Overlay onClose={closePalette} instant>
+    <Overlay onClose={closePalette}>
       <div className={cn('pal', searching && 'search')} onKeyDown={onKeyDown}>
         <div className="pal-search">
           <span style={{ display: 'flex' }}>

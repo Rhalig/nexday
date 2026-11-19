@@ -1,6 +1,6 @@
 /* ---------- Motion ----------
    Rules: animate transform and opacity only, ease-out for things entering, under 300ms,
-   and nothing at all for actions people repeat all day (command palette, new-item shortcuts).
+   and a quick, small entrance for everything people open (the palette and New popup included).
    Reduced motion keeps the fades and drops the movement (--shift / --pop = no movement). */
 :root {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -9,9 +9,9 @@
   --dur-press: 120ms;
   --dur-hover: 150ms;
   --dur-pop: 160ms;
-  --dur-page: 180ms;
+  --dur-page: 240ms;
   --dur-drawer: 260ms;
-  --shift: 4px; /* how far page content travels while it fades in */
+  --shift: 10px; /* how far page content travels while it fades in */
   --pop: 0.97; /* start scale of popovers and dialogs */
 }
 @media (prefers-reduced-motion: reduce) {

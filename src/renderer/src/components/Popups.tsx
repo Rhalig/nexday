@@ -12,6 +12,7 @@ import './popups.css'
 import { useIdentity } from '../lib/identity'
 import { retryNow, useSync } from '../lib/cloud'
 import { useCalendar } from '../store/calendar'
+import { supabase } from '../lib/supabase'
 
 /** Closes on Escape (capture phase so it wins over a drawer underneath). */
 export function useEscape(onClose: () => void): void {
@@ -411,7 +412,30 @@ export function HelpModal(): React.JSX.Element {
   const [q, setQ] = useState('')
   const [kind, setKind] = useState<'Idea' | 'Bug' | 'Question'>('Idea')
   const [text, setText] = useState('')
+  const [err, setErr] = useState<string | null>(null)
+  const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle')
   useEscape(closePanel)
+
+  const send = async (): Promise<void> => {
+    if (state !== 'idle') return
+    // The message is required: warn and keep the modal open
+    if (text.trim().length < 3) {
+      setErr('Write a short message first, so we know what you mean.')
+      return
+    }
+    setErr(null)
+    setState('sending')
+    if (supabase) {
+      const { error } = await supabase.from('feedback').insert({ kind: kind.toLowerCase(), message: text.trim().slice(0, 4000) })
+      if (error) {
+        setState('idle')
+        setErr('Could not send your feedback. Check your connection and try again.')
+        return
+      }
+    }
+    setState('sent')
+    setTimeout(closePanel, 1100)
+  }
 
   const list = articles.filter(([t]) => t.toLowerCase().includes(q.trim().toLowerCase()))
 
@@ -487,11 +511,21 @@ export function HelpModal(): React.JSX.Element {
             ))}
           </div>
           <textarea
-            className="help-ta"
+            className={cn('help-ta', !!err && 'err')}
             placeholder="Tell us what would make Nexday better…"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            aria-invalid={!!err}
+            aria-describedby={err ? 'help-err' : undefined}
+            onChange={(e) => {
+              setText(e.target.value)
+              if (err) setErr(null)
+            }}
           />
+          {err && (
+            <div id="help-err" role="alert" className="help-err">
+              {err}
+            </div>
+          )}
           <div
             className="row"
             style={{
@@ -502,8 +536,8 @@ export function HelpModal(): React.JSX.Element {
             }}
           >
             <div>Attach screenshot</div>
-            <Button variant="dark" onClick={closePanel} style={{ justifyContent: 'center' }}>
-              Send feedback
+            <Button variant="dark" onClick={() => void send()} style={{ justifyContent: 'center' }} disabled={state !== 'idle'}>
+              {state === 'sending' ? 'Sending…' : state === 'sent' ? 'Thanks, sent' : 'Send feedback'}
             </Button>
           </div>
         </div>
@@ -539,9 +573,13 @@ export function NewProjectPopup(): React.JSX.Element {
   const [weekly, setWeekly] = useState(0)
   const tpl = projectTemplates.find((t) => t.id === template) ?? projectTemplates[0]
 
+  const [nameErr, setNameErr] = useState(false)
   const create = (): void => {
     const n = name.trim()
-    if (!n) return
+    if (!n) {
+      setNameErr(true)
+      return
+    }
     const slug = add(n, color, { description: desc.trim(), due: due || null })
     if (tpl.tasks.length)
       useTasks.getState().addMany(
@@ -605,8 +643,12 @@ export function NewProjectPopup(): React.JSX.Element {
               className="npj-name"
               autoFocus
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Project name"
+              onChange={(e) => {
+                setName(e.target.value)
+                if (nameErr) setNameErr(false)
+              }}
+              aria-invalid={nameErr}
+              placeholder={nameErr ? 'Give the project a name' : 'Project name'}
             />
           </div>
           <input

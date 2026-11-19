@@ -30,6 +30,7 @@ import {
   weekdayShort
 } from '../../lib/clock'
 import { parseCapture } from '../../lib/capture'
+import { dateOfScheduled } from '../../lib/planning'
 import { T } from '../../lib/prefs'
 import { TimelineDrop, dragProps, type Dragged } from '../../components/dnd'
 import './calendar.css'
@@ -319,7 +320,10 @@ function DayView({
   const gaps = freeGaps(dayEvents)
   const firstGap = gaps[0]
   const isToday = date === dayKey(appToday())
-  const planned = (groups.find((g) => g.id === 'today')?.tasks ?? []).filter((t) => t.time)
+  // Tasks sitting on the day being shown, whichever group they live in
+  const planned = groups
+    .flatMap((g) => g.tasks.filter((t) => t.time && dateOfScheduled(g.id, t.time) === date))
+    .sort((a, b) => (a.time?.match(/\d{2}:\d{2}/)?.[0] ?? '').localeCompare(b.time?.match(/\d{2}:\d{2}/)?.[0] ?? ''))
   const plannedMin = planned.reduce((n, t) => {
     const m = t.time?.match(/·\s*(?:(\d+)h)?\s?(?:(\d+)m)?/)
     return n + (m ? Number(m[1] ?? 0) * 60 + Number(m[2] ?? 0) : 0)
@@ -388,9 +392,9 @@ function DayView({
         </div>
         {planned.map((t, i) => (
           <div className={cn('rl', i === 0 && 'top')} key={t.id}>
-            <span className="rl-box" />
+            <button className="rl-box" aria-label="Mark done" onClick={() => useTasks.getState().remove(t.id)} />
             <span>{t.title}</span>
-            <span className="m">{t.time?.split(' · ')[0]}</span>
+            <span className="m">{T(t.time?.match(/\d{2}:\d{2}/)?.[0] ?? '')}</span>
           </div>
         ))}
         <div className="rh">Up next</div>
@@ -514,6 +518,7 @@ function PageHeadFor({
   const name = useAuth((s) => s.name)
   const groups = useTasks((st) => st.groups)
   const dayDate = parseDayKey(day)
+  const planned = groups.flatMap((g) => g.tasks.filter((t) => t.time && dateOfScheduled(g.id, t.time) === day))
   const isToday = sameDay(dayDate, appToday())
   const dayEvents = events.filter((e) => e.date === day).sort((a, b) => a.start - b.start)
   const next = dayEvents.find((e) => e.start >= nowDecimal())
@@ -530,7 +535,7 @@ function PageHeadFor({
       <PageHead
         date={`${weekdayLong(dayDate)}${isToday ? ' · Today' : ''}`}
         title={`${monthLong(dayDate)} ${dayDate.getDate()}, ${dayDate.getFullYear()}`}
-        sub={`${dayEvents.length} events and ${(groups.find((g) => g.id === 'today')?.tasks ?? []).length} planned tasks.${
+        sub={`${dayEvents.length} events and ${planned.length} planned tasks.${
           next
             ? ` Next up: ${next.title} at ${String(Math.floor(next.start)).padStart(2, '0')}:${String(Math.round((next.start % 1) * 60)).padStart(2, '0')}.`
             : ''

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
-import { Button, Kbd } from '../../components/ui'
+import { Button, Kbd, cn } from '../../components/ui'
+import { useIdleToolbar } from '../../lib/useIdleToolbar'
 import { useNotes } from '../../store/notes'
 import { useTasks } from '../../store/tasks'
 import { aiNoteActions } from '../../lib/ai'
@@ -42,6 +43,7 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
   const bodyRef = useRef<NoteBodyHandle>(null)
   const [newItem, setNewItem] = useState('')
   const [fmt, setFmt] = useState<FormatState>({ bold: false, italic: false, kind: null })
+  const bar = useIdleToolbar()
   const [initial] = useState(() => noteText(note))
   const latest = useRef({ title, text, dirty })
   latest.current = { title, text, dirty }
@@ -218,7 +220,14 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
             </div>
 
             <div onBlur={flush} style={{ marginTop: 30 }}>
-              <NoteBody ref={bodyRef} value={initial} onChange={onBody} onFormat={setFmt} placeholder="Start writing…  Type / for commands" />
+              <NoteBody ref={bodyRef} value={initial} onChange={(t) => {
+                  bar.bump()
+                  onBody(t)
+                }}
+                onFormat={(f) => {
+                  setFmt(f)
+                  bar.bump()
+                }} placeholder="Start writing…  Type / for commands" />
             </div>
           </div>
 
@@ -338,7 +347,7 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
         </div>
       </div>
 
-      <div className="fmt-bar" onMouseDown={(e) => e.preventDefault()}>
+      <div className={cn('fmt-bar', bar.hidden && 'tb-hide')} onMouseDown={(e) => e.preventDefault()} {...bar.hover}>
         <FormatButtons api={bodyRef} state={fmt} />
         <span className="tb-sep" />
         <span style={{ fontSize: 12.5, color: 'var(--ink3)', padding: '0 6px 0 4px' }}>Type</span>

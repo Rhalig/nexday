@@ -124,6 +124,7 @@ export default function App(): React.JSX.Element {
         <Route element={<RequireAuth />}>
           <Route path="/settings/:tab?" element={<Settings />} />
           <Route path="/focus" element={<Focus />} />
+          <Route path="/focus/:id" element={<Focus />} />
           <Route element={<AppShell />}>
             <Route index element={<StartPage />} />
             <Route path="/today" element={<Today />} />

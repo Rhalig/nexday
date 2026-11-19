@@ -43,9 +43,21 @@ export function AppShell(): React.JSX.Element {
           await cal.connect()
         }
       })
+    // Events made in Mac Calendar show up without a restart: refresh on return, on becoming visible and every minute.
     const onFocus = (): void => void useCalendar.getState().refresh()
+    const onVisible = (): void => {
+      if (document.visibilityState === 'visible') onFocus()
+    }
     window.addEventListener('focus', onFocus)
-    return () => window.removeEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisible)
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible' && useCalendar.getState().status === 'authorized') onFocus()
+    }, 60000)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisible)
+      clearInterval(timer)
+    }
   }, [])
 
   // Desktop notifications follow Settings › Notifications.

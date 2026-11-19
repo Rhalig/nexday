@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { projects, type Project } from '../data/tasks'
 import { Checkbox, cn, projectColor } from './ui'
 import { T } from '../lib/prefs'
@@ -36,17 +37,29 @@ export function TaskRow({
   onToggle,
   drag
 }: Props): React.JSX.Element {
+  // Finishing a task: the box ticks, the title strikes through, then the row slides out before it leaves the list.
+  const [leaving, setLeaving] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(timer.current), [])
+  const toggle = (): void => {
+    if (done || leaving) return onToggle?.()
+    const calm =
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.reduceMotion === 'true'
+    if (calm) return onToggle?.()
+    setLeaving(true)
+    timer.current = setTimeout(() => onToggle?.(), 340)
+  }
   return (
     <div
-      className={cn('task', done && 'done', compact && 'compact', last && 'last', enter && 'enter', onOpen && 'clickable')}
+      className={cn('task', done && 'done', leaving && 'leaving', compact && 'compact', last && 'last', enter && 'enter', onOpen && 'clickable')}
       onClick={onOpen}
       {...(drag ? dragProps(drag) : null)}
     >
       <Checkbox
-        checked={done}
+        checked={done || leaving}
         onClick={(e) => {
           e.stopPropagation()
-          onToggle?.()
+          toggle()
         }}
       />
       <span className="tt">{title}</span>

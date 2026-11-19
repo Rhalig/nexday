@@ -237,6 +237,7 @@ export function Register(): React.JSX.Element {
 
   const create = async (): Promise<void> => {
     setError(null)
+    if (!name.trim()) return setError('Enter your name.')
     if (!/^\S+@\S+\.\S+$/.test(email)) return setError('Enter a valid email address.')
     if (password.length < 8) return setError('Use at least 8 characters for the password.')
     if (!auth.configured) {
@@ -278,6 +279,11 @@ export function Register(): React.JSX.Element {
               onChange={(e) => setName(e.target.value)}
             />
           </label>
+          {error === 'Enter your name.' && (
+            <span role="alert" style={{ fontSize: 12.5, color: 'var(--err)', lineHeight: 1.5 }}>
+              {error}
+            </span>
+          )}
         </div>
         <div className="col" style={{ gap: 6 }}>
           <span className="nx-lbl">Email</span>
@@ -298,7 +304,7 @@ export function Register(): React.JSX.Element {
             onChange={setPassword}
             err={!!error && /password/i.test(error)}
           />
-          {error && (
+          {error && error !== 'Enter your name.' && (
             <span style={{ fontSize: 12.5, color: 'var(--err)', lineHeight: 1.5, marginTop: 2 }}>
               {error}
             </span>

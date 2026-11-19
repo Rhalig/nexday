@@ -325,6 +325,14 @@ function PropRow({
 }
 
 const LENGTHS = [5, 10, 15, 20, 30, 45, 60, 90, 120]
+const toMin = (hhmm: string): number => {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + m
+}
+const plusMin = (hhmm: string, n: number): string => {
+  const t = Math.min(23 * 60 + 59, toMin(hhmm) + n)
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
+}
 const lenLabel = (n: number): string => (n >= 60 ? `${Math.floor(n / 60)} h${n % 60 ? ` ${n % 60} min` : ''}` : `${n} min`)
 const CALENDARS: Opt[] = [
   { value: 'personal', label: 'Personal', swatch: 'var(--personal)' },
@@ -410,7 +418,7 @@ export function NewPopup({ type }: { type: NewType }): React.JSX.Element {
   }
 
   return (
-    <Overlay onClose={openMenu ? () => setOpenMenu(null) : pickerOpen ? () => setPickerOpen(false) : closeNew} instant>
+    <Overlay onClose={openMenu ? () => setOpenMenu(null) : pickerOpen ? () => setPickerOpen(false) : closeNew}>
       <div
         className="np"
         onMouseDown={() => openMenu && setOpenMenu(null)}
@@ -479,7 +487,10 @@ export function NewPopup({ type }: { type: NewType }): React.JSX.Element {
             <PropRow
               p={(() => {
                 const w = c.props[0]
-                return w.kind === 'when' && when ? { ...w, text: formatWhen(when) } : w
+                if (w.kind !== 'when') return w
+                if (when) return { ...w, text: formatWhen(when) }
+                // The suggested slot follows the chosen length
+                return type === 'task' ? { ...w, text: `Today, 13:30 – ${plusMin('13:30', length)}` } : w
               })()}
               i={0}
               last={false}
@@ -489,7 +500,12 @@ export function NewPopup({ type }: { type: NewType }): React.JSX.Element {
           {type === 'task' && (
             <>
               <SelectField label="Project" value={project} options={projectOptions} onChange={setProject} open={openMenu === 'project'} onOpen={open('project')} />
-              <SelectField label="Length" value={String(length)} options={LENGTHS.map((n) => ({ value: String(n), label: lenLabel(n) }))} onChange={(v) => setLength(Number(v))} open={openMenu === 'length'} onOpen={open('length')} />
+              <SelectField label="Length" value={String(length)} options={(LENGTHS.includes(length) ? LENGTHS : [...LENGTHS, length].sort((a, b) => a - b)).map((n) => ({ value: String(n), label: lenLabel(n) }))} onChange={(v) => {
+                const n = Number(v)
+                setLength(n)
+                // A chosen time keeps its start; its end follows the length
+                if (when) setWhen({ ...when, end: plusMin(when.start, n) })
+              }} open={openMenu === 'length'} onOpen={open('length')} />
               <SelectField label="Energy" value={energy} options={[{ value: 'Light', label: 'Light' }, { value: 'Deep focus', label: 'Deep focus' }]} onChange={(v) => setEnergy(v as Energy)} open={openMenu === 'energy'} onOpen={open('energy')} last />
             </>
           )}
@@ -522,9 +538,14 @@ export function NewPopup({ type }: { type: NewType }): React.JSX.Element {
               when ??
               (type === 'event'
                 ? { day: dayKey(addDays(appToday(), 1)), start: '15:00', end: '16:00' }
-                : { day: dayKey(appToday()), start: '13:30', end: '13:45' })
+                : { day: dayKey(appToday()), start: '13:30', end: plusMin('13:30', length) })
             }
-            onChange={setWhen}
+            onChange={(w) => {
+              setWhen(w)
+              // The picker's times set the length, so the two always agree
+              const d = toMin(w.end) - toMin(w.start)
+              if (type === 'task' && d > 0) setLength(d)
+            }}
             onClose={() => setPickerOpen(false)}
           />
         )}

@@ -339,7 +339,12 @@
   height: 16px;
   border: 1.5px solid #bdbdba;
   border-radius: 5px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  flex: none;
 }
+.rl-box:hover { border-color: var(--ink3); background: #f5f5f4; }
 .rl-bar {
   width: 3px;
   height: 22px;

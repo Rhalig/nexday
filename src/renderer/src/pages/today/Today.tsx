@@ -364,6 +364,16 @@ export default function Today(): React.JSX.Element {
                       Nothing else is scheduled today.
                     </span>
                   )}
+                  {data.openCount > 0 && (
+                    <button
+                      className="btn"
+                      style={{ marginTop: 14, alignSelf: 'flex-start' }}
+                      onClick={() => navigate(data.upNext?.taskId ? `/focus/${data.upNext.taskId}` : '/focus')}
+                    >
+                      <Icon name="clock" size={15} />
+                      <span>Start focus</span>
+                    </button>
+                  )}
                 </div>
 
                 <div className="col">
