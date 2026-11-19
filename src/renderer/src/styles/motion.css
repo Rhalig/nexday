@@ -230,6 +230,45 @@
   animation: none;
 }
 
+/* ---- Small controls: inputs and dropdown triggers ease their border and fill instead of snapping ---- */
+.np-trig,
+.np-in,
+.st-field,
+.st-sel,
+.st-time,
+.dl-field,
+.npj-sel {
+  transition:
+    border-color var(--dur-hover) ease,
+    background-color var(--dur-hover) ease,
+    box-shadow var(--dur-hover) ease;
+}
+
+/* Dropdown menus (New popup fields, Settings): scale from the trigger like the other popovers */
+.np-menu,
+.st-menu {
+  transform-origin: top left;
+  animation: pop-in var(--dur-pop) var(--ease-out);
+}
+
+/* Options, tabs, list rows and small tool buttons: a quick fill on hover and selection.
+   Tens of times a day, so 150ms and colour only. */
+.np-opt,
+.st-opt,
+.np-type,
+.tb,
+.note,
+.hb-row,
+.ed-x,
+.cb18,
+.nb-cb {
+  transition:
+    background-color var(--dur-hover) ease,
+    border-color var(--dur-hover) ease,
+    color var(--dur-hover) ease,
+    opacity var(--dur-hover) ease;
+}
+
 /* ---- Bars that fill (focus session, habit rates) move on transform ---- */
 .fc-bar {
   transform-origin: left center;

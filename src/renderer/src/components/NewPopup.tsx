@@ -6,6 +6,7 @@ import { Button, Kbd, cn } from './ui'
 import { useUI, type NewType } from '../store/ui'
 import { useTasks } from '../store/tasks'
 import { useHabits } from '../store/habits'
+import { captureWithAi } from '../pages/inbox/Inbox'
 import { useNotes } from '../store/notes'
 import { useCalendar } from '../store/calendar'
 import { parseCapture, toTask } from '../lib/capture'
@@ -359,6 +360,16 @@ export function NewPopup({ type }: { type: NewType }): React.JSX.Element {
   }))
   const open = (id: string) => (o: boolean): void => setOpenMenu(o ? id : null)
 
+  /** The grey button next to Create: a task goes to the Inbox for later, a note opens as a full page. */
+  const ghostAction = (): void => {
+    const text = title.trim()
+    if (type === 'task' && text) {
+      captureWithAi(text)
+      closeNew()
+    } else if (type === 'note') create()
+    else closeNew()
+  }
+
   const create = (): void => {
     const text = title.trim()
     let noteId: string | null = null
@@ -538,7 +549,7 @@ export function NewPopup({ type }: { type: NewType }): React.JSX.Element {
             ))}
           </div>
           <div className="row" style={{ gap: 10 }}>
-            <button className="row" style={{ height: 36, padding: '0 8px' }} onClick={closeNew}>
+            <button className="row" style={{ height: 36, padding: '0 8px' }} onClick={ghostAction}>
               <span className="muted" style={{ fontSize: 13 }}>
                 {c.ghost}
               </span>

@@ -14,6 +14,8 @@
   border-radius: var(--panel-radius);
   padding: var(--panel-pt) var(--panel-px) var(--panel-pb);
   overflow-y: auto;
+  /* keep the content column in the same place on short and long tabs */
+  scrollbar-gutter: stable both-edges;
   display: flex;
   flex-direction: column;
 }

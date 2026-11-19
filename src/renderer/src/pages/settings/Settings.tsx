@@ -856,7 +856,7 @@ function Shortcuts(): React.JSX.Element {
           </button>
         )}
       </div>
-      <div className="st-srow" style={{ padding: '16px 0' }}>
+      <div className="st-srow">
         <div className="st-l" style={{ width: 'auto', flex: 1 }}>
           <b>Single-key shortcuts</b>
           <span>Press G then I to jump to Inbox, without holding ⌘. Not active while you type.</span>

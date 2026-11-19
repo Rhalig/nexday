@@ -46,7 +46,7 @@ function whenParts(time: string): Array<{ lead?: string; text: string; mono?: bo
 
 
 /** Capture first (instant), then let AI improve the suggestion in place when it answers. */
-function captureWithAi(text: string): void {
+export function captureWithAi(text: string): void {
   const inbox = useInbox.getState()
   const id = inbox.capture(text)
   void aiInboxSuggestion(text, 'Captured by you · just now · via quick capture', 'capture').then(
