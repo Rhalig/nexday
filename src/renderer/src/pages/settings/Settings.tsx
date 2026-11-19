@@ -319,9 +319,7 @@ function Profile(): React.JSX.Element {
         </Sel>
       </Row>
       <Row title="Time zone" sub="Used for your calendar and daily plan." end>
-        <Sel w={320} chevron={false}>
-          {timeZoneName()}
-        </Sel>
+        <span style={{ fontSize: 14, color: 'var(--ink2)' }}>{timeZoneName()} · from your Mac</span>
       </Row>
     </>
   )
@@ -345,7 +343,7 @@ function Preferences(): React.JSX.Element {
         />
       </Row>
       <Row title="Time zone" sub="Taken from your Mac. Calendar events and your plan follow it.">
-        <Sel>{timeZoneName()}</Sel>
+        <span style={{ fontSize: 14, color: 'var(--ink2)' }}>{timeZoneName()} · change it in System Settings › Date &amp; Time</span>
       </Row>
       <Row title="Time format" sub="Shown across the day strip and tasks.">
         <Seg
@@ -469,14 +467,12 @@ function Planning(): React.JSX.Element {
         />
       </Row>
       <Row title="Deep focus per day" sub="Nexday stops adding deep work after this.">
-        <span
-          className="st-sel"
-          style={{ minWidth: 180, cursor: 'pointer' }}
-          onClick={() => set({ deepFocusHours: (plan.deepFocusHours % 8) + 1 })}
-          title="Click to change"
-        >
-          {plan.deepFocusHours} hour{plan.deepFocusHours === 1 ? '' : 's'}
-        </span>
+        <Cyc
+          w={180}
+          value={`${plan.deepFocusHours} hour${plan.deepFocusHours === 1 ? '' : 's'}`}
+          options={[1, 2, 3, 4, 5, 6, 7, 8].map((n) => `${n} hour${n === 1 ? '' : 's'}`)}
+          onChange={(v) => set({ deepFocusHours: Number.parseInt(v, 10) })}
+        />
       </Row>
       <div className="st-h2">Automation</div>
       <Row title="Use my energy curve" sub="Place hard tasks when your energy is highest.">
