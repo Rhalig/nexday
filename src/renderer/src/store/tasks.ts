@@ -13,8 +13,16 @@ const groupTitles: Record<TaskGroup['id'], string> = {
 }
 const order: TaskGroup['id'][] = ['today', 'tomorrow', 'next-week', 'no-time']
 
+/** A task finished today: kept so Today can show what is already done. */
+export type DoneTask = Pick<Task, 'id' | 'title' | 'project' | 'energy' | 'time'> & {
+  /** ISO time it was completed */
+  at: string
+}
+
 type TasksState = {
   groups: TaskGroup[]
+  /** Tasks completed today (this session, plus whatever the account saved today). */
+  doneToday: DoneTask[]
   /** Completing and deleting both take a task off the open list. */
   remove: (id: string, mode?: 'done' | 'deleted') => void
   /** Adds a task to a day group, creating the group when it is empty. */
@@ -27,6 +35,7 @@ type TasksState = {
 
 export const useTasks = create<TasksState>((set) => ({
   groups: supabase ? [] : taskGroups,
+  doneToday: [],
   add: (task, group) =>
     set((s) => {
       let groups = s.groups.map((g) => ({ ...g }))
@@ -42,11 +51,29 @@ export const useTasks = create<TasksState>((set) => ({
     }),
   remove: (id, mode = 'done') => {
     removalMode.set(id, mode)
-    set((s) => ({
-      groups: s.groups
+    set((s) => {
+      const hit = s.groups.flatMap((g) => g.tasks).find((t) => t.id === id)
+      const doneToday =
+        mode === 'done' && hit
+          ? [
+              ...s.doneToday.filter((d) => d.id !== id),
+              {
+                id,
+                title: hit.title,
+                project: hit.project,
+                energy: hit.energy,
+                time: hit.time,
+                at: new Date().toISOString()
+              }
+            ]
+          : s.doneToday
+      return {
+        doneToday,
+        groups: s.groups
         .map((g) => ({ ...g, tasks: g.tasks.filter((t) => t.id !== id) }))
         .filter((g) => g.tasks.length > 0)
-    }))
+      }
+    })
   },
   schedule: (placements) =>
     set((s) => {

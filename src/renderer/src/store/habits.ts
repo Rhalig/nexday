@@ -4,12 +4,15 @@ import { supabase } from '../lib/supabase'
 
 type HabitsState = {
   habits: Habit[]
+  /** Habit id → day keys (YYYY-MM-DD) checked in earlier this week. Today comes from `doneToday`. */
+  week: Record<string, string[]>
   toggleToday: (id: string) => void
   add: (name: string) => void
 }
 
 export const useHabits = create<HabitsState>((set) => ({
   habits: supabase ? [] : initialHabits,
+  week: {},
   add: (name) =>
     set((s) => ({
       habits: [

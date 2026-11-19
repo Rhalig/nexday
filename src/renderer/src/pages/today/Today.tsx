@@ -1,125 +1,38 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Icon, type IconName } from '../../components/Icon'
+import { Icon } from '../../components/Icon'
 import { PageHead, Topbar } from '../../components/page'
 import { TaskRow } from '../../components/TaskRow'
-import { Button, Segmented, Toggle, cn } from '../../components/ui'
-import type { Project } from '../../data/tasks'
+import { Segmented, Toggle, cn } from '../../components/ui'
 import { TodayBoard, TodayCalendar } from './TodayViews'
 import type { GhostTask } from '../../components/GhostInput'
 import { QuickCapture } from '../../components/QuickCapture'
 import { parseCapture, toTask } from '../../lib/capture'
 import { useTasks } from '../../store/tasks'
-import { appToday, pageDate, weekdayLong } from '../../lib/clock'
+import { useHabits } from '../../store/habits'
+import { useNotes } from '../../store/notes'
+import { useCalendar } from '../../store/calendar'
+import { useUI } from '../../store/ui'
+import {
+  addDays,
+  appToday,
+  dayKey,
+  pageDate,
+  startOfWeek,
+  weekdayIndex,
+  weekdayLong
+} from '../../lib/clock'
+import {
+  DAY_END,
+  DAY_START,
+  buildToday,
+  clock,
+  fmtMin,
+  inText,
+  layoutLanes
+} from '../../lib/today'
 import './today.css'
 import { greeting, useIdentity } from '../../lib/identity'
-
-type Slot = {
-  w: string
-  card?: {
-    kind: 'health' | 'work' | 'personal' | 'moved' | 'free'
-    title: string
-    hint?: string
-    movedHint?: boolean
-  }
-}
-
-const slots: Slot[] = [
-  { w: '6.25%', card: { kind: 'health', title: 'Run', hint: '07:00' } },
-  { w: '6.25%' },
-  {
-    w: '12.5%',
-    card: { kind: 'moved', title: 'Deep work · Onboarding', hint: '09:00 – 11:00', movedHint: true }
-  },
-  { w: '3.125%' },
-  { w: '6.25%', card: { kind: 'work', title: 'Product sync', hint: '11:30' } },
-  { w: '3.125%' },
-  { w: '12.5%', card: { kind: 'free', title: 'Free · 2h' } },
-  { w: '9.375%', card: { kind: 'work', title: 'Design critique', hint: '15:00 – 16:30' } },
-  { w: '3.125%' },
-  {
-    w: '6.25%',
-    card: { kind: 'moved', title: 'Pitch draft', hint: '17:00 · moved', movedHint: true }
-  },
-  { w: '9.375%' },
-  { w: '6.25%', card: { kind: 'personal', title: 'Book club', hint: '19:30' } }
-]
-
-const legend = [
-  { color: 'var(--acc)', label: 'Focus 3h' },
-  { color: 'var(--work)', label: 'Meetings 2h 30m' },
-  { color: 'var(--health)', label: 'Health 1h' },
-  { color: 'var(--personal)', label: 'Personal 1h' },
-  { color: '#CFCFCC', label: 'Free 2h' }
-]
-
-const hours = [
-  '07',
-  '08',
-  '09',
-  '10',
-  '11',
-  '12',
-  '13',
-  '14',
-  '15',
-  '16',
-  '17',
-  '18',
-  '19',
-  '20',
-  '21',
-  '22'
-]
-
-type PlanTask = { title: string; project: Project; time: string; done?: boolean; hot?: boolean }
-type PlanGroup = {
-  id: string
-  title: string
-  link?: { icon: IconName; label: string }
-  tasks: PlanTask[]
-}
-
-const plan: PlanGroup[] = [
-  {
-    id: 'morning',
-    title: 'Morning',
-    link: { icon: 'target', label: 'Deep work 09:00' },
-    tasks: [
-      { title: 'Finish onboarding flow wireframes', project: 'planner', time: '45m', done: true },
-      { title: 'Clean up user interview notes', project: 'planner', time: '20m', done: true },
-      { title: 'Sketch empty state screens', project: 'planner', time: '30m' }
-    ]
-  },
-  {
-    id: 'afternoon',
-    title: 'Afternoon',
-    link: { icon: 'link', label: 'Design critique 15:00' },
-    tasks: [
-      {
-        title: 'Prepare 3 home screen variations for critique',
-        project: 'planner',
-        time: '14:30',
-        hot: true
-      },
-      { title: 'Send the prototype link to Ece', project: 'planner', time: '5m', done: true }
-    ]
-  },
-  {
-    id: 'anytime',
-    title: 'Anytime',
-    tasks: [
-      { title: 'Get a quote from the moving company', project: 'moving', time: '—', done: true },
-      { title: 'Finish chapter 4 for book club', project: 'reading', time: '18:00' }
-    ]
-  }
-]
-
-const habits: Array<{ name: string; meta: string; cells: Array<'y' | 't' | ''> }> = [
-  { name: 'Morning run', meta: '12-day streak', cells: ['y', 'y', '', '', '', '', ''] },
-  { name: 'Read 20 pages', meta: '5-day streak', cells: ['y', 't', '', '', '', '', ''] },
-  { name: 'Phone-free evening', meta: 'Last week 4/7', cells: ['y', 't', '', '', '', '', ''] }
-]
 
 type View = 'list' | 'board' | 'calendar'
 
@@ -129,6 +42,66 @@ export default function Today(): React.JSX.Element {
   const [energy, setEnergy] = useState(true)
   const [view, setView] = useState<View>('list')
   const [ghostTask, setGhostTask] = useState<GhostTask | null>(null)
+  const openDialog = useUI((s) => s.openDialog)
+
+  // A minute clock, so "Up next" and the free gaps move on their own.
+  const [now, setNow] = useState(() => appToday())
+  useEffect(() => {
+    const id = setInterval(() => setNow(appToday()), 60000)
+    return () => clearInterval(id)
+  }, [])
+
+  // Make sure the calendar store covers today (the Calendar page may have moved it elsewhere).
+  const today = dayKey(now)
+  const range = useCalendar((s) => s.range)
+  useEffect(() => {
+    if (!range || today < range.from || today > range.to)
+      void useCalendar.getState().loadWeek(startOfWeek(appToday()))
+  }, [today, range])
+
+  const calEvents = useCalendar((s) => s.events)
+  const macOn = useCalendar((s) => s.status === 'authorized')
+  const groups = useTasks((s) => s.groups)
+  const done = useTasks((s) => s.doneToday)
+  const habits = useHabits((s) => s.habits)
+  const week = useHabits((s) => s.week)
+  const notes = useNotes((s) => s.notes)
+
+  const data = useMemo(
+    () =>
+      buildToday({
+        // Until Mac Calendar is connected the store holds design sample events: leave those out.
+        events: calEvents.filter((e) => e.date === today && (macOn || e.sourceId)),
+        groups,
+        done,
+        now
+      }),
+    [calEvents, today, macOn, groups, done, now]
+  )
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const nextGap = data.gaps[0]
+  const sub =
+    data.eventCount + data.total === 0
+      ? 'Nothing is planned for today yet.'
+      : `${data.eventCount} ${data.eventCount === 1 ? 'event' : 'events'} and ${data.total} ${data.total === 1 ? 'task' : 'tasks'} today.${
+          nextGap
+            ? ` You have a ${fmtMin(nextGap.end - nextGap.start)} gap ${nextGap.start >= 12 * 60 ? 'this afternoon' : 'this morning'}.`
+            : ''
+        }`
+
+  const monday = startOfWeek(now)
+  const todayIdx = weekdayIndex(now)
+  const cellsFor = (id: string, doneToday: boolean): Array<'y' | 't' | ''> =>
+    Array.from({ length: 7 }, (_, i) => {
+      if (i === todayIdx) return doneToday ? 'y' : 't'
+      if (i > todayIdx) return ''
+      return week[id]?.includes(dayKey(addDays(monday, i))) ? 'y' : ''
+    })
+  const note = notes.find((n) => n.group === 'today') ?? notes[0]
+  const hours = Array.from({ length: (DAY_END - DAY_START) / 60 }, (_, i) =>
+    String(DAY_START / 60 + i).padStart(2, '0')
+  )
+  const doneLabel = `${data.doneCount}/${data.total} done`
 
   return (
     <main className="panel today">
@@ -138,11 +111,11 @@ export default function Today(): React.JSX.Element {
         <PageHead
           date={pageDate()}
           title={`${greeting()}, ${who.first}`}
-          sub="4 events and 7 tasks today. You have a 2-hour gap this afternoon."
+          sub={sub}
           stats={[
-            ['Day score', '72/100'],
-            ['Focus', '2h 40m'],
-            ['Done', '4/7']
+            ['Day score', data.score === null ? '—' : `${data.score}/100`],
+            ['Focus', data.focusMin ? fmtMin(data.focusMin) : '—'],
+            ['Done', `${data.doneCount}/${data.total}`]
           ]}
         />
 
@@ -151,7 +124,7 @@ export default function Today(): React.JSX.Element {
             <div className={cn('tv-head', view === 'calendar' && 'cal')}>
               <h2 className="today-h2">Plan</h2>
               <span className="mono muted" style={{ fontSize: 13 }}>
-                4/7 done
+                {doneLabel}
               </span>
               <Segmented
                 items={[
@@ -164,9 +137,9 @@ export default function Today(): React.JSX.Element {
               />
             </div>
             {view === 'board' ? (
-              <TodayBoard plan={plan} onOpen={() => navigate('/tasks/t2')} />
+              <TodayBoard plan={data.plan} onOpen={(id) => navigate(`/tasks/${id}`)} />
             ) : (
-              <TodayCalendar />
+              <TodayCalendar data={data} nowMin={nowMin} />
             )}
           </>
         )}
@@ -181,7 +154,7 @@ export default function Today(): React.JSX.Element {
                   07:00 – 23:00
                 </span>
                 <div className="legend">
-                  {legend.map((l) => (
+                  {data.legend.map((l) => (
                     <div className="legend-item" key={l.label}>
                       <div className="dot" style={{ background: l.color }} />
                       <span>{l.label}</span>
@@ -198,25 +171,44 @@ export default function Today(): React.JSX.Element {
 
               <div className="strip-box">
                 <div className="strip-cards">
-                  {slots.map((s, i) => (
-                    <div className="dslot" style={{ width: s.w }} key={i}>
-                      {s.card && (
-                        <div className={cn('dcard', s.card.kind)}>
-                          {s.card.kind === 'free' ? (
-                            <span>{s.card.title}</span>
+                  {layoutLanes(data.strip).map(({ item, lane, lanes }) => {
+                    const from = Math.max(item.start, DAY_START)
+                    const to = Math.min(item.end, DAY_END)
+                    if (to <= from) return null
+                    const span = DAY_END - DAY_START
+                    return (
+                      <div
+                        className="dslot"
+                        key={item.key}
+                        style={{
+                          left: `${((from - DAY_START) / span) * 100}%`,
+                          width: `${((to - from) / span) * 100}%`,
+                          top: `${(lane * 100) / lanes}%`,
+                          height: `${100 / lanes}%`
+                        }}
+                      >
+                        <div
+                          className={cn('dcard', item.kind, (lanes > 1 || to - from < 90) && 'tight')}
+                          title={item.hint ? `${item.title} · ${item.hint}` : item.title}
+                        >
+                          {item.kind === 'free' ? (
+                            <span>{item.title}</span>
                           ) : (
                             <>
-                              <span className="dcard-t">{s.card.title}</span>
-                              <span className={cn('dcard-h', s.card.movedHint && 'moved')}>
-                                {s.card.hint}
-                              </span>
+                              <span className="dcard-t">{item.title}</span>
+                              <span className="dcard-h">{item.hint}</span>
                             </>
                           )}
                         </div>
-                      )}
-                    </div>
-                  ))}
-                  <div className="dslot" style={{ flex: 1 }} />
+                      </div>
+                    )
+                  })}
+                  {nowMin >= DAY_START && nowMin <= DAY_END && (
+                    <div
+                      className="strip-now"
+                      style={{ left: `${((nowMin - DAY_START) / (DAY_END - DAY_START)) * 100}%` }}
+                    />
+                  )}
                 </div>
                 <svg
                   width="100%"
@@ -248,19 +240,25 @@ export default function Today(): React.JSX.Element {
                 ))}
               </div>
 
-              <div className="insight">
-                <span style={{ color: '#E2680C', display: 'flex' }}>
-                  <Icon name="bolt" size={18} />
-                </span>
-                <p>
-                  Your energy picks up again between 16:30 and 18:00. I moved Pitch draft to 17:00.
-                  Email fits in the free 2 hours.
-                </p>
-                <div className="row" style={{ gap: 8 }}>
-                  <button className="insight-btn">Undo</button>
-                  <button className="insight-btn dark">Fill the gap</button>
+              {nextGap && (
+                <div className="insight">
+                  <span style={{ color: '#E2680C', display: 'flex' }}>
+                    <Icon name="bolt" size={18} />
+                  </span>
+                  <p>
+                    {`You are free ${clock(nextGap.start)}–${clock(nextGap.end)} (${fmtMin(nextGap.end - nextGap.start)}).`}
+                    {data.noTimeCount > 0 &&
+                      ` ${data.noTimeCount} ${data.noTimeCount === 1 ? 'task has' : 'tasks have'} no time yet.`}
+                  </p>
+                  {data.noTimeCount > 0 && (
+                    <div className="row" style={{ gap: 8 }}>
+                      <button className="insight-btn dark" onClick={() => openDialog('autoSchedule')}>
+                        Fill the gap
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
             </section>
 
             {/* Plan + side */}
@@ -269,7 +267,7 @@ export default function Today(): React.JSX.Element {
                 <div className="plan-head">
                   <h2 className="today-h2">Plan</h2>
                   <span className="mono muted" style={{ fontSize: 13 }}>
-                    4/7 done
+                    {doneLabel}
                   </span>
                   <Segmented
                     items={[
@@ -282,14 +280,22 @@ export default function Today(): React.JSX.Element {
                   />
                 </div>
 
-                {plan.map((g) => (
+                {data.plan.length === 0 && !ghostTask && (
+                  <span className="muted" style={{ fontSize: 13, padding: '14px 0' }}>
+                    No tasks for today. Capture one below or plan from Tasks.
+                  </span>
+                )}
+                {(ghostTask && !data.plan.some((g) => g.id === 'anytime')
+                  ? [...data.plan, { id: 'anytime', title: 'Anytime', link: undefined, tasks: [] }]
+                  : data.plan
+                ).map((g) => (
                   <div key={g.id} className="col">
                     <div className="grp">
                       <span className="grp-t">{g.title}</span>
                       {g.link && (
                         <div className="grp-link">
-                          <Icon name={g.link.icon} size={12} strokeWidth={2} />
-                          <span>{g.link.label}</span>
+                          <Icon name="link" size={12} strokeWidth={2} />
+                          <span>{g.link}</span>
                         </div>
                       )}
                       <div className="grp-line" />
@@ -305,13 +311,14 @@ export default function Today(): React.JSX.Element {
                     )}
                     {g.tasks.map((t) => (
                       <TaskRow
-                        key={t.title}
+                        key={t.id}
                         compact
                         title={t.title}
                         project={t.project}
                         time={t.time}
                         done={t.done}
                         hot={t.hot}
+                        onOpen={t.done ? undefined : () => navigate(`/tasks/${t.id}`)}
                       />
                     ))}
                   </div>
@@ -332,29 +339,24 @@ export default function Today(): React.JSX.Element {
                       }}
                     />
                     <span className="muted" style={{ fontSize: 12 }}>
-                      Up next · in 50 min
+                      {data.upNext ? `Up next · ${inText(data.upNext.inMin)}` : 'Up next'}
                     </span>
                   </div>
-                  <span style={{ fontSize: 20, fontWeight: 500, marginTop: 10 }}>Product sync</span>
-                  <span className="mono muted" style={{ fontSize: 12.5 }}>
-                    11:30–12:30 · Google Meet
-                  </span>
-                  <div className="row" style={{ marginTop: 16, justifyContent: 'space-between' }}>
-                    <div className="row" style={{ paddingLeft: 6 }}>
-                      <div className="av" style={{ background: '#5B6578' }}>
-                        <span>E</span>
-                      </div>
-                      <div className="av" style={{ background: '#E2680C' }}>
-                        <span>M</span>
-                      </div>
-                      <div className="av" style={{ background: '#767676' }}>
-                        <span>+2</span>
-                      </div>
-                    </div>
-                    <Button variant="dark">
-                      <span>Join</span>
-                    </Button>
-                  </div>
+                  {data.upNext ? (
+                    <>
+                      <span style={{ fontSize: 20, fontWeight: 500, marginTop: 10 }}>
+                        {data.upNext.title}
+                      </span>
+                      <span className="mono muted" style={{ fontSize: 12.5 }}>
+                        {data.upNext.meta}
+                        {data.upNext.kind === 'task' ? ' · Task' : ''}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="muted" style={{ fontSize: 14, marginTop: 10 }}>
+                      Nothing else is scheduled today.
+                    </span>
+                  )}
                 </div>
 
                 <div className="col">
@@ -374,16 +376,21 @@ export default function Today(): React.JSX.Element {
                       </span>
                     ))}
                   </div>
+                  {habits.length === 0 && (
+                    <span className="muted" style={{ fontSize: 13, padding: '10px 0' }}>
+                      No habits yet.
+                    </span>
+                  )}
                   {habits.map((h, i) => (
-                    <div className={cn('hab', i === habits.length - 1 && 'last')} key={h.name}>
+                    <div className={cn('hab', i === habits.length - 1 && 'last')} key={h.id}>
                       <div className="col" style={{ flex: 1 }}>
                         <span style={{ fontSize: 13.5 }}>{h.name}</span>
                         <span className="mono muted" style={{ fontSize: 11.5 }}>
-                          {h.meta}
+                          {h.streak > 0 ? `${h.streak}-day streak` : 'No streak yet'}
                         </span>
                       </div>
                       <div className="wk">
-                        {h.cells.map((c, n) => (
+                        {cellsFor(h.id, h.doneToday).map((c, n) => (
                           <div key={n} className={cn('cell', c)} />
                         ))}
                       </div>
@@ -398,13 +405,21 @@ export default function Today(): React.JSX.Element {
                       Open notes
                     </a>
                   </div>
-                  <p style={{ fontSize: 19, lineHeight: 1.4, color: '#2A2A2A' }}>
-                    &quot;Show the variations side by side in critique, not one by one. Save 10 min
-                    for Ece&apos;s feedback.&quot;
-                  </p>
-                  <span className="muted" style={{ marginTop: 10, fontSize: 12 }}>
-                    Yesterday 18:12 · Linked to Design critique
-                  </span>
+                  {note ? (
+                    <>
+                      <p style={{ fontSize: 19, lineHeight: 1.4, color: '#2A2A2A' }}>
+                        {note.summary || note.title}
+                      </p>
+                      <span className="muted" style={{ marginTop: 10, fontSize: 12 }}>
+                        {note.title}
+                        {note.linked ? ` · ${note.linked}` : ` · ${note.edited}`}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="muted" style={{ fontSize: 13 }}>
+                      No notes yet.
+                    </span>
+                  )}
                 </div>
               </aside>
             </div>

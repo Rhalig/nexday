@@ -8,7 +8,7 @@ import { useHabits } from '../store/habits'
 import { useNotes } from '../store/notes'
 import { useCalendar, type PlanEvent } from '../store/calendar'
 import { useProjects, type CustomProject } from '../store/projects'
-import { removalMode, useTasks } from '../store/tasks'
+import { removalMode, useTasks, type DoneTask } from '../store/tasks'
 import {
   DEFAULT_CAL_PREFS,
   DEFAULT_NOTIFS,
@@ -20,7 +20,7 @@ import {
   mergePrefs,
   useUI
 } from '../store/ui'
-import { addDays, appToday, dayKey, daysFromToday, startOfWeek } from './clock'
+import { addDays, appToday, dayKey, daysFromToday, startOfDay, startOfWeek } from './clock'
 import { usePlan } from './plan'
 import { kv } from './persist'
 import { supabase } from './supabase'
@@ -806,7 +806,10 @@ async function loadAll(userId: string): Promise<void> {
     if (mark.error) throw mark.error
   }
 
-  const [tasks, inbox, habits, checks, notifs, noteRows, eventRows] = await Promise.all([
+  const dayStart = startOfDay(appToday())
+  const weekStart = startOfWeek(appToday())
+  const [tasks, inbox, habits, checks, notifs, noteRows, eventRows, doneRows, weekChecks] =
+    await Promise.all([
     sb.from('tasks').select('*').eq('status', 'open').is('deleted_at', null),
     sb
       .from('inbox_items')
@@ -827,9 +830,22 @@ async function loadAll(userId: string): Promise<void> {
       .is('deleted_at', null)
       .order('created_at', { ascending: true }),
     sb.from('notes').select('*').is('deleted_at', null).order('created_at', { ascending: true }),
-    sb.from('events').select('*').is('deleted_at', null).order('starts_at', { ascending: true })
+    sb.from('events').select('*').is('deleted_at', null).order('starts_at', { ascending: true }),
+    sb
+      .from('tasks')
+      .select('*')
+      .eq('status', 'done')
+      .gte('completed_at', dayStart.toISOString())
+      .is('deleted_at', null),
+    sb
+      .from('habit_checkins')
+      .select('habit_id, day')
+      .gte('day', dayKey(weekStart))
+      .lt('day', TODAY())
+      .eq('done', true)
+      .is('deleted_at', null)
   ])
-  for (const r of [tasks, inbox, habits, checks, notifs, noteRows, eventRows])
+  for (const r of [tasks, inbox, habits, checks, notifs, noteRows, eventRows, doneRows, weekChecks])
     if (r.error) throw r.error
 
   const done = new Set((checks.data ?? []).map((c) => String(c.habit_id)))
@@ -843,7 +859,22 @@ async function loadAll(userId: string): Promise<void> {
     }))
 
   // Fill the stores, then record what we just loaded as "already saved" so it is not written back.
-  useTasks.setState({ groups: groupsFromRows(tasks.data ?? []) })
+  const doneToday: DoneTask[] = (doneRows.data ?? []).map((r) => {
+    const t = groupsFromRows([r]).flatMap((g) => g.tasks)[0]
+    return {
+      id: t.id,
+      title: t.title,
+      project: t.project,
+      energy: t.energy,
+      time: t.time,
+      at: String(r.completed_at)
+    }
+  })
+  useTasks.setState({ groups: groupsFromRows(tasks.data ?? []), doneToday })
+  const week: Record<string, string[]> = {}
+  for (const c of weekChecks.data ?? [])
+    (week[String(c.habit_id)] ??= []).push(String(c.day).slice(0, 10))
+  useHabits.setState({ week })
   useInbox.setState({ items: (inbox.data ?? []).map(inboxFromRow) })
   useHabits.setState({
     habits: (habits.data ?? []).map((r) => habitFromRow(r, done.has(String(r.id))))
@@ -944,9 +975,9 @@ export function stopCloud(): void {
   currentUser = null
   projectIds = {}
   for (const k of Object.keys(last)) last[k] = new Map()
-  useTasks.setState({ groups: [] })
+  useTasks.setState({ groups: [], doneToday: [] })
   useInbox.setState({ items: [] })
-  useHabits.setState({ habits: [] })
+  useHabits.setState({ habits: [], week: {} })
   useNotifs.setState({ items: [] })
   useProjects.setState({ custom: [] })
   useNotes.setState({ notes: [] })
