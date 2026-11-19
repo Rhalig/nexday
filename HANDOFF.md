@@ -6,7 +6,7 @@ Mac planner app (Electron + Vite + React + TypeScript). The owner speaks Turkish
 A day planner: Today, Inbox, Calendar, Tasks, Notes, Habits, Projects, Settings, Focus mode, login/onboarding. The UI was built pixel-for-pixel from a Doop design canvas (`TM7q9Gahtd`, reference PNGs in `ref/`). Mac only for now.
 
 ## Where things are
-- Project: `~/nexday` (moved out of iCloud on purpose; iCloud broke `codesign`). Git repository (local, no remote yet).
+- Project: `~/nexday` (moved out of iCloud on purpose; iCloud broke `codesign`). Git repository, pushed to the private GitHub repo `Rhalig/nexday` (remote `origin`, branch `main`).
 - Run: `npm run dev` (Electron). Quick browser preview: `.claude/launch.json` serves `out/renderer` on port 5199 after `./node_modules/.bin/electron-vite build`.
 - Check: `./node_modules/.bin/tsc --noEmit -p tsconfig.web.json --composite false` and the same with `tsconfig.node.json`.
 - Package (Apple Silicon, ad-hoc signed, no Developer ID yet):
@@ -39,7 +39,7 @@ Cloud accounts with Supabase free tier. AI = Gemini free tier (key must live in 
    - Test from a **packaged** app (only registered apps receive `nexday://` links): Forgot password → email → link → app opens on “Set a new password”.
 2. Apply the saved Preferences across the UI (date/time format, density, start page), and implement “Move unfinished tasks” (needs a stored date on tasks; the current groups have none). “Reserve time for habits” is wired into the planner; “Ask before changing the plan” is inherent in the Auto-schedule preview.
 3. Native notifications, launch at login, editable keyboard shortcuts, drag and drop on Calendar/Board, real notes editor (notes can be created and read now, not edited), subtask editing, event rescheduling.
-4. Release: Apple Developer ID + notarization, auto-update, Intel/universal build, crash reporting, privacy policy and terms, git repository, tests (none yet), account deletion flow.
+4. Release: Apple Developer ID + notarization, auto-update, Intel/universal build, crash reporting, privacy policy and terms, tests (none yet), account deletion flow.
 5. Optional: rotate the Google OAuth client secret (it appeared in a chat once), publish the Google app out of Testing.
 
 ## Calendar done
@@ -81,3 +81,9 @@ Cloud accounts with Supabase free tier. AI = Gemini free tier (key must live in 
 - Release guard: `electron.vite.config.ts` refuses a production build without `VITE_SUPABASE_*` (override: `ALLOW_NO_BACKEND=1`); `main.tsx` shows "Nexday can't start" if a packaged app has no backend.
 - Sync durability (`lib/cloud.ts`): a failed write undoes its "saved" mark, retries with growing pauses (5s..60s, also on `online` and the Sync popover's "Sync now"), and writes an unsent-changes journal (`journal:<userId>` via `lib/persist.ts` `kv`) that is re-applied after the next load. A load failure shows a retry screen (`App.tsx`) instead of empty pages.
 - Tested against the real project with a throwaway account (deleted afterwards): offline add → "Sync failed" + journal → Sync now → saved; forced load failure → retry screen → Try again → app loads.
+
+## Today page (live data)
+- `lib/today.ts` (`buildToday`) computes everything Today shows from the tasks, calendar, habits and notes stores; `pages/today/Today.tsx` and `TodayViews.tsx` only render it.
+- `store/tasks.ts` keeps `doneToday` (tasks finished today); `lib/cloud.ts` loads today's done tasks and this week's habit check-ins (`useHabits.week`) at sign-in.
+- Without Mac Calendar access Today shows only Nexday-created events (the design sample week is filtered out); the Calendar page still shows the sample week.
+- Still hard-coded elsewhere: Projects pages, Habits stats/heatmap, Tasks "Planned/goal" figures, Inbox "Free today", sidebar Notes count.
