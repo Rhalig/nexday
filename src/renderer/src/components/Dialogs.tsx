@@ -11,8 +11,8 @@ import { useCalendar } from '../store/calendar'
 import { useUI } from '../store/ui'
 import { useInbox } from '../store/inbox'
 import { usePlan } from '../lib/plan'
-import { planDayLabel, planTasks } from '../lib/planning'
-import { appToday, startOfWeek } from '../lib/clock'
+import { PLAN_HORIZON, planDayLabel, planTasks } from '../lib/planning'
+import { appToday } from '../lib/clock'
 import './dialogs.css'
 import { useIdentity } from '../lib/identity'
 
@@ -136,24 +136,25 @@ export function AutoScheduleDialog(): React.JSX.Element {
   const events = useCalendar((s) => s.events)
   const habits = useHabits((s) => s.habits)
   const open = groups.find((g) => g.id === 'no-time')?.tasks ?? []
-  const todayTasks = groups.find((g) => g.id === 'today')?.tasks ?? []
   const [off, setOff] = useState<Record<string, boolean>>({})
   const [useEnergy, setUseEnergy] = useState(plan.useEnergy)
   const [bufferOn, setBufferOn] = useState(plan.buffer > 0)
 
   // Make sure the plan sees this week's real events, wherever the calendar was left.
   useEffect(() => {
-    void useCalendar.getState().loadWeek(startOfWeek(appToday()))
+    void useCalendar.getState().loadSpan(appToday(), PLAN_HORIZON + 1)
   }, [])
 
   const result = planTasks(
     open,
-    todayTasks,
+    groups,
     events,
     { ...plan, useEnergy, buffer: bufferOn ? plan.buffer : 0 },
     plan.reserveHabits ? habits.map((h) => ({ time: h.time, length: h.length })) : []
   )
   const pending = result.placements
+  const days = new Set(pending.map((p) => p.date)).size
+  const spread = days > 1 ? ` over ${days} days, starting ${planDayLabel(result.date)}` : ` ${planDayLabel(result.date)}`
   const chosen = pending.filter((t) => !off[t.id])
 
   const confirm = (): void => {
@@ -168,7 +169,7 @@ export function AutoScheduleDialog(): React.JSX.Element {
         sub={
           open.length === 0
             ? 'Every open task already has a time.'
-            : `Nexday found ${pending.length} open ${pending.length === 1 ? 'slot' : 'slots'} ${planDayLabel(result.date)}. Nothing is placed until you confirm.`
+            : `Nexday found ${pending.length} open ${pending.length === 1 ? 'slot' : 'slots'}${spread}. Nothing is placed until you confirm.`
         }
         onClose={closeDialog}
       />
@@ -177,7 +178,7 @@ export function AutoScheduleDialog(): React.JSX.Element {
           <div style={{ padding: '24px 0', color: '#6B6B6B' }}>
             {open.length === 0
               ? 'Every open task already has a time.'
-              : `No open slot was long enough ${planDayLabel(result.date)} (${open.length} task${open.length === 1 ? '' : 's'} left).`}
+              : `No open slot was long enough in the next ${PLAN_HORIZON} days (${open.length} task${open.length === 1 ? '' : 's'} left).`}
           </div>
         )}
         {pending.map((t) => {

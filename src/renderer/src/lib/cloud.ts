@@ -20,7 +20,7 @@ import {
   mergePrefs,
   useUI
 } from '../store/ui'
-import { addDays, appToday, dayKey, daysFromToday, startOfDay, startOfWeek } from './clock'
+import { addDays, appToday, dayKey, daysFromToday, startOfDay, startOfWeek, weekdayIndex } from './clock'
 import { usePlan } from './plan'
 import { kv } from './persist'
 import { supabase } from './supabase'
@@ -241,7 +241,16 @@ function schedule(
   let est = estimateHint ?? null
   if (group === 'next-week') {
     const [wd, c] = time.split(' ')
-    day = addDays(addDays(startOfWeek(appToday()), 7), WEEKDAY_INDEX[wd] ?? 0)
+    // The next such weekday from the day after tomorrow on (the planner's horizon is 8 days).
+    const idx = WEEKDAY_INDEX[wd] ?? 0
+    day = addDays(addDays(startOfWeek(appToday()), 7), idx)
+    for (let i = 2; i <= 8; i++) {
+      const d = addDays(appToday(), i)
+      if (weekdayIndex(d) === idx) {
+        day = d
+        break
+      }
+    }
     clock = c ?? '09:00'
   } else {
     day = addDays(appToday(), group === 'tomorrow' ? 1 : 0)
@@ -260,7 +269,7 @@ const energyOut = (e: Energy): string => (e === 'Deep focus' ? 'deep' : 'light')
 const energyIn = (e: string): Energy => (e === 'deep' ? 'Deep focus' : 'Light')
 
 function taskRow(t: Task, group: TaskGroup['id'], estimateHint?: number): Row {
-  const s = schedule(group, t.time, estimateHint)
+  const s = schedule(group, t.time, estimateHint ?? t.estimate)
   return {
     id: t.id,
     title: t.title,
@@ -312,7 +321,8 @@ function groupsFromRows(rows: Row[]): TaskGroup[] {
         title: String(r.title),
         project,
         energy: energyIn(String(r.energy)),
-        time
+        time,
+        ...(est ? { estimate: est } : {})
       },
       est
     })

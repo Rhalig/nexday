@@ -8,6 +8,8 @@ export type Task = {
   energy: Energy
   /** Display string; `null` means no time yet */
   time: string | null
+  /** Estimated length in minutes, when known */
+  estimate?: number
 }
 
 export type TaskGroup = {

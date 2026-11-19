@@ -67,6 +67,8 @@ type CalendarState = {
   connect: () => Promise<void>
   loadWeek: (start: Date) => Promise<void>
   loadMonth: (cursor: Date) => Promise<void>
+  /** Load `days` days starting at `from` (the planner looks several days ahead). */
+  loadSpan: (from: Date, days: number) => Promise<void>
   setDay: (date: string) => Promise<void>
   add: (input: {
     title: string
@@ -370,6 +372,10 @@ export const useCalendar = create<CalendarState>((set, get) => {
       const gridStart = addDays(first, -lead)
       set({ month })
       await loadRange(gridStart, addDays(gridStart, 41))
+    },
+    loadSpan: async (from, days) => {
+      const start = startOfDay(from)
+      await loadRange(start, addDays(start, days - 1))
     },
     setDay: async (date) => {
       set({ day: date })
