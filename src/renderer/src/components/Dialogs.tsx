@@ -11,6 +11,7 @@ import { useCalendar } from '../store/calendar'
 import { useUI } from '../store/ui'
 import { useInbox } from '../store/inbox'
 import { usePlan } from '../lib/plan'
+import { deleteAccount } from '../lib/account'
 import { PLAN_HORIZON, planDayLabel, planTasks } from '../lib/planning'
 import { appToday } from '../lib/clock'
 import './dialogs.css'
@@ -40,7 +41,7 @@ export function Modal({
   )
 }
 
-function Header({
+export function Header({
   title,
   sub,
   onClose,
@@ -121,6 +122,83 @@ export function UpgradeDialog({ resource }: { resource?: string }): React.JSX.El
         >
           See plans
         </Button>
+      </div>
+    </Modal>
+  )
+}
+
+/* ---------------- Delete account ---------------- */
+
+export function DeleteAccountDialog({ onClose }: { onClose: () => void }): React.JSX.Element {
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  useEscape(() => {
+    if (!busy) onClose()
+  })
+  const ready = text.trim() === 'DELETE' && !busy
+
+  const go = async (): Promise<void> => {
+    if (!ready) return
+    setBusy(true)
+    setErr(null)
+    const r = await deleteAccount()
+    // On success the app signs out and leaves this screen by itself.
+    if (r.error) {
+      setErr(r.error)
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal top={170} width={520} onClose={() => (busy ? undefined : onClose())}>
+      <Header
+        title="Delete your account?"
+        sub="This permanently removes your account and everything in it."
+        onClose={() => (busy ? undefined : onClose())}
+      />
+      <div style={{ marginTop: 16, fontSize: 13.5, lineHeight: 1.55, color: '#4A4A4A' }}>
+        Your tasks, notes, habits, events, projects and settings are deleted from our servers. A paid
+        plan is cancelled first. This cannot be undone. Events already added to Mac Calendar stay
+        there.
+      </div>
+      <div className="col" style={{ marginTop: 18, gap: 6 }}>
+        <span style={{ fontSize: 12.5, color: '#6B6B6B' }}>Type DELETE to confirm</span>
+        <input
+          autoFocus
+          value={text}
+          disabled={busy}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') void go()
+          }}
+          placeholder="DELETE"
+          style={{
+            height: 40,
+            border: '1px solid #E0E0DD',
+            borderRadius: 10,
+            padding: '0 12px',
+            font: 'inherit',
+            outline: 'none'
+          }}
+        />
+      </div>
+      {err && <div style={{ marginTop: 12, fontSize: 13, color: '#C2362B' }}>{err}</div>}
+      <div className="dl-foot" style={{ marginTop: 20, paddingTop: 18 }}>
+        <span />
+        <div className="row" style={{ gap: 10 }}>
+          <Button onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => void go()}
+            disabled={!ready}
+            style={ready ? undefined : { opacity: 0.45, cursor: 'default' }}
+          >
+            {busy ? 'Deleting…' : 'Delete account'}
+          </Button>
+        </div>
       </div>
     </Modal>
   )

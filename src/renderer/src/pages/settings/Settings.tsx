@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
-import { Modal } from '../../components/Dialogs'
+import { DeleteAccountDialog, Modal } from '../../components/Dialogs'
 import { cn } from '../../components/ui'
 import { useAuth } from '../../store/auth'
 import { useIdentity, timeZoneName } from '../../lib/identity'
@@ -783,6 +783,7 @@ function Shortcuts(): React.JSX.Element {
 }
 
 function Data(): React.JSX.Element {
+  const [deleting, setDeleting] = useState(false)
   const it = (
     title: string,
     sub: string,
@@ -849,12 +850,17 @@ function Data(): React.JSX.Element {
       {it(
         'Delete account',
         "Permanently removes your account and all data. This can't be undone.",
-        <button className="st-btn s34" style={{ color: '#C2362B', borderColor: '#EBC5C1' }}>
+        <button
+          className="st-btn s34"
+          style={{ color: '#C2362B', borderColor: '#EBC5C1' }}
+          onClick={() => setDeleting(true)}
+        >
           Delete account
         </button>,
         true,
         true
       )}
+      {deleting && <DeleteAccountDialog onClose={() => setDeleting(false)} />}
     </>
   )
 }
