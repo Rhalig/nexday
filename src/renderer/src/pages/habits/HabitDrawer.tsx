@@ -38,19 +38,6 @@ export default function HabitDrawer({
   const today = appToday()
   const month = monthCells(today, habit.doneToday)
   const cadence = habit.sub.split(' · ')[0]
-  const rows: Array<[string, React.ReactNode]> = [
-    [
-      'Time',
-      <span className="hd-mono" key="t">
-        {habit.time}
-      </span>
-    ],
-    ['Length', habit.length],
-    ['Repeat', cadence],
-    ['Calendar', 'Reserved · shows as busy'],
-    ['Reminder', 'At the start'],
-    ['Milestone', '14 days in a row · 2 to go']
-  ]
 
   return (
     <Drawer onClose={onClose}>
@@ -140,20 +127,6 @@ export default function HabitDrawer({
           </span>
         ))}
       </div>
-
-      <div className="hd-h" style={{ paddingTop: 26 }}>
-        Schedule
-      </div>
-      {rows.map(([k, v], i) => (
-        <div
-          className="hd-p"
-          key={k}
-          style={i === rows.length - 1 ? { borderBottom: '1px solid var(--line)' } : undefined}
-        >
-          <span className="k">{k}</span>
-          <span className="v">{v}</span>
-        </div>
-      ))}
 
       <div style={{ flex: 1 }} />
       <div className="row" style={{ gap: 10, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
