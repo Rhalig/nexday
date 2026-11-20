@@ -413,7 +413,7 @@ export function HelpModal(): React.JSX.Element {
   const [kind, setKind] = useState<'Idea' | 'Bug' | 'Question'>('Idea')
   const [text, setText] = useState('')
   const [err, setErr] = useState<string | null>(null)
-  const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle')
+  const [state, setState] = useState<'idle' | 'sending'>('idle')
   useEscape(closePanel)
 
   const send = async (): Promise<void> => {
@@ -433,8 +433,7 @@ export function HelpModal(): React.JSX.Element {
         return
       }
     }
-    setState('sent')
-    setTimeout(closePanel, 1100)
+    closePanel()
   }
 
   const list = articles.filter(([t]) => t.toLowerCase().includes(q.trim().toLowerCase()))
@@ -537,7 +536,7 @@ export function HelpModal(): React.JSX.Element {
           >
             <div>Attach screenshot</div>
             <Button variant="dark" onClick={() => void send()} style={{ justifyContent: 'center' }} disabled={state !== 'idle'}>
-              {state === 'sending' ? 'Sending…' : state === 'sent' ? 'Thanks, sent' : 'Send feedback'}
+              {state === 'sending' ? 'Sending…' : 'Send feedback'}
             </Button>
           </div>
         </div>

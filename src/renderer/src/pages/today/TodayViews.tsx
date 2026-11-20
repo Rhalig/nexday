@@ -1,4 +1,3 @@
-import { useUI } from '../../store/ui'
 import { useRef, useState } from 'react'
 import { useTasks } from '../../store/tasks'
 import { parseCapture, toTask } from '../../lib/capture'
@@ -171,11 +170,6 @@ export function TodayCalendar({
   onPlace: (id: string, startMin: number, len: number) => void
   defaultLen: number
 }): React.JSX.Element {
-  const groups = useTasks((s) => s.groups)
-  const projectOf = (id: string): string => {
-    for (const g of groups) for (const t of g.tasks) if (t.id === id) return t.project
-    return 'planner'
-  }
   const blocks = data.strip.filter((s) => s.kind !== 'free' && s.end > DAY_START && s.start < DAY_END)
   return (
     <div className="tv-cal">
@@ -215,32 +209,8 @@ export function TodayCalendar({
               style={{ top: yOf(g.start), height: (g.end - g.start) * PX - 4, border: '1px dashed #CBCBC8', color: 'var(--ink3)', flexDirection: 'row', gap: 12, padding: '10px 14px', alignItems: 'flex-start', pointerEvents: 'none' }}
             >
               <span style={{ fontSize: 12, fontWeight: 500 }}>Free · {fmtMin(g.end - g.start)}</span>
-              <button
-                style={{ fontSize: 12, fontWeight: 500, color: 'var(--acc-text)', pointerEvents: 'auto' }}
-                onClick={() => useUI.getState().openDialog('autoSchedule')}
-              >
-                Fill the gap
-              </button>
             </div>
           ))}
-          {blocks
-            .filter((b) => b.key.startsWith('t-'))
-            .map((t) => (
-              <div
-                className="tv-ev chip"
-                key={t.key}
-                style={{ top: yOf(Math.max(t.start, DAY_START)) - 2, borderLeftColor: projectColor[projectOf(t.key.slice(2))] }}
-                {...dragProps({ kind: 'task', id: t.key.slice(2), title: t.title, minutes: t.end - t.start })}
-              >
-                <b>
-                  {t.title} · {T(clock(t.start))}
-                </b>
-              </div>
-            ))}
-          <div
-            aria-hidden
-            style={{ position: 'absolute', right: 0, top: yOf(ENERGY_PEAK.start), width: 3, height: (ENERGY_PEAK.end - ENERGY_PEAK.start) * PX, borderRadius: 2, background: 'var(--acc)', opacity: 0.35, pointerEvents: 'none' }}
-          />
           {nowMin >= DAY_START && nowMin <= DAY_END && (
             <div style={{ position: 'absolute', left: 0, right: 0, top: yOf(nowMin), height: 2, background: 'var(--acc)', borderRadius: 1 }}>
               <span style={{ position: 'absolute', left: -4, top: -3, width: 8, height: 8, borderRadius: '50%', background: 'var(--acc)' }} />

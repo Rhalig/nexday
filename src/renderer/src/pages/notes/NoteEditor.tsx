@@ -219,7 +219,14 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
               <span>{note.chip.name}</span>
             </div>
 
-            <div onBlur={flush} style={{ marginTop: 30 }}>
+            <div ref={bar.wrapRef} onBlur={flush} style={{ marginTop: 30, position: 'relative' }}>
+              <div className={cn('fmt-bar tb-float', bar.hidden && 'tb-hide')} style={{ top: bar.top }} onMouseDown={(e) => e.preventDefault()} {...bar.hover}>
+                <FormatButtons api={bodyRef} state={fmt} />
+                <span className="tb-sep" />
+                <span style={{ fontSize: 12.5, color: 'var(--ink3)', padding: '0 6px 0 4px' }}>Type</span>
+                <Kbd mono>/</Kbd>
+                <span style={{ fontSize: 12.5, color: 'var(--ink3)', paddingRight: 4 }}>for commands</span>
+              </div>
               <NoteBody ref={bodyRef} value={initial} onChange={(t) => {
                   bar.bump()
                   onBody(t)
@@ -347,13 +354,6 @@ function Editor({ note }: { note: Note }): React.JSX.Element {
         </div>
       </div>
 
-      <div className={cn('fmt-bar', bar.hidden && 'tb-hide')} onMouseDown={(e) => e.preventDefault()} {...bar.hover}>
-        <FormatButtons api={bodyRef} state={fmt} />
-        <span className="tb-sep" />
-        <span style={{ fontSize: 12.5, color: 'var(--ink3)', padding: '0 6px 0 4px' }}>Type</span>
-        <Kbd mono>/</Kbd>
-        <span style={{ fontSize: 12.5, color: 'var(--ink3)', paddingRight: 4 }}>for commands</span>
-      </div>
     </main>
   )
 }

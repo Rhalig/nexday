@@ -241,7 +241,10 @@ function Preview({ note, onOpen, onDelete }: { note: Note; onOpen: () => void; o
         <span>{note.chip.name}</span>
       </div>
 
-      <div style={{ marginTop: 22 }}>
+      <div ref={bar.wrapRef} style={{ marginTop: 22, position: 'relative' }}>
+        <div className={cn('nb-tools tb-float', bar.hidden && 'tb-hide')} style={{ top: bar.top }} {...bar.hover}>
+          <FormatButtons api={bodyRef} state={fmt} />
+        </div>
         <NoteBody
           ref={bodyRef}
           onFormat={(f) => {
@@ -261,9 +264,6 @@ function Preview({ note, onOpen, onDelete }: { note: Note; onOpen: () => void; o
       </div>
 
       <div className="row" style={{ marginTop: 24, gap: 8 }}>
-        <div className={cn('nb-tools', bar.hidden && 'tb-hide')} style={{ marginTop: 0 }} {...bar.hover}>
-          <FormatButtons api={bodyRef} state={fmt} />
-        </div>
         {open > 0 && (
           <>
             <span style={{ color: '#E2680C', display: 'flex' }}>

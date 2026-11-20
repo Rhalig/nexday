@@ -130,11 +130,24 @@ const eventDrag = (e: KindedEvent): Omit<Dragged, 'offsetY'> => ({
   minutes: Math.round((e.end - e.start) * 60)
 })
 
+/** The hours a grid shows: the usual window, widened to take in any event that falls outside it. */
+function gridSpan(events: KindedEvent[], usualEnd: number): { start: number; end: number } {
+  const timed = events.filter((e) => !e.allDay)
+  const start = timed.length ? Math.min(GRID_START, Math.floor(Math.min(...timed.map((e) => e.start)))) : GRID_START
+  const end = timed.length ? Math.min(24, Math.max(usualEnd, Math.ceil(Math.max(...timed.map((e) => e.end))))) : usualEnd
+  return { start: Math.max(0, start), end }
+}
+
 function WeekView({ onOpen }: { onOpen: (id: string) => void }): React.JSX.Element {
   const events = useCalendar((st) => st.events)
   const weekStart = useCalendar((st) => st.weekStart)
   const days = weekDays(weekStart)
-  const hours = Array.from({ length: 12 }, (_, i) => String(GRID_START + 1 + i).padStart(2, '0'))
+  const span = gridSpan(
+    events.filter((e) => days.some((d) => d.date === e.date)),
+    GRID_START + 12
+  )
+  const gs = span.start
+  const hours = Array.from({ length: span.end - gs }, (_, i) => String((gs + 1 + i) % 24).padStart(2, '0'))
   const px = 52
   return (
     <div className="wgrid">
@@ -181,14 +194,14 @@ function WeekView({ onOpen }: { onOpen: (id: string) => void }): React.JSX.Eleme
             className={cn('wg-col', i >= 5 && 'weekend')}
             key={d.date}
             pxPerHour={px}
-            startHour={GRID_START}
+            startHour={gs}
             accepts={(x) => x.kind === 'event'}
             onDropAt={(x, min) => useCalendar.getState().move(x.id, d.date, min)}
           >
             {d.today && (
               <div
                 className="now-line"
-                style={{ top: Math.round((nowDecimal() - GRID_START) * px) }}
+                style={{ top: Math.round((nowDecimal() - gs) * px) }}
               >
                 <i />
               </div>
@@ -196,7 +209,7 @@ function WeekView({ onOpen }: { onOpen: (id: string) => void }): React.JSX.Eleme
             {events
               .filter((e) => e.date === d.date && !e.allDay)
               .map((e) => (
-                <WeekEvent key={e.id} e={e} px={px} onOpen={onOpen} />
+                <WeekEvent key={e.id} e={e} px={px} gs={gs} onOpen={onOpen} />
               ))}
           </TimelineDrop>
         ))}
@@ -208,17 +221,19 @@ function WeekView({ onOpen }: { onOpen: (id: string) => void }): React.JSX.Eleme
 function WeekEvent({
   e,
   px,
+  gs,
   onOpen
 }: {
   e: KindedEvent
   px: number
+  gs: number
   onOpen: (id: string) => void
 }): React.JSX.Element {
   return (
     <div
       onClick={() => onOpen(e.id)}
       className={cn('ev', eventClass[e.kind])}
-      style={{ top: (e.start - GRID_START) * px, height: (e.end - e.start) * px }}
+      style={{ top: (e.start - gs) * px, height: (e.end - e.start) * px }}
       {...dragProps(eventDrag(e), canDrag(e))}
     >
       <span className="ev-t">{e.title}</span>
@@ -312,7 +327,13 @@ function DayView({
   const events = useCalendar((st) => st.events)
   const groups = useTasks((st) => st.groups)
   const px = 56
-  const hours = Array.from({ length: 13 }, (_, i) => String(GRID_START + i).padStart(2, '0'))
+  const span = gridSpan(
+    events.filter((e) => e.date === date),
+    GRID_START + 13
+  )
+  const gs = span.start
+  const rows = span.end - gs
+  const hours = Array.from({ length: rows }, (_, i) => String((gs + i) % 24).padStart(2, '0'))
   const allDay = events.filter((e) => e.date === date && e.allDay)
   const dayEvents = events
     .filter((e) => e.date === date && !e.allDay)
@@ -341,24 +362,25 @@ function DayView({
         </div>
         <TimelineDrop
           className="dg-col"
+          style={{ height: rows * px }}
           pxPerHour={px}
-          startHour={GRID_START}
+          startHour={gs}
           accepts={(x) => x.kind === 'event'}
           onDropAt={(x, min) => useCalendar.getState().move(x.id, date, min)}
         >
           {isToday && (
-            <div className="now-line" style={{ top: Math.round((nowDecimal() - GRID_START) * px) }}>
+            <div className="now-line" style={{ top: Math.round((nowDecimal() - gs) * px) }}>
               <i />
             </div>
           )}
           {dayEvents.map((e) => (
-            <DayEvent key={e.id} e={e} px={px} onOpen={onOpen} />
+            <DayEvent key={e.id} e={e} px={px} gs={gs} onOpen={onOpen} />
           ))}
           {firstGap && (
             <div
               className="dg-free"
               style={{
-                top: (firstGap.start - GRID_START) * px,
+                top: (firstGap.start - gs) * px,
                 height: (firstGap.end - firstGap.start) * px
               }}
             >
@@ -420,10 +442,12 @@ function DayView({
 function DayEvent({
   e,
   px,
+  gs,
   onOpen
 }: {
   e: KindedEvent
   px: number
+  gs: number
   onOpen: (id: string) => void
 }): React.JSX.Element {
   const small = e.end - e.start <= 0.5
@@ -432,7 +456,7 @@ function DayEvent({
       onClick={() => onOpen(e.id)}
       className={cn('ev', eventClass[e.kind])}
       style={{
-        top: (e.start - GRID_START) * px,
+        top: (e.start - gs) * px,
         height: (e.end - e.start) * px,
         ...(small ? { padding: '4px 10px' } : null)
       }}

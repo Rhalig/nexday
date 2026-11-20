@@ -428,3 +428,13 @@ button.cb18 svg { color: #fff; stroke: #fff; }
 /* The formatting bars are only there while writing, and ease away afterwards */
 .nb-tools, .fmt-bar { transition: opacity 220ms ease, translate 220ms var(--ease-out); }
 .nb-tools.tb-hide, .fmt-bar.tb-hide { opacity: 0; translate: 0 4px; pointer-events: none; }
+
+/* Floating under the line being written; it sits on top of the text below instead of pushing it */
+.nb-tools.tb-float, .fmt-bar.tb-float {
+  position: absolute;
+  left: 0;
+  z-index: 6;
+  margin-top: 0;
+  box-shadow: 0 8px 24px -10px rgba(0, 0, 0, 0.22);
+  transition: opacity 220ms ease, translate 220ms var(--ease-out), top 120ms var(--ease-out);
+}
