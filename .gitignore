@@ -11,3 +11,4 @@ ref/
 supabase/.temp/
 .claude/settings.local.json
 *.tsbuildinfo
+graphify-out/
