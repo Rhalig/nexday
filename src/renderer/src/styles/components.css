@@ -134,6 +134,13 @@
   0%, 40% { opacity: 1; transform: none; max-height: 80px; }
   100% { opacity: 0; transform: translateX(10px); max-height: 0; min-height: 0; border-bottom-width: 0; overflow: hidden; }
 }
+/* With the system's Reduce motion on, the row only fades out */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes task-out { 0%, 40% { opacity: 1; } 100% { opacity: 0; } }
+}
+/* The same exit for the rows on project pages */
+.pj-t.leaving { pointer-events: none; animation: task-out 340ms var(--ease-out) forwards; }
+.pj-t.leaving .n { color: var(--ink3); text-decoration: line-through; text-decoration-color: #bdbdba; }
 .task.clickable {
   cursor: pointer;
 }

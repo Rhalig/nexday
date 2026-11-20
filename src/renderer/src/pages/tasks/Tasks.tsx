@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { dateOfScheduled } from '../../lib/planning'
+import { parseDayKey } from '../../lib/clock'
 import { Topbar, PageHead } from '../../components/page'
 import { QuickCapture } from '../../components/QuickCapture'
 import { TaskRow } from '../../components/TaskRow'
@@ -71,6 +73,9 @@ function applyView(groups: TaskGroup[], v: TaskView): TaskGroup[] {
 
 export default function Tasks(): React.JSX.Element {
   const { id } = useParams()
+  // Month view in Calendar sends a day here: /tasks?day=2026-11-24
+  const [params, setParams] = useSearchParams()
+  const dayFilter = params.get('day')
   const navigate = useNavigate()
   const allGroups = useTasks((s) => s.groups)
   const doneTotals = useTasks((s) => s.doneTotals)
@@ -128,8 +133,17 @@ export default function Tasks(): React.JSX.Element {
     'next-week': 'Next week',
     'no-time': 'No time yet'
   }
-  const groups =
-    dragActive && view.group === 'Day' && filter === 'all'
+  const dayTasks = dayFilter
+    ? allGroups.flatMap((g) => g.tasks.filter((t) => t.time && dateOfScheduled(g.id, t.time) === dayFilter))
+    : null
+  const dayTitle = dayFilter
+    ? parseDayKey(dayFilter).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
+    : ''
+  const groups: TaskGroup[] = dayTasks
+    ? dayTasks.length
+      ? [{ id: 'today', title: dayTitle, meta: String(dayTasks.length), tasks: dayTasks }]
+      : []
+    : dragActive && view.group === 'Day' && filter === 'all'
       ? DAY_GROUPS.map((id) => base.find((g) => g.id === id) ?? { id, title: titles[id], meta: '0', tasks: [] })
       : base
   const total = countOpen(allGroups)
@@ -214,11 +228,20 @@ export default function Tasks(): React.JSX.Element {
 
         <div className="tasks-body">
           <section className="tasks-list">
+            {dayFilter && (
+              <div className="row" style={{ gap: 12, padding: '4px 0 14px', fontSize: 13.5 }}>
+                <span className="muted">Showing {dayTitle}</span>
+                <button style={{ color: 'var(--ink)', fontWeight: 500 }} onClick={() => setParams({})}>
+                  Show all tasks
+                </button>
+              </div>
+            )}
+            {dayFilter && groups.length === 0 && <div className="muted" style={{ fontSize: 14, padding: '8px 0 24px' }}>Nothing is planned for this day yet. Add a task below and say when.</div>}
             {groups.map((g, gi) => (
               <CardDrop
                 key={g.id}
                 className="col drop-zone"
-                accepts={(d) => d.kind === 'task' && DAY_GROUPS.includes(g.id as TaskGroup['id'])}
+                accepts={(d) => !dayFilter && d.kind === 'task' && DAY_GROUPS.includes(g.id as TaskGroup['id'])}
                 onDropCard={(d) => moveToGroup(d.id, g.id as TaskGroup['id'])}
               >
                 <GroupHeader title={g.title} meta={g.meta} />
@@ -238,7 +261,7 @@ export default function Tasks(): React.JSX.Element {
                 ))}
               </CardDrop>
             ))}
-            {doneToday.length > 0 && (
+            {!dayFilter && doneToday.length > 0 && (
               <div className="col">
                 <GroupHeader title="Done" meta={String(doneToday.length)} />
                 {doneToday.map((t, i) => (

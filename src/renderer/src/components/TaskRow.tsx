@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useLeaving } from '../lib/useLeaving'
 import { projects, type Project } from '../data/tasks'
 import { Checkbox, cn, projectColor } from './ui'
 import { T } from '../lib/prefs'
@@ -38,17 +38,9 @@ export function TaskRow({
   drag
 }: Props): React.JSX.Element {
   // Finishing a task: the box ticks, the title strikes through, then the row slides out before it leaves the list.
-  const [leaving, setLeaving] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  useEffect(() => () => clearTimeout(timer.current), [])
-  const toggle = (): void => {
-    if (done || leaving) return onToggle?.()
-    const calm =
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.reduceMotion === 'true'
-    if (calm) return onToggle?.()
-    setLeaving(true)
-    timer.current = setTimeout(() => onToggle?.(), 340)
-  }
+  const exit = useLeaving(onToggle)
+  const leaving = exit.leaving
+  const toggle = (): void => (done ? onToggle?.() : exit.toggle())
   return (
     <div
       className={cn('task', done && 'done', leaving && 'leaving', compact && 'compact', last && 'last', enter && 'enter', onOpen && 'clickable')}

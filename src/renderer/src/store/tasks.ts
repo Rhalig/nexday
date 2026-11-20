@@ -59,8 +59,8 @@ type TasksState = {
   add: (task: Task, group: TaskGroup['id']) => void
   /** Adds many tasks at once (import). */
   addMany: (items: Array<{ task: Task; group: TaskGroup['id'] }>) => void
-  /** Brings a task finished today back to the open list (unticking it). */
-  reopen: (id: string) => void
+  /** Brings a finished task back to the open list (unticking it). A task finished on an earlier day is passed in `from` and returns without a time. */
+  reopen: (id: string, from?: DoneTask) => void
   /** Changes a few fields of an open task (the AI refining a quick capture). */
   patch: (id: string, fields: Partial<Pick<Task, 'title' | 'project' | 'energy' | 'estimate' | 'notes'>>) => void
   /** Replaces a task's checklist. */
@@ -109,12 +109,15 @@ export const useTasks = create<TasksState>((set) => ({
       }
     })
   },
-  reopen: (id) =>
+  reopen: (id, from) =>
     set((s) => {
-      const d = s.doneToday.find((x) => x.id === id)
+      const today = s.doneToday.find((x) => x.id === id)
+      const d = today ?? from
       if (!d) return s
-      const group: TaskGroup['id'] = d.time === null ? 'no-time' : /^\d/.test(d.time) ? 'today' : 'next-week'
-      const task: Task = { id: d.id, title: d.title, project: d.project, energy: d.energy, time: d.time }
+      // Finished earlier than today: its old time is in the past, so it comes back with no time yet.
+      const time = today ? d.time : null
+      const group: TaskGroup['id'] = time === null ? 'no-time' : /^\d/.test(time) ? 'today' : 'next-week'
+      const task: Task = { id: d.id, title: d.title, project: d.project, energy: d.energy, time }
       return {
         doneToday: s.doneToday.filter((x) => x.id !== id),
         doneTotals: { ...s.doneTotals, [d.project]: Math.max(0, (s.doneTotals[d.project] ?? 0) - 1) },

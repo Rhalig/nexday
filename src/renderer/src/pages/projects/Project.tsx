@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { QuickCapture } from '../../components/QuickCapture'
+import { Icon } from '../../components/Icon'
 import { Button, GroupHeader, cn, projectColor } from '../../components/ui'
+import { useLeaving } from '../../lib/useLeaving'
 import { TaskRow } from '../../components/TaskRow'
-import { projects, type Project as ProjectKey, type TaskGroup } from '../../data/tasks'
+import { projects, type Project as ProjectKey, type Task, type TaskGroup } from '../../data/tasks'
 import { useUI } from '../../store/ui'
 import { useProjects } from '../../store/projects'
 import { useTasks, type DoneTask } from '../../store/tasks'
@@ -28,6 +30,28 @@ export default function Project(): React.JSX.Element {
   if (custom)
     return <ProjectView key={custom.slug} slug={custom.slug} name={custom.name} color={custom.color} projectKey={custom.slug} />
   return <Navigate to="/projects/planner-mvp" replace />
+}
+
+/** An open task in a project: ticking it slides it out, then it moves to Done. */
+function OpenRow({ task: t, onOpen, onDone }: { task: Task; onOpen: () => void; onDone: () => void }): React.JSX.Element {
+  const { leaving, toggle } = useLeaving(onDone)
+  return (
+    <div className={cn('pj-t', leaving && 'leaving')} onClick={onOpen}>
+      <button
+        className={cn('pj-cb', leaving && 'on')}
+        aria-label="Complete"
+        onClick={(e) => {
+          e.stopPropagation()
+          toggle()
+        }}
+      >
+        {leaving && <Icon name="check" size={12} strokeWidth={3.2} round />}
+      </button>
+      <span className="n">{t.title}</span>
+      <span className="e">{t.energy}</span>
+      <span className={cn('w', t.time === null && 'hot')}>{t.time ?? 'Find a time'}</span>
+    </div>
+  )
 }
 
 const groupTitle: Record<TaskGroup['id'], string> = {
@@ -67,7 +91,7 @@ function ProjectView({
   const doneList = projectKey
     ? [
         ...doneToday.filter((d) => d.project === projectKey),
-        ...olderDone.filter((d) => !doneToday.some((x) => x.id === d.id))
+        ...olderDone.filter((d) => !doneToday.some((x) => x.id === d.id) && !allGroups.some((g) => g.tasks.some((x) => x.id === d.id)))
       ].sort((a, b) => b.at.localeCompare(a.at))
     : []
 
@@ -161,19 +185,7 @@ function ProjectView({
                   <i>{tasks.length}</i>
                 </div>
                 {tasks.map((t) => (
-                  <div className="pj-t" key={t.id} onClick={() => navigate(`/tasks/${t.id}`)}>
-                    <button
-                      className="pj-cb"
-                      aria-label="Complete"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        remove(t.id)
-                      }}
-                    />
-                    <span className="n">{t.title}</span>
-                    <span className="e">{t.energy}</span>
-                    <span className={cn('w', t.time === null && 'hot')}>{t.time ?? 'Find a time'}</span>
-                  </div>
+                  <OpenRow key={t.id} task={t} onOpen={() => navigate(`/tasks/${t.id}`)} onDone={() => remove(t.id)} />
                 ))}
               </div>
             ))}
@@ -188,9 +200,7 @@ function ProjectView({
                     project={t.project}
                     energy={t.energy}
                     time={t.time ?? '—'}
-                    onToggle={() => {
-                      if (doneToday.some((x) => x.id === t.id)) useTasks.getState().reopen(t.id)
-                    }}
+                    onToggle={() => useTasks.getState().reopen(t.id, t)}
                     last={i === doneList.length - 1}
                   />
                 ))}

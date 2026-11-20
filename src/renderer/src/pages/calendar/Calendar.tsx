@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { Suggestion } from '../../components/GhostInput'
 import { QuickCapture } from '../../components/QuickCapture'
 import { Icon } from '../../components/Icon'
@@ -15,7 +16,6 @@ import {
 import CalendarEmpty from './CalendarEmpty'
 import EventDrawer from './EventDrawer'
 import { useCalendar } from '../../store/calendar'
-import { useTasks } from '../../store/tasks'
 import { useAuth } from '../../store/auth'
 import {
   addDays,
@@ -26,31 +26,27 @@ import {
   parseDayKey,
   sameDay,
   startOfWeek,
-  weekdayLong,
-  weekdayShort
+  weekdayLong
 } from '../../lib/clock'
 import { parseCapture } from '../../lib/capture'
-import { dateOfScheduled } from '../../lib/planning'
 import { T } from '../../lib/prefs'
 import { TimelineDrop, dragProps, type Dragged } from '../../components/dnd'
 import './calendar.css'
 
-type View = 'day' | 'week' | 'month'
+type View = 'week' | 'month'
 
 const views: Array<{ id: View; label: string }> = [
-  { id: 'day', label: 'Day' },
   { id: 'week', label: 'Week' },
   { id: 'month', label: 'Month' }
 ]
 
-const viewName: Record<View, string> = { day: 'Day view', week: 'Week view', month: 'Month view' }
+const viewName: Record<View, string> = { week: 'Week view', month: 'Month view' }
 
 const weekLabel = (start: Date): string => {
   const end = addDays(start, 6)
   const tail = end.getMonth() === start.getMonth() ? '' : `${monthShort(end)} `
   return `${monthShort(start)} ${start.getDate()} – ${tail}${end.getDate()}, ${end.getFullYear()}`
 }
-const dayLabel = (d: Date): string => `${weekdayShort(d)}, ${monthShort(d)} ${d.getDate()}`
 
 function Toolbar({
   view,
@@ -110,14 +106,6 @@ function freeGaps(events: KindedEvent[], from = 8, to = 20): Gap[] {
   if (to - cursor >= 0.5) gaps.push({ start: cursor, end: to })
   return gaps
 }
-
-const gapLen = (g: Gap): string => {
-  const mins = Math.round((g.end - g.start) * 60)
-  return mins >= 60 ? `${Math.floor(mins / 60)}h${mins % 60 ? ` ${mins % 60}m` : ''}` : `${mins}m`
-}
-
-const range = (g: Gap): string =>
-  `${String(Math.floor(g.start)).padStart(2, '0')}:${String(Math.round((g.start % 1) * 60)).padStart(2, '0')} – ${String(Math.floor(g.end)).padStart(2, '0')}:${String(Math.round((g.end % 1) * 60)).padStart(2, '0')}`
 
 /* ---------------- Week ---------------- */
 
@@ -315,161 +303,6 @@ function WeekCapture(): React.JSX.Element {
   )
 }
 
-/* ---------------- Day ---------------- */
-
-function DayView({
-  date,
-  onOpen
-}: {
-  date: string
-  onOpen: (id: string) => void
-}): React.JSX.Element {
-  const events = useCalendar((st) => st.events)
-  const groups = useTasks((st) => st.groups)
-  const px = 56
-  const span = gridSpan(
-    events.filter((e) => e.date === date),
-    GRID_START + 13
-  )
-  const gs = span.start
-  const rows = span.end - gs
-  const hours = Array.from({ length: rows }, (_, i) => String((gs + i) % 24).padStart(2, '0'))
-  const allDay = events.filter((e) => e.date === date && e.allDay)
-  const dayEvents = events
-    .filter((e) => e.date === date && !e.allDay)
-    .sort((a, b) => a.start - b.start)
-  const gaps = freeGaps(dayEvents)
-  const firstGap = gaps[0]
-  const isToday = date === dayKey(appToday())
-  // Tasks sitting on the day being shown, whichever group they live in
-  const planned = groups
-    .flatMap((g) => g.tasks.filter((t) => t.time && dateOfScheduled(g.id, t.time) === date))
-    .sort((a, b) => (a.time?.match(/\d{2}:\d{2}/)?.[0] ?? '').localeCompare(b.time?.match(/\d{2}:\d{2}/)?.[0] ?? ''))
-  const plannedMin = planned.reduce((n, t) => {
-    const m = t.time?.match(/·\s*(?:(\d+)h)?\s?(?:(\d+)m)?/)
-    return n + (m ? Number(m[1] ?? 0) * 60 + Number(m[2] ?? 0) : 0)
-  }, 0)
-  const upNext = dayEvents.filter((e) => !isToday || e.start >= nowDecimal())
-  return (
-    <div className="dview">
-      <div className="dgrid">
-        <div className="dg-hours">
-          {hours.map((h) => (
-            <div className="dg-hr" key={h}>
-              <span>{T(`${h}:00`).replace(':00', '')}</span>
-            </div>
-          ))}
-        </div>
-        <TimelineDrop
-          className="dg-col"
-          style={{ height: rows * px }}
-          pxPerHour={px}
-          startHour={gs}
-          accepts={(x) => x.kind === 'event'}
-          onDropAt={(x, min) => useCalendar.getState().move(x.id, date, min)}
-        >
-          {isToday && (
-            <div className="now-line" style={{ top: Math.round((nowDecimal() - gs) * px) }}>
-              <i />
-            </div>
-          )}
-          {dayEvents.map((e) => (
-            <DayEvent key={e.id} e={e} px={px} gs={gs} onOpen={onOpen} />
-          ))}
-          {firstGap && (
-            <div
-              className="dg-free"
-              style={{
-                top: (firstGap.start - gs) * px,
-                height: (firstGap.end - firstGap.start) * px
-              }}
-            >
-              {range(firstGap)} · {gapLen(firstGap)} free
-            </div>
-          )}
-        </TimelineDrop>
-      </div>
-
-      <div className="dside">
-        {allDay.length > 0 && (
-          <>
-            <div className="rh first">All day</div>
-            {allDay.map((e, i) => (
-              <div className={cn('rl', i === 0 && 'top')} key={e.id} onClick={() => onOpen(e.id)}>
-                <span className="rl-bar" style={{ background: dotColor[e.kind] }} />
-                <span>{e.title}</span>
-              </div>
-            ))}
-          </>
-        )}
-        <div className={cn('rh', allDay.length === 0 && 'first')}>
-          Planned tasks
-          <span style={{ flex: 1 }} />
-          <span className="muted" style={{ fontWeight: 400, fontSize: 12.5 }}>
-            {planned.length}
-            {plannedMin
-              ? ` · ${Math.floor(plannedMin / 60) ? `${Math.floor(plannedMin / 60)}h` : ''}${plannedMin % 60 ? ` ${plannedMin % 60}m` : ''}`
-              : ''}
-          </span>
-        </div>
-        {planned.map((t, i) => (
-          <div className={cn('rl', i === 0 && 'top')} key={t.id}>
-            <button className="rl-box" aria-label="Mark done" onClick={() => useTasks.getState().remove(t.id)} />
-            <span>{t.title}</span>
-            <span className="m">{T(t.time?.match(/\d{2}:\d{2}/)?.[0] ?? '')}</span>
-          </div>
-        ))}
-        <div className="rh">Up next</div>
-        {upNext.map((e, i) => (
-          <div className={cn('rl', i === 0 && 'top')} key={e.id}>
-            <span className="rl-bar" style={{ background: dotColor[e.kind] }} />
-            <span>{e.title}</span>
-            <span className="m">{range({ start: e.start, end: e.end }).split(' – ')[0]}</span>
-          </div>
-        ))}
-        <div className="rh">Free time</div>
-        {gaps.map((g, i) => (
-          <div className={cn('rl', i === 0 && 'top')} key={`${g.start}-${g.end}`}>
-            <span>{range(g)}</span>
-            <span className="m">{gapLen(g)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function DayEvent({
-  e,
-  px,
-  gs,
-  onOpen
-}: {
-  e: KindedEvent
-  px: number
-  gs: number
-  onOpen: (id: string) => void
-}): React.JSX.Element {
-  const small = e.end - e.start <= 0.5
-  return (
-    <div
-      onClick={() => onOpen(e.id)}
-      className={cn('ev', eventClass[e.kind])}
-      style={{
-        top: (e.start - gs) * px,
-        height: (e.end - e.start) * px,
-        ...(small ? { padding: '4px 10px' } : null)
-      }}
-      {...dragProps(eventDrag(e), canDrag(e))}
-    >
-      <span className="ev-t" style={small ? { fontSize: 12.5 } : undefined}>
-        {e.title}
-      </span>
-      {(e.daySub ?? e.sub) && <span className="ev-sub">{T(e.daySub ?? e.sub ?? '')}</span>}
-    </div>
-  )
-}
-
 /* ---------------- Month ---------------- */
 
 function MonthView({
@@ -540,38 +373,15 @@ function PageHeadFor({
   month: Date
 }): React.JSX.Element {
   const name = useAuth((s) => s.name)
-  const groups = useTasks((st) => st.groups)
   const dayDate = parseDayKey(day)
-  const planned = groups.flatMap((g) => g.tasks.filter((t) => t.time && dateOfScheduled(g.id, t.time) === day))
   const isToday = sameDay(dayDate, appToday())
   const dayEvents = events.filter((e) => e.date === day).sort((a, b) => a.start - b.start)
-  const next = dayEvents.find((e) => e.start >= nowDecimal())
   const todayGaps = freeGaps(dayEvents)
-  const booked = dayEvents.reduce((n, e) => n + (e.end - e.start), 0)
-  const free = todayGaps.reduce((n, g) => n + (g.end - g.start), 0)
   const weekCount = events.length
   const focus = events.filter((e) => e.kind === 'acc').reduce((n, e) => n + (e.end - e.start), 0)
   const daysWith = new Set(events.map((e) => e.date)).size
   const h = (n: number): string => `${Math.floor(n)}h${n % 1 >= 0.5 ? ' 30m' : ''}`
 
-  if (view === 'day') {
-    return (
-      <PageHead
-        date={`${weekdayLong(dayDate)}${isToday ? ' · Today' : ''}`}
-        title={`${monthLong(dayDate)} ${dayDate.getDate()}, ${dayDate.getFullYear()}`}
-        sub={`${dayEvents.length} events and ${planned.length} planned tasks.${
-          next
-            ? ` Next up: ${next.title} at ${String(Math.floor(next.start)).padStart(2, '0')}:${String(Math.round((next.start % 1) * 60)).padStart(2, '0')}.`
-            : ''
-        }`}
-        stats={[
-          ['Booked', h(booked)],
-          ['Free', h(free)],
-          ['Events', String(dayEvents.length)]
-        ]}
-      />
-    )
-  }
   if (view === 'month') {
     const monthEvents = events.filter((e) => {
       const d = parseDayKey(e.date)
@@ -613,6 +423,7 @@ export default function Calendar(): React.JSX.Element {
   const weekStart = useCalendar((st) => st.weekStart)
   const day = useCalendar((st) => st.day)
   const month = useCalendar((st) => st.month)
+  const navigate = useNavigate()
   const [view, setView] = useState<View>('week')
   const [connected, setConnected] = useState(true)
   const [openId, setOpenId] = useState<string | null>(null)
@@ -620,31 +431,21 @@ export default function Calendar(): React.JSX.Element {
   useEffect(() => {
     if (view === 'week') void useCalendar.getState().loadWeek(useCalendar.getState().weekStart)
     else if (view === 'month') void useCalendar.getState().loadMonth(useCalendar.getState().month)
-    else void useCalendar.getState().loadWeek(startOfWeek(parseDayKey(useCalendar.getState().day)))
   }, [view])
 
   if (!connected) return <CalendarEmpty onConnect={() => setConnected(true)} />
 
   const weekStartDate = weekStart
-  const dayDate = parseDayKey(day)
-  const title =
-    view === 'week'
-      ? weekLabel(weekStartDate)
-      : view === 'day'
-        ? dayLabel(dayDate)
-        : `${monthLong(month)} ${month.getFullYear()}`
+  const title = view === 'week' ? weekLabel(weekStartDate) : `${monthLong(month)} ${month.getFullYear()}`
 
   const shift = (n: number): void => {
     if (view === 'week') void useCalendar.getState().loadWeek(addDays(weekStartDate, 7 * n))
-    else if (view === 'month')
-      void useCalendar.getState().loadMonth(new Date(month.getFullYear(), month.getMonth() + n, 1))
-    else void useCalendar.getState().setDay(dayKey(addDays(dayDate, n)))
+    else void useCalendar.getState().loadMonth(new Date(month.getFullYear(), month.getMonth() + n, 1))
   }
   const goToday = (): void => {
     const today = appToday()
     if (view === 'week') void useCalendar.getState().loadWeek(startOfWeek(today))
-    else if (view === 'month') void useCalendar.getState().loadMonth(today)
-    else void useCalendar.getState().setDay(dayKey(today))
+    else void useCalendar.getState().loadMonth(today)
   }
 
   const openEvent = events.find((e) => e.id === openId)
@@ -674,15 +475,11 @@ export default function Calendar(): React.JSX.Element {
           onToday={goToday}
         />
         {view === 'week' && <WeekView onOpen={setOpenId} />}
-        {view === 'day' && <DayView date={day} onOpen={setOpenId} />}
         {view === 'month' && (
           <MonthView
             month={month}
             events={events}
-            onOpenDay={(date) => {
-              void useCalendar.getState().setDay(date)
-              setView('day')
-            }}
+            onOpenDay={(date) => navigate(`/tasks?day=${date}`)}
           />
         )}
         {view === 'week' && <WeekCapture />}
