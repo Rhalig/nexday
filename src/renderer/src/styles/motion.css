@@ -216,6 +216,18 @@
 .np-panel {
   transform-origin: top left;
 }
+/* Popovers rendered straight inside the page get the page-in stagger delay (24-72ms) too: they showed
+   fully, then faded in again. They animate once, at once. */
+.panel-scroll > .pv,
+.panel > .pv,
+.panel-scroll > .pm,
+.panel > .pm,
+.panel-scroll > .sp,
+.panel > .sp,
+.panel-scroll > .menu,
+.panel > .menu {
+  animation: pop-in var(--dur-pop) var(--ease-out) 0ms;
+}
 .dialog-scrim,
 .help-scrim {
   animation: scrim-in var(--dur-pop) ease-out;
