@@ -23,7 +23,6 @@ import {
   type TaskView
 } from '../../components/Pickers'
 import type { Task, TaskGroup } from '../../data/tasks'
-import TaskDrawer from './TaskDrawer'
 import { CardDrop } from '../../components/dnd'
 import { TasksEmpty } from './TasksStates'
 import './tasks.css'
@@ -74,6 +73,12 @@ function applyView(groups: TaskGroup[], v: TaskView): TaskGroup[] {
 
 export default function Tasks(): React.JSX.Element {
   const { id } = useParams()
+  useEffect(() => {
+    if (!id) return
+    navigate('/tasks', { replace: true })
+    const t = setTimeout(() => useUI.getState().openTask(id), 60)
+    return () => clearTimeout(t)
+  }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
   // Month view in Calendar sends a day here: /tasks?day=2026-11-24
   const [params, setParams] = useSearchParams()
   const dayFilter = params.get('day')
@@ -174,15 +179,7 @@ export default function Tasks(): React.JSX.Element {
     { id: 'upcoming' as TaskFilter, label: 'Upcoming', count: sizeOf(['tomorrow', 'next-week']) },
     { id: 'none' as TaskFilter, label: 'No time', count: noTime }
   ]
-  const open = id
-    ? allGroups
-        .flatMap((g) => g.tasks.map((t) => ({ task: t, groupId: g.id })))
-        .find((x) => x.task.id === id)
-    : undefined
-  // A task finished from its own drawer stays open there, ticked, until the drawer is closed.
-  const finished = id && !open ? doneToday.find((d) => d.id === id) : undefined
-
-  if (total === 0 && !id && !finished) return <TasksEmpty />
+  if (total === 0 && !id) return <TasksEmpty />
 
   return (
     <main className="panel">
@@ -258,7 +255,7 @@ export default function Tasks(): React.JSX.Element {
                     energy={showEnergy ? t.energy : undefined}
                     time={t.time ?? 'Find a time'}
                     hot={t.time === null}
-                    onOpen={() => navigate(`/tasks/${t.id}`)}
+                    onOpen={() => useUI.getState().openTask(t.id)}
                     onToggle={() => useTasks.getState().remove(t.id)}
                     last={gi === groups.length - 1 && ti === g.tasks.length - 1}
                   />
@@ -383,20 +380,6 @@ export default function Tasks(): React.JSX.Element {
         hint="Nexday reads the day, time and project from plain language."
         onSubmit={captureTask}
       />
-      {(open || finished) && (
-        // One drawer for both states, so ticking only flips the checkbox (no remount, no slide-in again).
-        <TaskDrawer
-          key="task-drawer"
-          done={!open}
-          task={
-            open
-              ? open.task
-              : { id: finished!.id, title: finished!.title, project: finished!.project, energy: finished!.energy, time: finished!.time }
-          }
-          groupId={open ? open.groupId : 'today'}
-          onClose={() => navigate('/tasks')}
-        />
-      )}
     </main>
   )
 }

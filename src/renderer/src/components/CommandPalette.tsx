@@ -237,6 +237,13 @@ export function CommandPalette(): React.JSX.Element {
   const hitOrder = hitGroups.flatMap((g) => shownHits.filter((h) => h.kind === g.kind))
   const searching = q.length > 0
 
+  /** A task opens its drawer where you are; everything else is a page. */
+  const goHit = (to: string): void => {
+    const task = to.match(/^\/tasks\/(.+)$/)
+    if (task) useUI.getState().openTask(task[1])
+    else navigate(to)
+  }
+
   const run = (e: Entry): void => {
     if (e.run.startsWith('new:')) {
       openNew(e.run.slice(4) as NewType)
@@ -271,7 +278,7 @@ export function CommandPalette(): React.JSX.Element {
         const h = hitOrder[active]
         if (h) {
           closePalette()
-          navigate(h.to)
+          goHit(h.to)
         }
         return
       }
@@ -350,7 +357,7 @@ export function CommandPalette(): React.JSX.Element {
                         onMouseMove={() => setActive(idx)}
                         onClick={() => {
                           closePalette()
-                          navigate(h.to)
+                          goHit(h.to)
                         }}
                       >
                         <span className="ic">

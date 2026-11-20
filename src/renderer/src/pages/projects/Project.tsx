@@ -188,7 +188,7 @@ function ProjectView({
                   <i>{tasks.length}</i>
                 </div>
                 {tasks.map((t) => (
-                  <OpenRow key={t.id} fresh={fresh.has(t.id)} task={t} onOpen={() => navigate(`/tasks/${t.id}`)} onDone={() => remove(t.id)} />
+                  <OpenRow key={t.id} fresh={fresh.has(t.id)} task={t} onOpen={() => useUI.getState().openTask(t.id)} onDone={() => remove(t.id)} />
                 ))}
               </div>
             ))}

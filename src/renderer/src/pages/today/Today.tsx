@@ -147,7 +147,7 @@ export default function Today(): React.JSX.Element {
             </div>
             <TodayBoard
               plan={data.plan}
-              onOpen={(id) => navigate(`/tasks/${id}`)}
+              onOpen={(id) => useUI.getState().openTask(id)}
               onMove={(id, start, len) => placeTask(id, toMinutes(start), len)}
               onDone={(id) => useTasks.getState().remove(id)}
             />
@@ -324,7 +324,7 @@ export default function Today(): React.JSX.Element {
                         time={t.time}
                         done={t.done}
                         hot={t.hot}
-                        onOpen={t.done ? undefined : () => navigate(`/tasks/${t.id}`)}
+                        onOpen={t.done ? undefined : () => useUI.getState().openTask(t.id)}
                         onToggle={() => (t.done ? useTasks.getState().reopen(t.id) : useTasks.getState().remove(t.id))}
                       />
                     ))}

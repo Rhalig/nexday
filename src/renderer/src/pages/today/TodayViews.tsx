@@ -30,6 +30,13 @@ const BOARD_COLUMNS: Array<{ id: string; title: string; start: string }> = [
  * Columns by part of the day. Dropping a card on another column moves the task to that part of the
  * day (09:00 / 14:00 / 18:00, keeping its length); dropping it on Done completes it.
  */
+/** "45m" / "1h 30m" → minutes (30 when there is no length) */
+const lenOf = (time: string): number => {
+  const h = time.match(/(\d+)\s*h/)
+  const m = time.match(/(\d+)\s*m/)
+  return (h ? Number(h[1]) * 60 : 0) + (m ? Number(m[1]) : 0) || 30
+}
+
 export function TodayBoard({
   plan,
   onOpen,
@@ -76,7 +83,12 @@ export function TodayBoard({
             accepts={(d) => d.kind === 'task' && !!c.start && groupOf(d.id) !== c.id}
             onDropCard={(d) => {
               const t = plan.flatMap((x) => x.tasks).find((x) => x.id === d.id)
-              if (t && !t.done) onMove(d.id, c.start, t.len ?? 30)
+              if (!t) return
+              if (t.done) {
+                // A finished card dropped on a column comes back to life there, keeping its length
+                useTasks.getState().reopen(d.id)
+                onMove(d.id, c.start, lenOf(t.time))
+              } else onMove(d.id, c.start, t.len ?? 30)
             }}
           >
             <div className="tv-colh">
@@ -133,7 +145,7 @@ export function TodayBoard({
       })}
       <CardDrop
         className="tv-col"
-        accepts={(d) => d.kind === 'task'}
+        accepts={(d) => d.kind === 'task' && !done.some((t) => t.id === d.id)}
         onDropCard={(d) => onDone(d.id)}
       >
         <div className="tv-colh">
@@ -141,7 +153,11 @@ export function TodayBoard({
           <span className="n">{done.length}</span>
         </div>
         {done.map((t) => (
-          <div className="tv-card done" key={t.id}>
+          <div
+            className="tv-card done"
+            key={t.id}
+            {...dragProps({ kind: 'task', id: t.id, title: t.title, minutes: lenOf(t.time) })}
+          >
             <span className="t">{t.title}</span>
             <Meta project={t.project} right={t.doneAt ?? ''} />
           </div>

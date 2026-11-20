@@ -168,6 +168,10 @@ type UIState = {
   closePalette: () => void
   openNew: (type: NewType, title?: string) => void
   closeNew: () => void
+  /** The task whose detail drawer is open, wherever the person is */
+  taskId: string | null
+  openTask: (id: string) => void
+  closeTask: () => void
   openPanel: (p: PanelName) => void
   closePanel: () => void
   openDialog: (name: DialogName, slug?: string) => void
@@ -203,6 +207,9 @@ export const useUI = create<UIState>((set) => ({
   openDialog: (name, slug) =>
     set({ dialog: { name, slug }, palette: false, newType: null, panel: null }),
   closeDialog: () => set({ dialog: null }),
+  taskId: null,
+  openTask: (id) => set({ taskId: id }),
+  closeTask: () => set({ taskId: null }),
   toggle: (key) => set((s) => ({ [key]: !s[key] }) as Partial<UIState>)
 }))
 

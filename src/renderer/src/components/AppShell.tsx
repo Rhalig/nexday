@@ -11,6 +11,7 @@ import {
   ShareDialog,
   TemplatesDialog,
 } from './Dialogs'
+import { TaskDrawerHost } from './TaskDrawerHost'
 import { Sidebar } from './Sidebar'
 import { useUI } from '../store/ui'
 import { useCalendar } from '../store/calendar'
@@ -108,6 +109,7 @@ export function AppShell(): React.JSX.Element {
       <div className="app">
         <Sidebar />
         <Outlet />
+        <TaskDrawerHost />
       </div>
       {palette && <CommandPalette />}
       {newType && <NewPopup type={newType} />}
