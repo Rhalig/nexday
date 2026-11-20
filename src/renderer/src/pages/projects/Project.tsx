@@ -35,14 +35,15 @@ export default function Project(): React.JSX.Element {
 /** An open task in a project: ticking it slides it out, then it moves to Done. */
 function OpenRow({ task: t, onOpen, onDone }: { task: Task; onOpen: () => void; onDone: () => void }): React.JSX.Element {
   const { leaving, toggle } = useLeaving(onDone)
+  const back = useTasks((s) => s.reopened.includes(t.id))
   return (
-    <div className={cn('pj-t', leaving && 'leaving')} onClick={onOpen}>
+    <div className={cn('pj-t', !!leaving && 'leaving', back && 'enter-up')} onClick={onOpen}>
       <button
-        className={cn('pj-cb', leaving && 'on')}
+        className={cn('pj-cb', !!leaving && 'on')}
         aria-label="Complete"
         onClick={(e) => {
           e.stopPropagation()
-          toggle()
+          toggle('done')
         }}
       >
         {leaving && <Icon name="check" size={12} strokeWidth={3.2} round />}
@@ -195,6 +196,7 @@ function ProjectView({
                 {doneList.map((t, i) => (
                   <TaskRow
                     key={t.id}
+                    id={t.id}
                     done
                     title={t.title}
                     project={t.project}

@@ -271,3 +271,23 @@
 .task[draggable='true']:active {
   cursor: grabbing;
 }
+
+/* ---- Unticking: the row slides up (towards the open list) and the open row slides in from above ---- */
+.task.leaving-up { pointer-events: none; animation: task-out-up 340ms var(--ease-out) forwards; }
+@keyframes task-out-up {
+  0%, 40% { opacity: 1; transform: none; max-height: 80px; }
+  100% { opacity: 0; transform: translateY(-10px); max-height: 0; min-height: 0; border-bottom-width: 0; overflow: hidden; }
+}
+.task.enter-up, .pj-t.enter-up { animation: task-in-up 320ms var(--ease-out) backwards; }
+@keyframes task-in-up { from { opacity: 0; transform: translateY(-12px); } }
+/* Rows that keep their place (Today's list) settle when their state flips */
+.task.settle-down { animation: task-settle-down 300ms var(--ease-out); }
+.task.settle-up { animation: task-settle-up 320ms var(--ease-out); }
+@keyframes task-settle-down { from { opacity: 0.5; transform: translateX(10px); } }
+@keyframes task-settle-up { from { opacity: 0.5; transform: translateY(-10px); } }
+@media (prefers-reduced-motion: reduce) {
+  @keyframes task-out-up { 0%, 40% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes task-in-up { from { opacity: 0; } }
+  @keyframes task-settle-down { from { opacity: 0.5; } }
+  @keyframes task-settle-up { from { opacity: 0.5; } }
+}

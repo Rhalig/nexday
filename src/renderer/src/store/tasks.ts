@@ -59,6 +59,8 @@ type TasksState = {
   add: (task: Task, group: TaskGroup['id']) => void
   /** Adds many tasks at once (import). */
   addMany: (items: Array<{ task: Task; group: TaskGroup['id'] }>) => void
+  /** Ids unticked a moment ago: their new rows slide in from above */
+  reopened: string[]
   /** Brings a finished task back to the open list (unticking it). A task finished on an earlier day is passed in `from` and returns without a time. */
   reopen: (id: string, from?: DoneTask) => void
   /** Changes a few fields of an open task (the AI refining a quick capture). */
@@ -76,6 +78,7 @@ type TasksState = {
 export const useTasks = create<TasksState>((set) => ({
   groups: supabase ? [] : taskGroups,
   doneToday: [],
+  reopened: [],
   doneTotals: { planner: 0, moving: 0, reading: 0, personal: 0 },
   add: (task, group) => set((s) => ({ groups: insertTasks(s.groups, [{ task, group }]) })),
   addMany: (items) => set((s) => ({ groups: insertTasks(s.groups, items) })),
@@ -118,7 +121,9 @@ export const useTasks = create<TasksState>((set) => ({
       const time = today ? d.time : null
       const group: TaskGroup['id'] = time === null ? 'no-time' : /^\d/.test(time) ? 'today' : 'next-week'
       const task: Task = { id: d.id, title: d.title, project: d.project, energy: d.energy, time }
+      setTimeout(() => set((x) => ({ reopened: x.reopened.filter((r) => r !== id) })), 700)
       return {
+        reopened: [...s.reopened, id],
         doneToday: s.doneToday.filter((x) => x.id !== id),
         doneTotals: { ...s.doneTotals, [d.project]: Math.max(0, (s.doneTotals[d.project] ?? 0) - 1) },
         groups: insertTasks(s.groups, [{ task, group }])

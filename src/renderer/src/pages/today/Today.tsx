@@ -30,7 +30,8 @@ import {
   clock,
   fmtMin,
   inText,
-  layoutLanes
+  layoutLanes,
+  type PlanGroup
 } from '../../lib/today'
 import './today.css'
 import { greeting, useIdentity } from '../../lib/identity'
@@ -44,6 +45,18 @@ const toMinutes = (hhmm: string): number => {
 }
 
 /** Puts a task on today at the given start, keeping its length. */
+/** The list has three headings: Morning, Afternoon (evening tasks included) and Anytime. */
+function listGroups(plan: PlanGroup[]): PlanGroup[] {
+  const evening = plan.find((g) => g.id === 'evening')
+  if (!evening) return plan
+  const rest = plan.filter((g) => g.id !== 'evening')
+  const afternoon = rest.find((g) => g.id === 'afternoon')
+  if (afternoon) return rest.map((g) => (g === afternoon ? { ...g, tasks: [...g.tasks, ...evening.tasks] } : g))
+  const at = rest.findIndex((g) => g.id === 'anytime')
+  const made: PlanGroup = { id: 'afternoon', title: 'Afternoon', tasks: evening.tasks }
+  return at < 0 ? [...rest, made] : [...rest.slice(0, at), made, ...rest.slice(at)]
+}
+
 function placeTask(id: string, startMin: number, len: number): void {
   const hhmm = `${String(Math.floor(startMin / 60)).padStart(2, '0')}:${String(startMin % 60).padStart(2, '0')}`
   useTasks.getState().move(id, 'today', `${hhmm} · ${fmtMin(len)}`)
@@ -291,19 +304,13 @@ export default function Today(): React.JSX.Element {
                     No tasks for today. Capture one below or plan from Tasks.
                   </span>
                 )}
-                {(ghostTask && !data.plan.some((g) => g.id === 'anytime')
+                {listGroups(ghostTask && !data.plan.some((g) => g.id === 'anytime')
                   ? [...data.plan, { id: 'anytime', title: 'Anytime', link: undefined, tasks: [] }]
                   : data.plan
                 ).map((g) => (
                   <div key={g.id} className="col">
                     <div className="grp">
                       <span className="grp-t">{g.title}</span>
-                      {g.link && (
-                        <div className="grp-link">
-                          <Icon name="link" size={12} strokeWidth={2} />
-                          <span>{T(g.link)}</span>
-                        </div>
-                      )}
                       <div className="grp-line" />
                     </div>
                     {g.id === 'anytime' && ghostTask && (
@@ -318,6 +325,8 @@ export default function Today(): React.JSX.Element {
                     {g.tasks.map((t) => (
                       <TaskRow
                         key={t.id}
+                        id={t.id}
+                        stay
                         compact
                         title={t.title}
                         project={t.project}

@@ -248,6 +248,7 @@ export default function Tasks(): React.JSX.Element {
                 {g.tasks.map((t, ti) => (
                   <TaskRow
                     key={t.id}
+                    id={t.id}
                     drag={{ kind: 'task', id: t.id, title: t.title, minutes: 30 }}
                     title={t.title}
                     project={t.project}
@@ -267,6 +268,7 @@ export default function Tasks(): React.JSX.Element {
                 {doneToday.map((t, i) => (
                   <TaskRow
                     key={t.id}
+                    id={t.id}
                     done
                     title={t.title}
                     project={t.project}
