@@ -291,3 +291,13 @@
   @keyframes task-settle-down { from { opacity: 0.5; } }
   @keyframes task-settle-up { from { opacity: 0.5; } }
 }
+
+/* ---- Something was just added: it rises into its place and its background fades from a warm tint ---- */
+.task.enter, .pj-t.enter, .note.enter, .hb-row.enter, .item.enter { animation: item-in 560ms var(--ease-out) backwards; }
+@keyframes item-in {
+  from { opacity: 0; transform: translateY(26px); background-color: var(--acc-soft); }
+  55% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes item-in { from { opacity: 0; background-color: var(--acc-soft); } }
+}

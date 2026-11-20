@@ -11,6 +11,7 @@ import { projects } from '../../data/tasks'
 import { sourceIcon, useInbox, type InboxItem, type InboxSource } from '../../store/inbox'
 import { daysFromToday, monthShort, pageDate, parseDayKey, weekdayShort } from '../../lib/clock'
 import { aiInboxSuggestion, minutesFrom, splitWhen } from '../../lib/ai'
+import { useNewIds } from '../../lib/useNewIds'
 import { useTodayData } from '../../lib/useToday'
 import { fmtMin } from '../../lib/today'
 import './inbox.css'
@@ -131,6 +132,7 @@ function InboxZero(): React.JSX.Element {
 
 export default function Inbox(): React.JSX.Element {
   const { items, accept, dismiss } = useInbox()
+  const fresh = useNewIds(items.map((i) => i.id))
   const [filter, setFilter] = useState<Filter>('all')
   const { data: today } = useTodayData()
   const freeMin = today.gaps.reduce((n, g) => n + (g.end - g.start), 0)
@@ -194,7 +196,7 @@ export default function Inbox(): React.JSX.Element {
                     }
                     return (
                       <div
-                        className={cn('item', lastOfAll && n === list.length - 1 && 'last')}
+                        className={cn('item', lastOfAll && n === list.length - 1 && 'last', fresh.has(item.id) && 'enter')}
                         key={item.id}
                       >
                         <div className="src">

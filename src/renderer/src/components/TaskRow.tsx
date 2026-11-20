@@ -64,7 +64,7 @@ export function TaskRow({
   const shownDone = exit.leaving === 'undo' ? false : exit.leaving === 'done' ? true : !!done
   return (
     <div
-      className={cn('task', shownDone && 'done', exit.leaving === 'done' && 'leaving', exit.leaving === 'undo' && 'leaving-up', !!settle && `settle-${settle}`, back && !stay && 'enter-up', compact && 'compact', last && 'last', enter && 'enter', onOpen && 'clickable')}
+      className={cn('task', shownDone && 'done', exit.leaving === 'done' && 'leaving', exit.leaving === 'undo' && 'leaving-up', !!settle && `settle-${settle}`, back && !stay && 'enter-up', compact && 'compact', last && 'last', enter && !back && 'enter', onOpen && 'clickable')}
       onClick={onOpen}
       {...(drag ? dragProps(drag) : null)}
     >

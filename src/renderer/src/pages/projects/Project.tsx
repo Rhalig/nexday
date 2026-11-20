@@ -4,6 +4,7 @@ import { QuickCapture } from '../../components/QuickCapture'
 import { Icon } from '../../components/Icon'
 import { Button, GroupHeader, cn, projectColor } from '../../components/ui'
 import { useLeaving } from '../../lib/useLeaving'
+import { useNewIds } from '../../lib/useNewIds'
 import { TaskRow } from '../../components/TaskRow'
 import { projects, type Project as ProjectKey, type Task, type TaskGroup } from '../../data/tasks'
 import { useUI } from '../../store/ui'
@@ -33,11 +34,11 @@ export default function Project(): React.JSX.Element {
 }
 
 /** An open task in a project: ticking it slides it out, then it moves to Done. */
-function OpenRow({ task: t, onOpen, onDone }: { task: Task; onOpen: () => void; onDone: () => void }): React.JSX.Element {
+function OpenRow({ task: t, fresh, onOpen, onDone }: { task: Task; fresh: boolean; onOpen: () => void; onDone: () => void }): React.JSX.Element {
   const { leaving, toggle } = useLeaving(onDone)
   const back = useTasks((s) => s.reopened.includes(t.id))
   return (
-    <div className={cn('pj-t', !!leaving && 'leaving', back && 'enter-up')} onClick={onOpen}>
+    <div className={cn('pj-t', !!leaving && 'leaving', back && 'enter-up', fresh && 'enter')} onClick={onOpen}>
       <button
         className={cn('pj-cb', !!leaving && 'on')}
         aria-label="Complete"
@@ -96,6 +97,7 @@ function ProjectView({
       ].sort((a, b) => b.at.localeCompare(a.at))
     : []
 
+  const fresh = useNewIds(allGroups.flatMap((g) => g.tasks.map((t) => t.id)))
   const groups = projectKey
     ? allGroups
         .map((g) => ({ g, tasks: g.tasks.filter((t) => t.project === projectKey) }))
@@ -186,7 +188,7 @@ function ProjectView({
                   <i>{tasks.length}</i>
                 </div>
                 {tasks.map((t) => (
-                  <OpenRow key={t.id} task={t} onOpen={() => navigate(`/tasks/${t.id}`)} onDone={() => remove(t.id)} />
+                  <OpenRow key={t.id} fresh={fresh.has(t.id)} task={t} onOpen={() => navigate(`/tasks/${t.id}`)} onDone={() => remove(t.id)} />
                 ))}
               </div>
             ))}

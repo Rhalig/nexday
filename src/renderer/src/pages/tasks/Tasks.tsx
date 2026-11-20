@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { dateOfScheduled } from '../../lib/planning'
+import { useNewIds } from '../../lib/useNewIds'
 import { parseDayKey } from '../../lib/clock'
 import { Topbar, PageHead } from '../../components/page'
 import { QuickCapture } from '../../components/QuickCapture'
@@ -78,6 +79,7 @@ export default function Tasks(): React.JSX.Element {
   const dayFilter = params.get('day')
   const navigate = useNavigate()
   const allGroups = useTasks((s) => s.groups)
+  const fresh = useNewIds(allGroups.flatMap((g) => g.tasks.map((t) => t.id)))
   const doneTotals = useTasks((s) => s.doneTotals)
   const doneToday = useTasks((s) => s.doneToday)
   const planning = useUI((st) => st.planning)
@@ -249,6 +251,7 @@ export default function Tasks(): React.JSX.Element {
                   <TaskRow
                     key={t.id}
                     id={t.id}
+                    enter={fresh.has(t.id)}
                     drag={{ kind: 'task', id: t.id, title: t.title, minutes: 30 }}
                     title={t.title}
                     project={t.project}

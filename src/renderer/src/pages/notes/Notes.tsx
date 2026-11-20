@@ -8,6 +8,7 @@ import { Button, GroupHeader, Segmented, cn } from '../../components/ui'
 import { useUI } from '../../store/ui'
 import { useNotes } from '../../store/notes'
 import { pageDate } from '../../lib/clock'
+import { useNewIds } from '../../lib/useNewIds'
 import { useIdleToolbar } from '../../lib/useIdleToolbar'
 import { noteTabs, type Note, type NoteCategory } from '../../data/notes'
 import { actionItems, noteText, openActionCount } from '../../lib/noteText'
@@ -25,6 +26,7 @@ const groups: Array<{ id: Note['group']; title: string }> = [
 export default function Notes(): React.JSX.Element {
   const navigate = useNavigate()
   const notes = useNotes((s) => s.notes)
+  const fresh = useNewIds(notes.map((n) => n.id))
   const [filter, setFilter] = useState<Filter>('all')
   const [selectedId, setSelectedId] = useState('')
   const [ctx, setCtx] = useState<{ x: number; y: number; id: string } | null>(null)
@@ -95,7 +97,7 @@ export default function Notes(): React.JSX.Element {
                     {list.map((n) => (
                       <button
                         key={n.id}
-                        className={cn('note', n.id === selected?.id && 'on')}
+                        className={cn('note', n.id === selected?.id && 'on', fresh.has(n.id) && 'enter')}
                         onClick={() => setSelectedId(n.id)}
                         onDoubleClick={() => navigate(`/notes/${n.id}`)}
                         onContextMenu={(e) => {

@@ -12,6 +12,7 @@ import { habitNumbers, habitStats, milestone, type History, type HabitStats } fr
 import { supabase } from '../../lib/supabase'
 import HabitDrawer from './HabitDrawer'
 import HabitsEmpty from './HabitsEmpty'
+import { useNewIds } from '../../lib/useNewIds'
 import './habits.css'
 
 type Filter = 'all' | HabitGroup
@@ -76,6 +77,7 @@ export default function Habits(): React.JSX.Element {
   const { id } = useParams()
   const navigate = useNavigate()
   const { habits: stored, toggleToday, skipToday, skipped, history } = useHabits()
+  const fresh = useNewIds(stored.map((h) => h.id))
   const now = appToday()
   // With an account, streak / rate / check-ins come from the real check-ins, not the saved snapshot.
   const habits = stored.map((h) => (supabase ? { ...h, ...habitNumbers(h, history, now) } : h))
@@ -157,7 +159,7 @@ export default function Habits(): React.JSX.Element {
 
             {visible.map((h, i) => (
               <div
-                className={cn('hb-row', i === 0 && 'first', i === visible.length - 1 && 'last')}
+                className={cn('hb-row', i === 0 && 'first', i === visible.length - 1 && 'last', fresh.has(h.id) && 'enter')}
                 style={h.paused ? { opacity: 0.55 } : undefined}
                 key={h.id}
                 onClick={() => navigate(`/habits/${h.id}`)}

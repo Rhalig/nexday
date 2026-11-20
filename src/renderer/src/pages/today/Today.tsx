@@ -33,6 +33,7 @@ import {
   layoutLanes,
   type PlanGroup
 } from '../../lib/today'
+import { useNewIds } from '../../lib/useNewIds'
 import './today.css'
 import { greeting, useIdentity } from '../../lib/identity'
 import { T } from '../../lib/prefs'
@@ -82,6 +83,7 @@ export default function Today(): React.JSX.Element {
           .map((g) => ({ ...g, tasks: g.tasks.filter((t) => !t.done) }))
           .filter((g) => g.tasks.length > 0)
       }
+  const fresh = useNewIds(data.plan.flatMap((g) => g.tasks.map((t) => t.id)))
   const storedHabits = useHabits((s) => s.habits)
   const history = useHabits((s) => s.history)
   const habits = storedHabits.filter((h) => !h.paused).map((h) => (supabase ? { ...h, ...habitNumbers(h, history, now) } : h))
@@ -326,6 +328,7 @@ export default function Today(): React.JSX.Element {
                       <TaskRow
                         key={t.id}
                         id={t.id}
+                        enter={fresh.has(t.id)}
                         stay
                         compact
                         title={t.title}
