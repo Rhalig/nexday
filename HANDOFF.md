@@ -6,7 +6,7 @@ Mac planner app (Electron + Vite + React + TypeScript). The owner speaks Turkish
 A day planner: Today, Inbox, Calendar, Tasks, Notes, Habits, Projects, Settings, Focus mode, login/onboarding. The UI was built pixel-for-pixel from a Doop design canvas (`TM7q9Gahtd`, reference PNGs in `ref/`). Mac only for now.
 
 ## Where things are
-- Project: `~/nexday` (moved out of iCloud on purpose; iCloud broke `codesign`). Git repository, pushed to the private GitHub repo `Rhalig/nexday` (remote `origin`, branch `main`).
+- Project: `~/nexday` (moved out of iCloud on purpose; iCloud broke `codesign`). Git repository, pushed to the public GitHub repo `Rhalig/nexday` (remote `origin`, branch `main`).
 - Run: `npm run dev` (Electron). Quick browser preview: `.claude/launch.json` serves `out/renderer` on port 5199 after `./node_modules/.bin/electron-vite build`.
 - Check: `./node_modules/.bin/tsc --noEmit -p tsconfig.web.json --composite false` and the same with `tsconfig.node.json`.
 - Package (Apple Silicon, ad-hoc signed, no Developer ID yet):
