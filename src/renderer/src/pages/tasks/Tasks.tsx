@@ -240,7 +240,7 @@ export default function Tasks(): React.JSX.Element {
             ))}
             {doneToday.length > 0 && (
               <div className="col">
-                <GroupHeader title="Done today" meta={String(doneToday.length)} />
+                <GroupHeader title="Done" meta={String(doneToday.length)} />
                 {doneToday.map((t, i) => (
                   <TaskRow
                     key={t.id}

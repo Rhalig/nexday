@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
-import { Icon } from '../../components/Icon'
 import { QuickCapture } from '../../components/QuickCapture'
-import { Button, cn, projectColor } from '../../components/ui'
+import { Button, GroupHeader, cn, projectColor } from '../../components/ui'
+import { TaskRow } from '../../components/TaskRow'
 import { projects, type Project as ProjectKey, type TaskGroup } from '../../data/tasks'
 import { useUI } from '../../store/ui'
 import { useProjects } from '../../store/projects'
@@ -55,7 +55,6 @@ function ProjectView({
   const remove = useTasks((s) => s.remove)
   const doneToday = useTasks((s) => s.doneToday)
   // Finished tasks stay visible, ticked, under "Done"
-  const [showDone, setShowDone] = useState(true)
   const [olderDone, setOlderDone] = useState<DoneTask[]>([])
   useEffect(() => {
     if (!projectKey) return
@@ -178,28 +177,25 @@ function ProjectView({
                 ))}
               </div>
             ))}
-            <button className="pj-done" onClick={() => setShowDone(!showDone)}>
-              <span style={{ display: 'flex', transform: showDone ? 'rotate(90deg)' : undefined }}>
-                <Icon name="caretRight" size={14} strokeWidth={2} round />
-              </span>
-              Done · {doneCount}
-            </button>
-            {showDone &&
-              doneList.map((t) => (
-                <div className="pj-t done" key={t.id}>
-                  <button
-                    className="pj-cb on"
-                    aria-label="Mark not done"
-                    onClick={() => useTasks.getState().reopen(t.id)}
-                    disabled={!doneToday.some((x) => x.id === t.id)}
-                  >
-                    <Icon name="check" size={12} strokeWidth={3.2} round />
-                  </button>
-                  <span className="n">{t.title}</span>
-                  <span className="e">{t.energy}</span>
-                  <span className="w">{new Date(t.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
-                </div>
-              ))}
+            {doneList.length > 0 && (
+              <div className="col">
+                <GroupHeader title="Done" meta={String(doneCount || doneList.length)} />
+                {doneList.map((t, i) => (
+                  <TaskRow
+                    key={t.id}
+                    done
+                    title={t.title}
+                    project={t.project}
+                    energy={t.energy}
+                    time={t.time ?? '—'}
+                    onToggle={() => {
+                      if (doneToday.some((x) => x.id === t.id)) useTasks.getState().reopen(t.id)
+                    }}
+                    last={i === doneList.length - 1}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="pj-side">
