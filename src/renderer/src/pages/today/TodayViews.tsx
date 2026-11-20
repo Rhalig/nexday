@@ -170,6 +170,12 @@ export function TodayCalendar({
   onPlace: (id: string, startMin: number, len: number) => void
   defaultLen: number
 }): React.JSX.Element {
+  // Tasks with a time sit on the timeline too, coloured by their project
+  const groups = useTasks((s) => s.groups)
+  const projectOf = (id: string): string => {
+    for (const g of groups) for (const t of g.tasks) if (t.id === id) return t.project
+    return 'planner'
+  }
   const blocks = data.strip.filter((s) => s.kind !== 'free' && s.end > DAY_START && s.start < DAY_END)
   return (
     <div className="tv-cal">
@@ -202,7 +208,7 @@ export function TodayCalendar({
                 <i>{T(e.hint)}</i>
               </div>
             ))}
-          {data.eventGaps.map((g) => (
+          {data.gaps.map((g) => (
             <div
               className="tv-ev"
               key={`g${g.start}`}
@@ -211,6 +217,20 @@ export function TodayCalendar({
               <span style={{ fontSize: 12, fontWeight: 500 }}>Free · {fmtMin(g.end - g.start)}</span>
             </div>
           ))}
+          {blocks
+            .filter((b) => b.key.startsWith('t-'))
+            .map((t) => (
+              <div
+                className="tv-ev chip"
+                key={t.key}
+                style={{ top: yOf(Math.max(t.start, DAY_START)) - 2, borderLeftColor: projectColor[projectOf(t.key.slice(2))] }}
+                {...dragProps({ kind: 'task', id: t.key.slice(2), title: t.title, minutes: t.end - t.start })}
+              >
+                <b>
+                  {t.title} · {T(clock(t.start))}
+                </b>
+              </div>
+            ))}
           {nowMin >= DAY_START && nowMin <= DAY_END && (
             <div style={{ position: 'absolute', left: 0, right: 0, top: yOf(nowMin), height: 2, background: 'var(--acc)', borderRadius: 1 }}>
               <span style={{ position: 'absolute', left: -4, top: -3, width: 8, height: 8, borderRadius: '50%', background: 'var(--acc)' }} />
