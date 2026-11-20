@@ -4,7 +4,7 @@ import { Icon } from '../../components/Icon'
 import { PageHead, Topbar } from '../../components/page'
 import { TaskRow } from '../../components/TaskRow'
 import { Segmented, Toggle, cn } from '../../components/ui'
-import { TodayBoard, TodayCalendar } from './TodayViews'
+import { TodayBoard } from './TodayViews'
 import type { GhostTask } from '../../components/GhostInput'
 import { QuickCapture } from '../../components/QuickCapture'
 import { captureTask } from '../../lib/quickTask'
@@ -38,7 +38,7 @@ import './today.css'
 import { greeting, useIdentity } from '../../lib/identity'
 import { T } from '../../lib/prefs'
 
-type View = 'list' | 'board' | 'calendar'
+type View = 'list' | 'board'
 
 const toMinutes = (hhmm: string): number => {
   const [h, m] = hhmm.split(':').map(Number)
@@ -72,7 +72,6 @@ export default function Today(): React.JSX.Element {
   const openDialog = useUI((s) => s.openDialog)
 
   const { data: raw, now } = useTodayData()
-  const defaultLen = useUI((s) => s.planning.defaultLength)
   const showCompleted = useUI((s) => s.prefs.showCompleted)
   // "Show completed tasks" off: finished tasks leave the plan, the counts still include them.
   const data = showCompleted
@@ -132,7 +131,7 @@ export default function Today(): React.JSX.Element {
 
         {view !== 'list' && (
           <>
-            <div className={cn('tv-head', view === 'calendar' && 'cal')}>
+            <div className="tv-head">
               <h2 className="today-h2">Plan</h2>
               <span className="mono muted" style={{ fontSize: 13 }}>
                 {doneLabel}
@@ -140,28 +139,18 @@ export default function Today(): React.JSX.Element {
               <Segmented
                 items={[
                   { id: 'list', label: 'List' },
-                  { id: 'board', label: 'Board' },
-                  { id: 'calendar', label: 'Calendar' }
+                  { id: 'board', label: 'Board' }
                 ]}
                 value={view}
                 onChange={setView}
               />
             </div>
-            {view === 'board' ? (
-              <TodayBoard
-                plan={data.plan}
-                onOpen={(id) => navigate(`/tasks/${id}`)}
-                onMove={(id, start, len) => placeTask(id, toMinutes(start), len)}
-                onDone={(id) => useTasks.getState().remove(id)}
-              />
-            ) : (
-              <TodayCalendar
-                data={data}
-                nowMin={nowMin}
-                onPlace={placeTask}
-                defaultLen={defaultLen}
-              />
-            )}
+            <TodayBoard
+              plan={data.plan}
+              onOpen={(id) => navigate(`/tasks/${id}`)}
+              onMove={(id, start, len) => placeTask(id, toMinutes(start), len)}
+              onDone={(id) => useTasks.getState().remove(id)}
+            />
           </>
         )}
 
@@ -293,8 +282,7 @@ export default function Today(): React.JSX.Element {
                   <Segmented
                     items={[
                       { id: 'list', label: 'List' },
-                      { id: 'board', label: 'Board' },
-                      { id: 'calendar', label: 'Calendar' }
+                      { id: 'board', label: 'Board' }
                     ]}
                     value={view}
                     onChange={setView}
